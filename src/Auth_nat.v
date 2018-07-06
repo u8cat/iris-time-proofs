@@ -10,9 +10,9 @@ Section Auth_nat.
   Context `{inG Σ (authR natUR)}.
 
   Lemma auth_nat_alloc (n : nat) :
-    (|==> ∃ γ, own γ (● n) ∗ own γ (◯ n))%I.
+    (|==> ∃ γ, own γ (●nat n) ∗ own γ (◯nat n))%I.
   Proof.
-    by iMod (own_alloc (● n ⋅ ◯ n)) as (γ) "[? ?]" ; auto with iFrame.
+    by iMod (own_alloc (●nat n ⋅ ◯nat n)) as (γ) "[? ?]" ; auto with iFrame.
   Qed.
 
   Lemma own_auth_nat_le (γ : gname) (m n : nat) :
@@ -23,6 +23,16 @@ Section Auth_nat.
     iIntros "H● H◯".
     by iDestruct (own_valid_2 with "H● H◯")
       as % [?%nat_le_sum _] % auth_valid_discrete_2.
+  Qed.
+
+  Lemma own_auth_nat_weaken (γ : gname) (n₁ n₂ : nat) :
+    (n₂ ≤ n₁)%nat →
+    own γ (◯nat n₁) -∗
+    own γ (◯nat n₂).
+  Proof.
+    iIntros (I) "H".
+    rewrite (_ : n₁ = (n₁ - n₂) + n₂)%nat ; last lia.
+    iDestruct "H" as "[_$]".
   Qed.
 
   Lemma own_auth_nat_null (γ : gname) (m : nat) :
@@ -51,16 +61,6 @@ Section Auth_nat.
     iDestruct (own_auth_nat_le with "H● H◯") as %J.
     iMod (own_update_2 with "H● H◯") as "[$ $]" ; last done.
     apply auth_update, nat_local_update. lia.
-  Qed.
-
-  Lemma own_auth_nat_weaken (γ : gname) (n₁ n₂ : nat) :
-    (n₁ ≥ n₂)%nat →
-    own γ (◯nat n₁) -∗
-    own γ (◯nat n₂).
-  Proof.
-    iIntros (I) "H".
-    rewrite (_ : n₁ = (n₁ - n₂) + n₂)%nat ; last lia.
-    iDestruct "H" as "[_$]".
   Qed.
 
 End Auth_nat.

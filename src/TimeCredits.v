@@ -78,6 +78,10 @@ Section TickSpec.
   Lemma TC_succ n :
     TC (S n) ≡ (TC 1%nat ∗ TC n)%I.
   Proof. by rewrite (eq_refl : S n = 1 + n)%nat TC_plus. Qed.
+  Lemma TC_weaken (n₁ n₂ : nat) :
+    (n₂ ≤ n₁)%nat →
+    TC n₁ -∗ TC n₂.
+  Proof. apply own_auth_nat_weaken. Qed.
 
   Lemma TC_timeless n :
     Timeless (TC n).
@@ -97,6 +101,15 @@ Section TickSpec.
 
   Definition TICKCTXT : iProp Σ :=
     inv timeCreditN (∃ (m:nat), ℓ ↦ #m ∗ own γ (●nat m))%I.
+
+  Lemma zero_TC :
+    TICKCTXT ={⊤}=∗ TC 0.
+  Proof.
+    iIntros "#Htickinv".
+    iInv timeCreditN as (m) ">[Hcounter H●]" "Hclose".
+    iDestruct (own_auth_nat_null with "H●") as "[H● $]".
+    iApply "Hclose" ; eauto with iFrame.
+  Qed.
 
   Theorem tick_spec s E e v :
     ↑timeCreditN ⊆ E →

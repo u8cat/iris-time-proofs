@@ -26,7 +26,6 @@ taken from [here][coqproject]).
  *  `TimeCredits`: implementation of time credits
  *  `TimeReceipts`: implementation of time receipts
  *  `Examples`: a (too) simple example illustrating the use of time credits
- *  `LibThunk`: implementation of timed thunks using time credits [WIP, does not
-    compile for now]
+ *  `Thunks`: implementation of timed thunks using time credits
  *  `test`: an alternative proof of the main theorem of time credits, that does
     not rely on the unsafe behaviour of `tick` [to be merged into `TimeCredits`]
