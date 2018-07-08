@@ -26,6 +26,7 @@ Implicit Type m n : nat.
  *   pentagons: ⬟ ⬠
  *   hexagons: ⬢ ⬡
  *   shogi pieces: ☗ ☖
+ *   sandglasses: ⧗ ⧖
  *   other: ⮝ ⮙ ⯊ ⯎
  *)
 
@@ -260,7 +261,91 @@ Notation "« t »" := (trtranslation <$> t%E) (only printing).
 
 Section Soundness.
 
-  (* TODO *)
+  Lemma adequate_trtranslation__adequate m (φ : val → Prop) e σ :
+    is_closed [] e →
+    (∀ `{timeReceiptLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+    adequate_n NotStuck m e σ φ.
+  Proof.
+    intros.
+    apply (adequate_translation__adequate (λ ℓ1, @tock {| timeReceiptLoc_loc := ℓ1 |})).
+    - intro ℓ1.
+      rewrite (_ : ℓ1 = @timeReceiptLoc_loc {| timeReceiptLoc_loc := ℓ1 |}) ; last done.
+      apply exec_tick_success.
+    - done.
+    - intro ℓ1.
+      rewrite (_ : ℓ1 = @timeReceiptLoc_loc {| timeReceiptLoc_loc := ℓ1 |}) ; last done.
+      done.
+  Qed.
+
+  (* derive the adequacy of the translated program from a Hoare triple in Iris. *)
+
+  Lemma auth_mnat_alloc `{inG Σ (authR mnatUR)} (n : mnat) :
+    (|==> ∃ γ, own γ (●mnat n) ∗ own γ (◯mnat n))%I.
+  Proof.
+    by iMod (own_alloc (●mnat n ⋅ ◯mnat n)) as (γ) "[? ?]" ; auto with iFrame.
+  Qed.
+  Global Arguments auth_mnat_alloc {_ _} n%nat.
+
+  Lemma spec_trtranslation__adequate_translation {Σ} (nmax : nat) (ψ : val → Prop) e :
+    (0 < nmax)%nat →
+    (∀ `{!timeReceiptHeapG Σ},
+      TOCKCTXT nmax -∗
+      {{{ True }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
+    ) →
+    ∀ `{!timeReceiptHeapPreG Σ} `{!timeReceiptLoc} σ, adequate NotStuck «e» S«σ,nmax-1» ψ.
+  Proof.
+    intros Inmax Hspec HpreG Hloc σ.
+    (* apply the adequacy results. *)
+    apply (wp_adequacy _ _) ; simpl ; intros HinvG.
+    (* … now we have to prove a WP. *)
+    set σ' := S«σ».
+    (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
+    iMod (own_alloc (● to_gen_heap (<[ℓ := #(nmax-1)%nat]> σ') ⋅ ◯ to_gen_heap {[ℓ := #(nmax-1)%nat]}))
+      as (h) "[Hh● Hℓ◯]".
+    {
+      apply auth_valid_discrete_2 ; split.
+      - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
+        unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
+        exists (to_gen_heap σ'').
+        rewrite (@gmap.insert_singleton_op _ _ _ _ (to_gen_heap σ'')) //.
+        rewrite lookup_fmap ; apply fmap_None, lookup_delete.
+      - apply to_gen_heap_valid.
+    }
+    (* allocate the ghost state associated with ℓ: *)
+    iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
+    iMod (auth_mnat_alloc 0) as (γ2) "[Hγ2● _]".
+    (* packing all those bits, build the heap instance necessary to use time credits: *)
+    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ _ γ1 γ2)
+      as HtrHeapG.
+    (* create the invariant: *)
+    iAssert (|={⊤}=> TOCKCTXT nmax)%I with "[Hℓ◯ Hγ1● Hγ2●]" as "> Hinv".
+    {
+      iApply inv_alloc.
+      iExists 0%nat. rewrite (_ : nmax - 0 - 1 = Z.of_nat (nmax - 1)) ; last lia.
+      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl.
+      unfold to_gen_heap ; rewrite fmap_insert fmap_empty insert_empty.
+      by iFrame.
+    }
+    iModIntro.
+    (* finally, use the user-given specification: *)
+    iExists gen_heap_ctx. iFrame "Hh●".
+    iApply (Hspec with "Hinv") ; auto.
+  Qed.
+
+  Lemma spec_trtranslation__adequate {Σ} (nmax : nat) (φ : val → Prop) e :
+    (0 < nmax)%nat →
+    is_closed [] e →
+    (∀ `{!timeReceiptHeapG Σ},
+      TOCKCTXT nmax -∗
+      {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
+    ) →
+    ∀ `{!timeReceiptHeapPreG Σ} σ,
+      adequate_n NotStuck (nmax-1) e σ φ.
+  Proof.
+    intros Inmax Hclosed Hspec HpreG σ.
+    eapply adequate_trtranslation__adequate ; first done.
+    intros Hloc. by eapply spec_trtranslation__adequate_translation.
+  Qed.
 
 End Soundness.
 
