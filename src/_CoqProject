@@ -5,9 +5,9 @@ Examples.v
 Misc.v
 Reduction.v
 Tactics.v
-test.v
 Simulation.v
 Thunks.v
 TimeCredits.v
+TimeCreditsAltProofs.v
 TimeReceipts.v
 Translation.v

@@ -477,7 +477,7 @@ Section Simulation.
   Qed.
 
   (* assuming the safety of the translated expression,
-   * a proof that the original expression is safe. *)
+   * a proof that the original expression is m-safe. *)
 
   Lemma safe_translation__safe_here m e σ :
     is_closed [] e →
@@ -510,7 +510,7 @@ Section Simulation.
         (* remind that « ki[v] » = «ki»[tick «v»]: *)
         rewrite -> translation_fill_item_active in Hsafe ; last done.
         (* we have that «ki»[tick «v»] reduces to «ki»[«v»]
-         * (thanks to the safety hypothesis, m ≥ 1 and ‘tick’ can be run): *)
+         * (m ≥ 1 so ‘tick’ can be run): *)
         assert (
           prim_exec (fill_item Ki«ki» (tick V«v»)) S«σ, m»
                     (fill_item Ki«ki» V«v»)        S«σ, m-1» []
@@ -558,7 +558,7 @@ Section Simulation.
   Qed.
 
   (* assuming the adequacy of the translated expression,
-   * a proof that the original expression has adequate results. *)
+   * a proof that the original expression has m-adequate results. *)
 
 From iris.program_logic Require Import adequacy.
 

@@ -432,6 +432,8 @@ End Simulation.
 
 Section Soundness.
 
+  (* See also `TimeCreditsAltProofs.v` *)
+
   (* assuming the safety of the translated expression,
    * a proof that the computation time of the original expression is bounded. *)
 
@@ -454,194 +456,20 @@ Section Soundness.
     by eapply simulation_exec_failure.
   Qed.
 
-  (* assuming the safety of the translated expression,
-   * a proof that the original expression is safe. *)
-
-(*
-  Lemma safe_tctranslation__safe_here `{timeCreditLoc} m e σ :
-    is_closed [] e →
-    loc_fresh_in_expr ℓ e →
-    safe «e» S«σ, m» →
-    is_Some (to_val e) ∨ reducible e σ.
-  Proof.
-    intros Hclosed Hfresh Hsafe.
-    (* case analysis on whether e is a value… *)
-    destruct (to_val e) as [ v | ] eqn:Hnotval.
-    (* — if e is a value, then we get the result immediately: *)
-    - left. eauto.
-    (* — if e is not a value, then we show that it is reducible: *)
-    - right.
-      (* we decompose e into a maximal evaluation context K and a head-redex: *)
-      pose proof (not_val_fill_active_item _ Hclosed Hnotval) as He ; clear Hclosed Hnotval.
-      destruct He as [ (K & e1 & ->) | (K & ki & v & -> & Hactive) ].
-      (* — either e = K[Fork e1]: *)
-      + (* then we easily derive a reduction from e: *)
-        eexists _, _, _. apply Ectx_step', ForkS.
-      (* — or e = K[ki[v]] where ki is an active item: *)
-      + (* it is enough to show that ki[v] is reducible: *)
-        apply loc_fresh_in_expr_fill_inv in Hfresh ;
-        rewrite -> translation_fill in Hsafe ; apply safe_fill_inv in Hsafe ;
-        apply reducible_fill ;
-        clear K.
-        (* we deduce the reducibility of ki[v] from that of «ki»[«v»]: *)
-        eapply active_item_translation_reducible ; [ done | done | ].
-        (* remind that « ki[v] » = «ki»[tick «v»]: *)
-        rewrite -> translation_fill_item_active in Hsafe ; last done.
-        (* we have that «ki»[tick «v»] reduces to «ki»[«v»]
-         * (thanks to the safety hypothesis, m ≥ 1 and ‘tick’ can be run): *)
-        assert (
-          prim_exec (fill_item Ki«ki» (tick V«v»)) S«σ, m»
-                    (fill_item Ki«ki» V«v»)        S«σ, m-1» []
-        ) as Hsteps % prim_exec_exec.
-        {
-          assert (fill [Ki«ki»] = fill_item Ki«ki») as E by reflexivity ; destruct E.
-          apply prim_exec_fill. apply safe_fill_inv in Hsafe.
-          destruct m as [ | m ] ; first (exfalso ; eapply not_safe_tick, Hsafe).
-          replace (S m - 1)%nat with m by lia.
-          apply exec_tick_success.
-        }
-        (* using the safety of «ki»[tick «v»], we proceed by case analysis… *)
-        eapply Hsafe in Hsteps as [ Hisval | Hred ] ; auto using elem_of_list_here.
-        (* — either «ki»[«v»] is a value: this is not possible because ki is active. *)
-        * simpl in Hisval. rewrite active_item_not_val in Hisval ;
-          [ by apply is_Some_None in Hisval | by apply is_active_translationKi ].
-        (* — or «ki»[«v»] reduces to something: this is precisely what we need. *)
-        * exact Hred.
-  Qed.
-  Lemma safe_tctranslation__safe `{timeCreditLoc} m e σ t2 σ2 e2 :
-    is_closed [] e →
-    loc_fresh_in_expr ℓ e2 →
-    σ2 !! ℓ = None →
-    safe «e» S«σ, m» →
-    rtc step ([e], σ) (t2, σ2) →
-    e2 ∈ t2 →
-    is_Some (to_val e2) ∨ reducible e2 σ2.
-  Proof.
-    intros Hclosed Hℓe Hℓσ Hsafe [n Hnsteps] % rtc_nsteps He2.
-    assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
-    assert (safe «e2» S«σ2, m-n») as Hsafe2.
-    {
-      eapply safe_exec.
-      - eapply elem_of_list_fmap_1. eassumption.
-      - eassumption.
-      - change [«e»] with T«[e]». apply simulation_exec_success' ; auto.
-    }
-    assert (is_closed [] e2) as Hclosede2.
-    {
-      assert (Forall (is_closed []) t2) as Hclosedt2
-        by eauto using nsteps_rtc, is_closed_exec.
-      by eapply Forall_forall in Hclosedt2 ; last exact He2.
-    }
-    by eapply safe_tctranslation__safe_here.
-  Qed.
-
-  (* assuming the adequacy of the translated expression,
-   * a proof that the original expression has adequate results. *)
-
-  Lemma adequate_tctranslation__adequate_result `{timeCreditLoc} m (φ : val → Prop) e σ t2 σ2 v2 :
-    is_closed [] e →
-    σ2 !! ℓ = None →
-    adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
-    rtc step ([e], σ) (of_val v2 :: t2, σ2) →
-    φ v2.
-  Proof.
-    intros Hclosed Hfresh Hadq [n Hnsteps] % rtc_nsteps.
-    assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
-    assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
-    replace (φ v2) with ((φ ∘ invtranslationV) (tctranslationV v2))
-      by (simpl ; by rewrite invtranslationV_translationV).
-    eapply adequate_result ; first done.
-    change [«e»%E] with T«[e]».
-    replace (of_val «v2» :: _) with (T«of_val v2 :: t2») by by rewrite - translation_of_val.
-    eapply simulation_exec_success' ; eauto.
-  Qed.
-
-  (* now let’s combine the three results. *)
-
-  Lemma adequate_tctranslation__adequate_and_bounded m (φ : val → Prop) e σ :
+  Lemma adequate_tctranslation__bounded m (φ : val → Prop) e σ :
     is_closed [] e →
     (∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-    adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+    bounded_time e σ m.
   Proof.
     intros Hclosed Hadq.
-    split ; first split.
-    (* (1) adequate result: *)
-    - intros t2 σ2 v2 Hsteps.
-      (* build a location ℓ which is not in the domain of σ2: *)
-      pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
-      assert (σ2 !! ℓ = None)
-        by (simpl ; eapply not_elem_of_dom, is_fresh).
-      by eapply adequate_tctranslation__adequate_result.
-    (* (2) safety: *)
-    - intros t2 σ2 e2 _ Hsteps He2.
-      (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
-      pose (set1 := loc_set_of_expr e2 : gset loc).
-      pose (set2 := dom (gset loc) σ2 : gset loc).
-      pose (Build_timeCreditLoc (fresh (set1 ∪ set2))) as Hloc.
-      eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
-        by (unfold ℓ ; apply is_fresh).
-      assert (loc_fresh_in_expr ℓ e2)
-        by by apply loc_not_in_set_is_fresh.
-      assert (σ2 !! ℓ = None)
-        by by (simpl ; eapply not_elem_of_dom).
-      specialize (Hadq Hloc) as Hsafe % safe_adequate.
-      by eapply safe_tctranslation__safe.
-    (* (3) bounded execution time: *)
-    - intros t2 σ2 k.
-      (* build a location ℓ which is not in the domain of σ2: *)
-      pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
-      assert (σ2 !! ℓ = None)
-        by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
-      specialize (Hadq Hloc) as Hsafe % safe_adequate.
-      by eapply safe_tctranslation__bounded.
+    intros t2 σ2 k.
+    (* build a location ℓ which is not in the domain of σ2: *)
+    pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
+    assert (σ2 !! ℓ = None)
+      by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
+    specialize (Hadq Hloc) as Hsafe % safe_adequate.
+    by eapply safe_tctranslation__bounded.
   Qed.
-
-  (* finally, derive the adequacy assumption from a Hoare triple in Iris. *)
-
-  Lemma spec_tctranslation__adequate {Σ} m (ψ : val → Prop) e :
-    (∀ `{timeCreditHeapG Σ},
-      TICKCTXT -∗
-      {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
-    ) →
-    ∀ `{timeCreditHeapPreG Σ} `{timeCreditLoc} σ, adequate NotStuck «e» S«σ,m» ψ.
-  Proof.
-    intros Hspec HpreG Hloc σ.
-    (* apply the adequacy results. *)
-    apply (wp_adequacy _ _) ; simpl ; intros HinvG.
-    (* … now we have to prove a WP. *)
-    set σ' := S«σ».
-    (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (● to_gen_heap (<[ℓ := #m]> σ') ⋅ ◯ to_gen_heap {[ℓ := #m]}))
-      as (h) "[Hh● Hℓ◯]".
-    {
-      apply auth_valid_discrete_2 ; split.
-      - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
-        unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
-        exists (to_gen_heap σ'').
-        rewrite (@gmap.insert_singleton_op _ _ _ _ (to_gen_heap σ'')) //.
-        rewrite lookup_fmap ; apply fmap_None, lookup_delete.
-      - apply to_gen_heap_valid.
-    }
-    (* allocate the ghost state associated with ℓ: *)
-    iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
-    (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ γ)
-      as HtcHeapG.
-    (* create the invariant: *)
-    iAssert (|={⊤}=> TICKCTXT)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
-    {
-      iApply inv_alloc.
-      iExists m.
-      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl.
-      unfold to_gen_heap ; rewrite fmap_insert fmap_empty insert_empty.
-      by iFrame.
-    }
-    iModIntro.
-    (* finally, use the user-given specification: *)
-    iExists gen_heap_ctx. iFrame "Hh●".
-    iApply (Hspec with "Hinv Hγ◯") ; auto.
-  Qed.
-*)
 
   Lemma adequate_tctranslation__adequate m (φ : val → Prop) e σ :
     is_closed [] e →
@@ -657,22 +485,6 @@ Section Soundness.
     - intro ℓ1.
       rewrite (_ : ℓ1 = @timeCreditLoc_loc {| timeCreditLoc_loc := ℓ1 |}) ; last done.
       done.
-  Qed.
-
-  Lemma adequate_tctranslation__bounded m (φ : val → Prop) e σ :
-    is_closed [] e →
-    (∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-    bounded_time e σ m.
-  Proof.
-    intros Hclosed Hadq.
-    (* (3) bounded execution time: *)
-    - intros t2 σ2 k.
-      (* build a location ℓ which is not in the domain of σ2: *)
-      pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
-      assert (σ2 !! ℓ = None)
-        by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
-      specialize (Hadq Hloc) as Hsafe % safe_adequate.
-      by eapply safe_tctranslation__bounded.
   Qed.
 
   (* now let’s combine the three results. *)
