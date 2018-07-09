@@ -352,13 +352,6 @@ Section Soundness.
 
   (* derive the adequacy of the translated program from a Hoare triple in Iris. *)
 
-  Lemma auth_mnat_alloc `{inG Σ (authR mnatUR)} (n : mnat) :
-    (|==> ∃ γ, own γ (●mnat n) ∗ own γ (◯mnat n))%I.
-  Proof.
-    by iMod (own_alloc (●mnat n ⋅ ◯mnat n)) as (γ) "[? ?]" ; auto with iFrame.
-  Qed.
-  Global Arguments auth_mnat_alloc {_ _} n%nat.
-
   Lemma spec_trtranslation__adequate_translation {Σ} (nmax : nat) (ψ : val → Prop) e :
     (0 < nmax)%nat →
     (∀ `{!timeReceiptHeapG Σ},
