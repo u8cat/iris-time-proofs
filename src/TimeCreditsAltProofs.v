@@ -11,7 +11,7 @@ Implicit Type K : ectx heap_ectx_lang.
 Implicit Type m n : nat.
 
 Local Notation γ := timeCreditHeapG_name.
-Local Notation ℓ := timeCreditLoc_loc.
+Local Notation ℓ := tick_counter.
 
 (* In general, one can prove:
  *     if the translated program with the counter initialized to m is safe,
@@ -54,7 +54,7 @@ Local Notation ℓ := timeCreditLoc_loc.
 (* assuming the safety of the translated expression,
  * a proof that the original expression is safe. *)
 
-Lemma safe_tctranslation__safe_here `{timeCreditLoc} m e σ :
+Lemma safe_tctranslation__safe_here {Hloc : TickCounter} m e σ :
   is_closed [] e →
   loc_fresh_in_expr ℓ e →
   safe «e» S«σ, m» →
@@ -105,7 +105,7 @@ Proof.
       (* — or «ki»[«v»] reduces to something: this is precisely what we need. *)
       * exact Hred.
 Qed.
-Lemma safe_tctranslation__safe `{timeCreditLoc} m e σ t2 σ2 e2 :
+Lemma safe_tctranslation__safe {Hloc : TickCounter} m e σ t2 σ2 e2 :
   is_closed [] e →
   loc_fresh_in_expr ℓ e2 →
   σ2 !! ℓ = None →
@@ -135,7 +135,7 @@ Qed.
 (* assuming the adequacy of the translated expression,
  * a proof that the original expression has adequate results. *)
 
-Lemma adequate_tctranslation__adequate_result `{timeCreditLoc} m (φ : val → Prop) e σ t2 σ2 v2 :
+Lemma adequate_tctranslation__adequate_result {Hloc : TickCounter} m (φ : val → Prop) e σ t2 σ2 v2 :
   is_closed [] e →
   σ2 !! ℓ = None →
   adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
@@ -145,7 +145,7 @@ Proof.
   intros Hclosed Hfresh Hadq [n Hnsteps] % rtc_nsteps.
   assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
   assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
-  replace (φ v2) with ((φ ∘ invtranslationV) (tctranslationV v2))
+  replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
     by (simpl ; by rewrite invtranslationV_translationV).
   eapply adequate_result ; first done.
   change [«e»%E] with T«[e]».
@@ -157,7 +157,7 @@ Qed.
 
 Lemma adequate_tctranslation__adequate_alt m (φ : val → Prop) e σ :
   is_closed [] e →
-  (∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+  (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
   adequate NotStuck e σ φ.
 Proof.
   intros Hclosed Hadq.
@@ -165,7 +165,7 @@ Proof.
   (* (1) adequate result: *)
   - intros t2 σ2 v2 Hsteps.
     (* build a location ℓ which is not in the domain of σ2: *)
-    pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
+    pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
     assert (σ2 !! ℓ = None)
       by (simpl ; eapply not_elem_of_dom, is_fresh).
     by eapply adequate_tctranslation__adequate_result.
@@ -174,7 +174,7 @@ Proof.
     (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
     pose (set1 := loc_set_of_expr e2 : gset loc).
     pose (set2 := dom (gset loc) σ2 : gset loc).
-    pose (Build_timeCreditLoc (fresh (set1 ∪ set2))) as Hloc.
+    pose (Build_TickCounter (fresh (set1 ∪ set2))) as Hloc.
     eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
       by (unfold ℓ ; apply is_fresh).
     assert (loc_fresh_in_expr ℓ e2)
@@ -246,7 +246,7 @@ Lemma spec_tctranslation__bounded {Σ} m (ψ : val → Prop) e :
     TICKCTXT -∗
     {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
   ) →
-  ∀ `{!timeCreditLoc} `{!timeCreditHeapPreG Σ} σ1 t2 σ2 (z : Z),
+  ∀ `{TickCounter} `{timeCreditHeapPreG Σ} σ1 t2 σ2 (z : Z),
     rtc step ([«e»], S«σ1, m») (T«t2», S«σ2, z») →
     0 ≤ z.
 Proof.
@@ -303,7 +303,7 @@ Proof.
 Qed.
 
 (* The simulation lemma with no assumption that m ≤ n. *)
-Axiom simulation_exec_alt : ∀ `{timeCreditLoc} m n t1 σ1 t2 σ2,
+Axiom simulation_exec_alt : ∀ {Hloc : TickCounter} m n t1 σ1 t2 σ2,
   σ2 !! ℓ = None →
   Forall (is_closed []) t1 →
   nsteps step m (t1, σ1) (t2, σ2) →
@@ -320,7 +320,7 @@ Lemma spec_tctranslation__bounded' {Σ} m (ψ : val → Prop) e :
 Proof.
   intros Hclosed Hspec HtcPreG σ t2 σ2 n Hnsteps.
   (* build a location ℓ which is not in the domain of σ2: *)
-  pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
+  pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
   assert (σ2 !! ℓ = None)
     by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
   eapply simulation_exec_alt in Hnsteps ; auto.

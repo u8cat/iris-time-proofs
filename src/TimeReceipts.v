@@ -69,22 +69,18 @@ Class timeReceiptHeapPreG Σ := {
   timeReceiptHeapPreG_inG2 :> inG Σ (authR mnatUR) ;
 }.
 
-Class timeReceiptLoc := {
-  timeReceiptLoc_loc : loc ;
-}.
-
 Class timeReceiptHeapG Σ := {
   timeReceiptHeapG_heapG :> heapG Σ ;
   timeReceiptHeapG_inG1 :> inG Σ (authR natUR) ;
   timeReceiptHeapG_inG2 :> inG Σ (authR mnatUR) ;
-  timeReceiptHeapG_loc :> timeReceiptLoc ;
+  timeReceiptHeapG_loc :> TickCounter ;
   timeReceiptHeapG_name1 : gname ;
   timeReceiptHeapG_name2 : gname ;
 }.
 
 Local Notation γ1 := timeReceiptHeapG_name1.
 Local Notation γ2 := timeReceiptHeapG_name2.
-Local Notation ℓ := timeReceiptLoc_loc.
+Local Notation ℓ := tick_counter.
 
 
 
@@ -92,17 +88,14 @@ Local Notation ℓ := timeReceiptLoc_loc.
  * Implementation and specification of `TR` and `tock`
  *)
 
-Section Tock.
+Definition loop : val :=
+  rec: "f" <> := "f" #().
 
-  Context `{timeReceiptLoc}.
+Definition tock {_:TickCounter} : val :=
+  tick loop.
 
-  Definition loop : val :=
-    rec: "f" <> := "f" #().
-
-  Definition tock : val :=
-    tick loop ℓ.
-
-End Tock.
+Global Instance Tick_tock (Hloc: TickCounter) : Tick :=
+  {| Translation.tick := tock |}.
 
 
 
@@ -300,65 +293,19 @@ End TockSpec.
  * Simulation
  *)
 
-Notation trtranslation := (translation tock).
-Notation trtranslationV := (translationV tock).
-Notation trtranslationS := (translationS tock).
-Notation trtranslationKi := (translationKi tock).
-Notation trtranslationK := (translationK tock).
-
-Notation "E« e »" := (trtranslation e%E).
-Notation "V« v »" := (trtranslationV v%V).
-Notation "Ki« ki »" := (trtranslationKi ki).
-Notation "K« K »" := (trtranslationK K).
-Notation "S« σ »" := (trtranslationS σ%V).
-Notation "S« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (trtranslationS σ%V)).
-Notation "T« t »" := (trtranslation <$> t%E).
-
-Notation "« e »" := (trtranslation e%E).
-Notation "« e »" := (trtranslation e%E) : expr_scope.
-Notation "« v »" := (trtranslationV v%V) : val_scope.
-
-(* for some reason, these notations make parsing fail,
- * even if they only regard printing… *)
-(*
-Notation "« e »" := (trtranslation e%E) (only printing).
-Notation "« v »" := (trtranslationV v%V) (only printing).
-Notation "« ki »" := (trtranslationKi ki) (only printing).
-Notation "« K »" := (trtranslationK K) (only printing).
-Notation "« σ »" := (trtranslationS σ%V) (only printing).
-Notation "« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (trtranslationS σ%V)) (only printing).
-Notation "« t »" := (trtranslation <$> t%E) (only printing).
-*)
-
-
-
 Section Soundness.
 
-  Lemma adequate_trtranslation__adequate m (φ : val → Prop) e σ :
-    is_closed [] e →
-    (∀ `{timeReceiptLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-    adequate_n NotStuck m e σ φ.
-  Proof.
-    intros.
-    apply (adequate_translation__adequate (λ ℓ1, @tock {| timeReceiptLoc_loc := ℓ1 |})).
-    - intro ℓ1.
-      rewrite (_ : ℓ1 = @timeReceiptLoc_loc {| timeReceiptLoc_loc := ℓ1 |}) ; last done.
-      apply exec_tick_success.
-    - done.
-    - intro ℓ1.
-      rewrite (_ : ℓ1 = @timeReceiptLoc_loc {| timeReceiptLoc_loc := ℓ1 |}) ; last done.
-      done.
-  Qed.
+  Definition adequate_trtranslation__adequate := adequate_translation__adequate loop.
 
   (* derive the adequacy of the translated program from a Hoare triple in Iris. *)
 
   Lemma spec_trtranslation__adequate_translation {Σ} (nmax : nat) (ψ : val → Prop) e :
     (0 < nmax)%nat →
-    (∀ `{!timeReceiptHeapG Σ},
+    (∀ `{timeReceiptHeapG Σ},
       TOCKCTXT nmax -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
-    ∀ `{!timeReceiptHeapPreG Σ} `{!timeReceiptLoc} σ, adequate NotStuck «e» S«σ,nmax-1» ψ.
+    ∀ `{timeReceiptHeapPreG Σ} `{TickCounter} σ, adequate NotStuck «e» S«σ,nmax-1» ψ.
   Proof.
     intros Inmax Hspec HpreG Hloc σ.
     (* apply the adequacy results. *)
@@ -401,7 +348,7 @@ Section Soundness.
   Lemma spec_trtranslation__adequate {Σ} (nmax : nat) (φ : val → Prop) e :
     (0 < nmax)%nat →
     is_closed [] e →
-    (∀ `{!timeReceiptHeapG Σ},
+    (∀ `{timeReceiptHeapG Σ},
       TOCKCTXT nmax -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
@@ -416,9 +363,10 @@ Section Soundness.
   Lemma abstract_spec_trtranslation__adequate {Σ} (nmax : nat) (φ : val → Prop) e :
     (0 < nmax)%nat →
     is_closed [] e →
-    (∀ `{!heapG Σ} (TR TRdup : nat → iProp Σ) (tick : val),
-      TR_interface nmax TR TRdup tick -∗
-      {{{ True }}} translation tick e {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
+    (∀ `{heapG Σ} (TR TRdup : nat → iProp Σ) (tock : val),
+      let _ := {| Translation.tick := tock |} in
+      TR_interface nmax TR TRdup tock -∗
+      {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeReceiptHeapPreG Σ} σ,
       adequate_n NotStuck (nmax-1) e σ φ.

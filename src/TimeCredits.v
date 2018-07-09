@@ -43,19 +43,15 @@ Class timeCreditHeapPreG Σ := {
   timeCreditHeapPreG_inG :> inG Σ (authR natUR) ;
 }.
 
-Class timeCreditLoc := {
-  timeCreditLoc_loc : loc ;
-}.
-
 Class timeCreditHeapG Σ := {
   timeCreditHeapG_heapG :> heapG Σ ;
   timeCreditHeapG_inG :> inG Σ (authR natUR) ;
-  timeCreditHeapG_loc :> timeCreditLoc ;
+  timeCreditHeapG_loc :> TickCounter ;
   timeCreditHeapG_name : gname ;
 }.
 
 Local Notation γ := timeCreditHeapG_name.
-Local Notation ℓ := timeCreditLoc_loc.
+Local Notation ℓ := tick_counter.
 
 
 
@@ -63,19 +59,16 @@ Local Notation ℓ := timeCreditLoc_loc.
  * Implementation and specification of `TC` and `tick`
  *)
 
-Section Tick.
+(* This code is irrelevant for tick_spec but has to be unsafe for proving
+ * the safety theorem: *)
+Definition fail : val :=
+  λ: <>, #() #().
 
-  Context `{timeCreditLoc}.
+Definition tick {_:TickCounter} : val :=
+  tick fail.
 
-  (* This code is irrelevant for tick_spec but has to be unsafe for proving
-   * the safety theorem: *)
-  Definition fail : val :=
-    λ: <>, #() #().
-
-  Definition tick : val :=
-    tick fail ℓ.
-
-End Tick.
+Global Instance Tick_tick (Hloc : TickCounter) : Tick :=
+  {| Translation.tick := tick |}.
 
 
 
@@ -201,7 +194,7 @@ End TickSpec.
 
 Section Tick_lemmas.
 
-  Context `{timeCreditLoc}.
+  Context {Hloc : TickCounter}.
 
   (* Semantics in the “successful” case. *)
 
@@ -320,44 +313,14 @@ End Tick_lemmas.
  * Simulation
  *)
 
-Notation tctranslation := (translation tick).
-Notation tctranslationV := (translationV tick).
-Notation tctranslationS := (translationS tick).
-Notation tctranslationKi := (translationKi tick).
-Notation tctranslationK := (translationK tick).
-
-Notation "E« e »" := (tctranslation e%E).
-Notation "V« v »" := (tctranslationV v%V).
-Notation "Ki« ki »" := (tctranslationKi ki).
-Notation "K« K »" := (tctranslationK K).
-Notation "S« σ »" := (tctranslationS σ%V).
-Notation "S« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (tctranslationS σ%V)).
-Notation "T« t »" := (tctranslation <$> t%E).
-
-Notation "« e »" := (tctranslation e%E).
-Notation "« e »" := (tctranslation e%E) : expr_scope.
-Notation "« v »" := (tctranslationV v%V) : val_scope.
-
-(* for some reason, these notations make parsing fail,
- * even if they only regard printing… *)
-(*
-Notation "« e »" := (tctranslation e%E) (only printing).
-Notation "« v »" := (tctranslationV v%V) (only printing).
-Notation "« ki »" := (tctranslationKi ki) (only printing).
-Notation "« K »" := (tctranslationK K) (only printing).
-Notation "« σ »" := (tctranslationS σ%V) (only printing).
-Notation "« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (tctranslationS σ%V)) (only printing).
-Notation "« t »" := (tctranslation <$> t%E) (only printing).
-*)
-
 Section Simulation.
 
-  Context `{Hloc : timeCreditLoc}.
+  Context {Hloc : TickCounter}.
 
   (* Simulation in the “successful” case. *)
 
-  Definition simulation_exec_success := simulation_exec_success _ tick exec_tick_success.
-  Definition simulation_exec_success' := simulation_exec_success' _ tick exec_tick_success.
+  Definition simulation_exec_success := simulation_exec_success fail.
+  Definition simulation_exec_success' := simulation_exec_success' fail.
 
   (* Simulation in the “failing” case. *)
 
@@ -445,7 +408,7 @@ Section Simulation.
         apply simulation_exec_success ; assumption.
       - by eapply simulation_exec_failure_now.
     }
-    apply (elem_of_list_fmap_1 tctranslation) in E3.
+    apply (elem_of_list_fmap_1 translation) in E3.
     eapply not_safe_exec ; eassumption.
   Qed.
 
@@ -465,7 +428,7 @@ Section Soundness.
   Proof.
     intro. exists (m - S n)%nat. lia.
   Qed.
-  Lemma safe_tctranslation__bounded `{timeCreditLoc} m e σ t2 σ2 n :
+  Lemma safe_tctranslation__bounded {Hloc : TickCounter} m e σ t2 σ2 n :
     is_closed [] e →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
@@ -481,40 +444,28 @@ Section Soundness.
 
   Lemma adequate_tctranslation__bounded m (φ : val → Prop) e σ :
     is_closed [] e →
-    (∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+    (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
     bounded_time e σ m.
   Proof.
     intros Hclosed Hadq.
     intros t2 σ2 k.
     (* build a location ℓ which is not in the domain of σ2: *)
-    pose (Build_timeCreditLoc (fresh (dom (gset loc) σ2))) as Hloc.
+    pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
     assert (σ2 !! ℓ = None)
       by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
     by eapply safe_tctranslation__bounded.
   Qed.
 
-  Lemma adequate_tctranslation__adequate m (φ : val → Prop) e σ :
-    is_closed [] e →
-    (∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-    adequate_n NotStuck m e σ φ.
-  Proof.
-    intros.
-    apply (adequate_translation__adequate (λ ℓ1, @tick {| timeCreditLoc_loc := ℓ1 |})).
-    - intro ℓ1.
-      rewrite (_ : ℓ1 = @timeCreditLoc_loc {| timeCreditLoc_loc := ℓ1 |}) ; last done.
-      apply exec_tick_success.
-    - done.
-    - intro ℓ1.
-      rewrite (_ : ℓ1 = @timeCreditLoc_loc {| timeCreditLoc_loc := ℓ1 |}) ; last done.
-      done.
-  Qed.
+  Definition adequate_tctranslation__adequate := adequate_translation__adequate fail.
 
   (* now let’s combine the three results. *)
 
   Lemma adequate_tctranslation__adequate_and_bounded m (φ : val → Prop) e σ :
     is_closed [] e →
-    (∀ (k : nat), (k ≥ m)%nat → ∀ `{timeCreditLoc}, adequate NotStuck «e» S«σ, k» (φ ∘ invtranslationV)) →
+    (∀ (k : nat), (k ≥ m)%nat →
+      ∀ `{TickCounter}, adequate NotStuck «e» S«σ, k» (φ ∘ invtranslationV)
+    ) →
     adequate NotStuck e σ φ  ∧  bounded_time e σ m.
   Proof.
     intros Hclosed Hadq.
@@ -540,7 +491,8 @@ Section Soundness.
       TICKCTXT -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
-    ∀ `{timeCreditHeapPreG Σ} `{timeCreditLoc} σ, ∀ (k : nat), (k ≥ m)%nat → adequate NotStuck «e» S«σ,k» ψ.
+    ∀ `{timeCreditHeapPreG Σ} `{TickCounter} σ,
+      ∀ (k : nat), (k ≥ m)%nat → adequate NotStuck «e» S«σ,k» ψ.
   Proof.
     intros Hspec HpreG Hloc σ k Ik.
     (* apply the adequacy results. *)
@@ -597,8 +549,9 @@ Section Soundness.
   Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m (φ : val → Prop) e :
     is_closed [] e →
     (∀ `{heapG Σ} (TC : nat → iProp Σ) (tick : val),
+      let _ := {| Translation.tick := tick |} in
       TC_interface TC tick -∗
-      {{{ TC m }}} translation tick e {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
+      {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ φ  ∧  bounded_time e σ m.

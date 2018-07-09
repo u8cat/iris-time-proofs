@@ -16,9 +16,14 @@ Implicit Type m n : nat.
  * Translation with any arbitrary expression for [tick]
  *)
 
+Class Tick := { tick : val }.
+
 Section Translation.
 
-  Variable tick : val.
+  Context {Htick : Tick}.
+
+  Definition tick_aux : val :=
+    (λ: "f" "x", "f" #() (tick "x"))%V.
 
   Fixpoint translation (e : expr) : expr :=
     match e with
@@ -39,10 +44,9 @@ Section Translation.
     | InjL e          => InjL (translation e)
     | InjR e          => InjR (translation e)
     | Case e0 e1 e2   =>
-        let tick' : val := (λ: "f" "x", "f" #() (tick "x"))%V in
         Case (tick $ translation e0)
-          (tick' (λ: <>, translation e1))
-          (tick' (λ: <>, translation e2))
+          (tick_aux (λ: <>, translation e1))
+          (tick_aux (λ: <>, translation e2))
     (* Concurrency *)
     | Fork e          => tick $ Fork (translation e)
     (* Heap *)
@@ -58,7 +62,7 @@ Section Translation.
     is_closed xs (translation e).
   Proof.
     assert (∀ xs, is_closed xs tick) by (intro ; apply is_closed_of_val).
-    revert xs. induction e ; simpl ; unlock ; naive_solver.
+    revert xs. induction e ; simpl ; unlock tick_aux ; naive_solver.
   Qed.
 
   Fixpoint translationV (v : val) : val :=
@@ -90,10 +94,9 @@ Section Translation.
     | InjLCtx         => InjLCtx
     | InjRCtx         => InjRCtx
     | CaseCtx e1 e2   =>
-        let tick' : val := (λ: "f" "x", "f" #() (tick "x"))%V in
         CaseCtx
-          (tick' (λ: <>, translation e1))%E
-          (tick' (λ: <>, translation e2))%E
+          (tick_aux (λ: <>, translation e1))%E
+          (tick_aux (λ: <>, translation e2))%E
     | AllocCtx        => AllocCtx
     | LoadCtx         => LoadCtx
     | StoreLCtx e2    => StoreLCtx (tick $ translation e2)
@@ -446,9 +449,8 @@ Program Instance Translates_Fst: Translates e e' → Translates (Fst e) (Fst (ti
 Program Instance Translates_Snd: Translates e e' → Translates (Snd e) (Snd (tick e')).
 Program Instance Translates_InjL: Translates e e' → Translates (InjL e) (InjL e').
 Program Instance Translates_InjR: Translates e e' → Translates (InjR e) (InjR e').
-Let tick' : val := (λ: "f" "x", "f" #() (tick "x"))%V.
 Program Instance Translates_Case: Translates e0 e0' → Translates e1 e1' → Translates e2 e2' →
-                                  Translates (Case e0 e1 e2) (Case (tick e0') (tick' (λ: <>, e1')%E) (tick' (λ: <>, e2')%E)).
+                                  Translates (Case e0 e1 e2) (Case (tick e0') (tick_aux (λ: <>, e1')%E) (tick_aux (λ: <>, e2')%E)).
 Program Instance Translates_Fork: Translates e e' → Translates (Fork e) (tick (Fork e')).
 Program Instance Translates_Alloc: Translates e e' → Translates (Alloc e) (Alloc (tick e')).
 Program Instance Translates_Load: Translates e e' → Translates (Load e) (Load (tick e')).
@@ -570,6 +572,34 @@ End Translation.
 
 
 (*
+ * Notations
+ *)
+
+Notation "E« e »" := (translation e%E).
+Notation "V« v »" := (translationV v%V).
+Notation "Ki« ki »" := (translationKi ki).
+Notation "K« K »" := (translationK K).
+Notation "S« σ »" := (translationS σ%V).
+Notation "T« t »" := (translation <$> t%E).
+
+Notation "« e »" := (translation e%E).
+Notation "« e »" := (translation e%E) : expr_scope.
+Notation "« v »" := (translationV v%V) : val_scope.
+
+(* for some reason, these notations make parsing fail,
+ * even if they only regard printing… *)
+(*
+Notation "« e »" := (translation e%E) (only printing).
+Notation "« v »" := (translationV v%V) (only printing).
+Notation "« ki »" := (translationKi ki) (only printing).
+Notation "« K »" := (translationK K) (only printing).
+Notation "« σ »" := (translationS σ%V) (only printing).
+Notation "« t »" := (translation <$> t%E) (only printing).
+*)
+
+
+
+(*
  * (Partial) Inverse translation
  *)
 
@@ -593,7 +623,7 @@ Section InvTranslation.
     (* Sums *)
     | InjL e                     => InjL (invtranslation e)
     | InjR e                     => InjR (invtranslation e)
-    | Case (App tick e0) (App tick'1 (Rec BAnon BAnon e1)) (App tick'2 (Rec BAnon BAnon e2)) =>
+    | Case (App tick e0) (App tickaux1 (Rec BAnon BAnon e1)) (App tickaux2 (Rec BAnon BAnon e2)) =>
         Case (invtranslation e0) (invtranslation e1) (invtranslation e2)
     (* Concurrency *)
     | App tick (Fork e)          => Fork (invtranslation e)
@@ -630,14 +660,14 @@ Section InvTranslation.
     induction v ; simpl ; firstorder.
   Qed.
 
-  Lemma invtranslation_translation tick e :
-    invtranslation (translation tick e) = e.
+  Lemma invtranslation_translation {Htick : Tick} e :
+    invtranslation (translation e) = e.
   Proof.
     induction e ; simpl ; firstorder.
   Qed.
 
-  Lemma invtranslationV_translationV tick v :
-    invtranslationV (translationV tick v) = v.
+  Lemma invtranslationV_translationV {Htick : Tick} v :
+    invtranslationV (translationV v) = v.
   Proof.
     apply of_val_inj. rewrite - invtranslation_of_val - translation_of_val.
     apply invtranslation_translation.
@@ -662,9 +692,9 @@ Section ClosureFree.
     | InjRV v1 => closure_free v1
     end.
 
-  Lemma closure_free_is_translationV_invariant (tick : val) v :
+  Lemma closure_free_is_translationV_invariant {Htick : Tick} v :
     closure_free v →
-    translationV tick v = v.
+    translationV v = v.
   Proof.
     intros ?.
     induction v as
@@ -700,11 +730,11 @@ Section ClosureFree.
     - rewrite IH1 ; naive_solver.
   Qed.
 
-  Lemma closure_free_translationV (tick : val) v :
+  Lemma closure_free_translationV {Htick : Tick} v :
     closure_free v →
-    closure_free (translationV tick v).
+    closure_free (translationV v).
   Proof.
-    intros Hv. by rewrite (closure_free_is_translationV_invariant tick v Hv).
+    intros Hv. by rewrite (closure_free_is_translationV_invariant v Hv).
   Qed.
 
   Lemma closure_free_invtranslationV v :
@@ -714,8 +744,8 @@ Section ClosureFree.
     intros Hv. by rewrite (closure_free_is_invtranslationV_invariant v Hv).
   Qed.
 
-  Lemma closure_free_translationV_iff (tick : val) v :
-    closure_free v  ↔  closure_free (translationV tick v).
+  Lemma closure_free_translationV_iff  {Htick : Tick} v :
+    closure_free v  ↔  closure_free (translationV v).
   Proof.
     split.
     - apply closure_free_translationV.

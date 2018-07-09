@@ -1,4 +1,5 @@
 From iris.heap_lang Require Import notation proofmode.
+From iris.program_logic Require Import adequacy.
 
 Require Import Misc Reduction Tactics.
 Require Export Translation.
@@ -13,20 +14,44 @@ Implicit Type m n : nat.
 
 
 
-Section Tick.
+Class TickCounter := { tick_counter : loc }.
+Notation "S« σ , n »" := (<[tick_counter := LitV (LitInt n%nat)]> (translationS σ%V)).
+(* Notation "« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (translationS σ%V)) (only printing). *)
+Local Notation ℓ := tick_counter.
 
-  Context (runtime_error : val).
-  Context (ℓ : loc).
 
-  Definition tick : val :=
-    rec: "tick" "x" :=
-      let: "k" := ! #ℓ in
-      if: "k" ≤ #0 then
-        runtime_error #()
-      else if: CAS #ℓ "k" ("k" - #1) then
-        "x"
-      else
-        "tick" "x".
+
+Section Simulation. (* this whole file is parameterized by a “runtime_error” value *)
+Context (runtime_error : val).
+
+
+
+(*
+ * Definition of “tick”
+ *)
+
+Definition tick {Hloc : TickCounter} : val :=
+  rec: "tick" "x" :=
+    let: "k" := ! #ℓ in
+    if: "k" ≤ #0 then
+      runtime_error #()
+    else if: CAS #ℓ "k" ("k" - #1) then
+      "x"
+    else
+      "tick" "x".
+
+Local Instance Tick_tick (Hloc: TickCounter) : Tick :=
+  {| Translation.tick := tick |}.
+
+
+
+(*
+ * Operational behavior of “tick”
+ *)
+
+Section Tick_exec.
+
+  Context {Hloc : TickCounter}.
 
   Lemma exec_tick_success n v σ :
     prim_exec  (tick v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  [].
@@ -114,17 +139,6 @@ Section Tick.
     apply prim_exec_nil.
   Qed.
 
-End Tick.
-
-
-
-Section Tick_aux.
-
-  Context (tick : val).
-
-  Definition tick_aux : val :=
-    (λ: "f" "x", "f" #() (tick "x"))%V.
-
   Lemma exec_tick_aux e1 v2 σ :
     is_closed [] e1 →
     prim_exec (tick_aux (λ: <>, e1) v2)%E σ
@@ -154,26 +168,21 @@ Section Tick_aux.
       by prim_step.
     }
   Qed.
-End Tick_aux.
+
+End Tick_exec.
 
 
 
 (*
- * Simulation
+ * Simulation lemma
  *)
 
-Section Simulation.
+Section SimulationLemma.
 
-  Context (ℓ : loc).
-  Context (tick : val).
+  Context {Hloc : TickCounter}.
 
   (* from a reduction of the source expression,
    * deduce a reduction of the translated expression. *)
-
-  Context (exec_tick_success :
-    ∀ n v σ,
-      prim_exec  (tick v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  []
-  ).
 
   Lemma exec_tick_success' n e v σ :
     to_val e = Some v →
@@ -205,18 +214,6 @@ Section Simulation.
     ).
   Local Ltac tick_then_step_then_stop :=
     tick_then_step_then prim_exec_nil.
-
-  Local Notation "E« e »" := (translation tick e%E).
-  Local Notation "V« v »" := (translationV tick v%V).
-  Local Notation "Ki« ki »" := (translationKi tick ki).
-  Local Notation "K« K »" := (translationK tick K).
-  Local Notation "S« σ »" := (translationS tick σ%V).
-  Local Notation "S« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (translationS tick σ%V)).
-  Local Notation "T« t »" := (translation tick <$> t%E).
-
-  Local Notation "« e »" := (translation tick e%E).
-  Local Notation "« e »" := (translation tick e%E) : expr_scope.
-  Local Notation "« v »" := (translationV tick v%V) : val_scope.
 
   Lemma simulation_head_step_success n e1 σ1 e2 σ2 efs :
     σ2 !! ℓ = None →
@@ -379,7 +376,7 @@ Section Simulation.
   (* from a reduction of the translated expression,
    * deduce a reduction of the source expression. *)
 
-  (* note: this does not depend on the operational semantics of `tick`. *)
+  (* note: this does not depend on the operational behavior of `tick`. *)
 
   Local Ltac exhibit_prim_step e2 :=
     eexists e2, _, _ ; simpl ; prim_step.
@@ -466,7 +463,7 @@ Section Simulation.
     (* CasFailS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & ->).
       exhibit_prim_step (#false)%E.
-      intros ? % (f_equal (translationV tick)). contradiction.
+      intros ? % (f_equal translationV). contradiction.
     (* CasSucS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & -> % translationV_injective).
       exhibit_prim_step (#true)%E.
@@ -560,8 +557,6 @@ Section Simulation.
   (* assuming the adequacy of the translated expression,
    * a proof that the original expression has m-adequate results. *)
 
-From iris.program_logic Require Import adequacy.
-
   Lemma adequate_translation__adequate_result m n (φ : val → Prop) e σ t2 σ2 v2 :
     is_closed [] e →
     σ2 !! ℓ = None →
@@ -572,7 +567,7 @@ From iris.program_logic Require Import adequacy.
   Proof.
     intros Hclosed Hfresh Hadq Hnsteps Inm.
     assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
-    replace (φ v2) with ((φ ∘ invtranslationV) (translationV tick v2))
+    replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
       by (simpl ; by rewrite invtranslationV_translationV).
     eapply adequate_result ; first done.
     change [«e»%E] with T«[e]».
@@ -580,32 +575,9 @@ From iris.program_logic Require Import adequacy.
     eapply simulation_exec_success' ; eauto.
   Qed.
 
-End Simulation.
-Section StrongSimulation.
+End SimulationLemma. (* we close the section here as we now want to quantify over all locations *)
 
-  Context (tick : loc → val).
-
-  (* from a reduction of the source expression,
-   * deduce a reduction of the translated expression. *)
-
-  Context (exec_tick_success :
-    ∀ ℓ n v σ,
-      prim_exec  (tick ℓ v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  []
-  ).
-
-  Local Notation "E{ ℓ }« e »" := (translation (tick ℓ) e%E).
-  Local Notation "V{ ℓ }« v »" := (translationV (tick ℓ) v%V).
-  Local Notation "Ki{ ℓ }« ki »" := (translationKi (tick ℓ) ki).
-  Local Notation "K{ ℓ }« K »" := (translationK (tick ℓ) K).
-  Local Notation "S{ ℓ }« σ »" := (translationS (tick ℓ) σ%V).
-  Local Notation "S{ ℓ }« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (translationS (tick ℓ) σ%V)).
-  Local Notation "T{ ℓ }« t »" := (translation (tick ℓ) <$> t%E).
-
-  Local Notation "{ ℓ }« e »" := (translation (tick ℓ) e%E).
-  Local Notation "{ ℓ }« e »" := (translation (tick ℓ) e%E) : expr_scope.
-  Local Notation "{ ℓ }« v »" := (translationV (tick ℓ) v%V) : val_scope.
-
-  (* now let’s combine the two results. *)
+(* now let’s combine the two results. *)
 
 Record adequate_n (s : stuckness) (n : nat) e1 σ1 (φ : val → Prop) := {
   adequate_n_result k t2 σ2 v2 :
@@ -617,34 +589,34 @@ Record adequate_n (s : stuckness) (n : nat) e1 σ1 (φ : val → Prop) := {
    e2 ∈ t2 → (is_Some (to_val e2) ∨ reducible e2 σ2)
 }.
 
-  Lemma adequate_translation__adequate m (φ : val → Prop) e σ :
-    is_closed [] e →
-    (∀ (ℓ:loc), adequate NotStuck {ℓ}«e» S{ℓ}«σ, m» (φ ∘ invtranslationV)) →
-    adequate_n NotStuck m e σ φ.
-  Proof.
-    intros Hclosed Hadq.
-    split.
-    (* (1) adequate result: *)
-    - intros n t2 σ2 v2 Hnsteps Inm.
-      (* build a location ℓ which is not in the domain of σ2: *)
-      pose (ℓ := fresh (dom (gset loc) σ2) : loc).
-      assert (σ2 !! ℓ = None)
-        by (simpl ; eapply not_elem_of_dom, is_fresh).
-      by eapply adequate_translation__adequate_result.
-    (* (2) safety: *)
-    - intros n t2 σ2 e2 _ Hnsteps Inm He2.
-      (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
-      pose (set1 := loc_set_of_expr e2 : gset loc).
-      pose (set2 := dom (gset loc) σ2 : gset loc).
-      pose (ℓ := fresh (set1 ∪ set2) : loc).
-      eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
-        by (unfold ℓ ; apply is_fresh).
-      assert (loc_fresh_in_expr ℓ e2)
-        by by apply loc_not_in_set_is_fresh.
-      assert (σ2 !! ℓ = None)
-        by by (simpl ; eapply not_elem_of_dom).
-      specialize (Hadq ℓ) as Hsafe % safe_adequate.
-      by eapply safe_translation__safe.
-  Qed.
+Lemma adequate_translation__adequate m (φ : val → Prop) e σ :
+  is_closed [] e →
+  (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+  adequate_n NotStuck m e σ φ.
+Proof.
+  intros Hclosed Hadq.
+  split.
+  (* (1) adequate result: *)
+  - intros n t2 σ2 v2 Hnsteps Inm.
+    (* build a location ℓ which is not in the domain of σ2: *)
+    pose (Hloc := Build_TickCounter (fresh (dom (gset loc) σ2)) : TickCounter).
+    assert (σ2 !! ℓ = None)
+      by (simpl ; eapply not_elem_of_dom, is_fresh).
+    by eapply adequate_translation__adequate_result.
+  (* (2) safety: *)
+  - intros n t2 σ2 e2 _ Hnsteps Inm He2.
+    (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
+    pose (set1 := loc_set_of_expr e2 : gset loc).
+    pose (set2 := dom (gset loc) σ2 : gset loc).
+    pose (Hloc := Build_TickCounter (fresh (set1 ∪ set2)) : TickCounter).
+    eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
+      by (unfold ℓ ; apply is_fresh).
+    assert (loc_fresh_in_expr ℓ e2)
+      by by apply loc_not_in_set_is_fresh.
+    assert (σ2 !! ℓ = None)
+      by by (simpl ; eapply not_elem_of_dom).
+    specialize (Hadq Hloc) as Hsafe % safe_adequate.
+    by eapply safe_translation__safe.
+Qed.
 
-End StrongSimulation.
+End Simulation.
