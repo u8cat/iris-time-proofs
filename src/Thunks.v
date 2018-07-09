@@ -90,11 +90,12 @@ Section Thunk.
     TICKCTXT -∗
     {{{ ( {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}} ) }}}
     create f
-    {{{ (t : loc), RET #t ; |={⊤}=> Thunk p t nc φ }}}.
+    {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
   Proof.
     iIntros "#Htickinv" (Φ) "!# Hf Post".
     iDestruct (zero_TC with "Htickinv") as ">Htc0".
     iMod (auth_mnat_alloc 0) as (γ) "[Hγ● Hγ◯]".
+    iApply wp_fupd.
     wp_lam. wp_alloc t.
     iApply "Post".
     iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
@@ -108,11 +109,12 @@ Section Thunk.
     (∀ (v : val), φ v -∗ φ v ∗ φ v) →
     {{{ Thunk p t 0 φ ∗ na_own p F }}}
     force #t
-    {{{ v, RET v ; φ v ∗ |={⊤}=> na_own p F }}}.
+    {{{ v, RET v ; φ v ∗ na_own p F }}}.
   Proof.
     iIntros (? Hφdup Φ) "[#Hthunk Hp] Post".
     iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
     rewrite (_ : nc - 0 = nc)%nat ; last lia.
+    iApply wp_fupd.
     wp_rec.
     (* reading the thunk… *)
     iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
