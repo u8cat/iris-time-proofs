@@ -33,6 +33,33 @@ Implicit Type m n : nat.
 
 
 (*
+ * Abstract interface of time receipts
+ *)
+
+(* Ideally, this would be represented as a record (or a typeclass), but it has
+ * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
+Definition TR_interface `{!irisG heap_lang Σ}
+  (nmax : nat)
+  (TR : nat → iProp Σ)
+  (TRdup : nat → iProp Σ)
+  (tick : val)
+: iProp Σ := (
+    ⌜∀ n, Timeless (TR n)⌝
+  ∗ ⌜∀ n, Timeless (TRdup n)⌝
+  ∗ ⌜∀ n, Persistent (TRdup n)⌝
+  ∗ (∀ n, TR n ={⊤}=∗ TR n ∗ TRdup n)
+  ∗ (|={⊤}=> TR 0%nat)
+(*   ∗ (|={⊤}=> TRdup 0%nat) *)
+  ∗ ⌜∀ m n, TR (m + n)%nat ≡ (TR m ∗ TR n)⌝
+  ∗ ⌜∀ m n, TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)⌝
+(*   ∗ (TR nmax ={⊤}=∗ False) *)
+  ∗ (TRdup nmax ={⊤}=∗ False)
+  ∗ (∀ v n, {{{ TRdup n }}} tick v {{{ RET v ; TR 1%nat ∗ TRdup (n+1)%nat }}})
+)%I.
+
+
+
+(*
  * Prerequisites on the global monoid Σ
  *)
 
@@ -118,6 +145,9 @@ Section TockSpec.
   Lemma TRdup_timeless n :
     Timeless (TRdup n).
   Proof. exact _. Qed.
+  Lemma TRdup_persistent n :
+    Persistent (TRdup n).
+  Proof. exact _. Qed.
 
   (* note: IntoAnd false will become IntoSep in a future version of Iris *)
   Global Instance into_sep_TRdup_max m n p : IntoAnd p (TRdup (m `max` n)) (TRdup m) (TRdup n).
@@ -130,6 +160,24 @@ Section TockSpec.
   Definition TOCKCTXT (nmax : nat) : iProp Σ :=
     inv timeReceiptN (∃ (n:nat), ℓ ↦ #(nmax-n-1) ∗ own γ1 (●nat n) ∗ own γ2 (●mnat n) ∗ ⌜(n < nmax)%nat⌝)%I.
 
+  Lemma zero_TR (nmax : nat) :
+    TOCKCTXT nmax ={⊤}=∗ TR 0.
+  Proof.
+    iIntros "#Htockinv".
+    iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & H)" "Hclose".
+    iDestruct (own_auth_nat_null with "Hγ1●") as "[Hγ1● $]".
+    iApply "Hclose" ; eauto with iFrame.
+  Qed.
+
+  Lemma zero_TRdup (nmax : nat) :
+    TOCKCTXT nmax ={⊤}=∗ TRdup 0.
+  Proof.
+    iIntros "#Htockinv".
+    iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & Hγ2● & Im)" "Hclose".
+    iDestruct (own_auth_mnat_null with "Hγ2●") as "[Hγ2● $]".
+    iApply "Hclose" ; eauto with iFrame.
+  Qed.
+
   Lemma TR_nmax_absurd (nmax : nat) (E : coPset) :
     ↑timeReceiptN ⊆ E →
     TOCKCTXT nmax -∗ TR nmax ={E}=∗ False.
@@ -137,6 +185,16 @@ Section TockSpec.
     iIntros (?) "#Inv Hγ1◯".
     iInv timeReceiptN as (n) ">(Hℓ & Hγ1● & Hγ2● & In)" "InvClose" ; iDestruct "In" as %In.
     iDestruct (own_auth_nat_le with "Hγ1● Hγ1◯") as %In'.
+    exfalso ; lia.
+  Qed.
+
+  Lemma TRdup_nmax_absurd (nmax : nat) (E : coPset) :
+    ↑timeReceiptN ⊆ E →
+    TOCKCTXT nmax -∗ TRdup nmax ={E}=∗ False.
+  Proof.
+    iIntros (?) "#Inv Hγ2◯".
+    iInv timeReceiptN as (n) ">(Hℓ & Hγ1● & Hγ2● & In)" "InvClose" ; iDestruct "In" as %In.
+    iDestruct (own_auth_mnat_le with "Hγ2● Hγ2◯") as %In'.
     exfalso ; lia.
   Qed.
 
@@ -161,13 +219,13 @@ Section TockSpec.
     iLöb as "IH". wp_rec. iExact "IH".
   Qed.
 
-  Theorem tock_spec (nmax : nat) s E e v :
+  Theorem tock_spec (nmax : nat) s E e v m :
     ↑timeReceiptN ⊆ E →
     IntoVal e v →
     TOCKCTXT nmax -∗
-    {{{ True }}} tock e @ s ; E {{{ RET v ; TR 1 }}}.
+    {{{ TRdup m }}} tock e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
   Proof.
-    intros ? <- % of_to_val. iIntros "#Inv" (Ψ) "!# _ HΨ".
+    intros ? <- % of_to_val. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value k = nmax−n−1 of location ℓ: *)
@@ -196,27 +254,42 @@ Section TockSpec.
            receipt produced: *)
         replace (nmax - n - 1 - 1) with (nmax - (n+1)%nat - 1) by lia.
         iMod (auth_nat_update_incr _ _ 1 with "Hγ1●") as "[Hγ1● Hγ1◯]" ; simpl.
-        iMod (auth_mnat_update_incr _ _ 1 with "Hγ2●") as "Hγ2●" ; simpl.
+(*         iMod (auth_mnat_update_incr _ _ 1 with "Hγ2●") as "Hγ2●" ; simpl. *)
+        iMod (auth_mnat_update_incr' _ _ _ 1 with "Hγ2● Hγ2◯") as "[Hγ2● Hγ2◯]" ; simpl.
         assert ((n+1) < nmax)%nat by lia.
         (* close the invariant: *)
         iMod ("InvClose" with "[ Hℓ Hγ1● Hγ2● ]") as "_" ; [ by auto with iFrame | iModIntro ].
         (* finish: *)
-        wp_if. iApply "HΨ" ; iExact "Hγ1◯".
+        wp_if. iApply "HΨ" ; by iFrame.
       (* — otherwise, CAS fails and ℓ is unchanged: *)
       + wp_cas_fail ; first (injection ; lia).
         (* close the invariant as is: *)
         iMod ("InvClose" with "[ Hℓ Hγ1● Hγ2● ]") as "_" ; [ by auto with iFrame | iModIntro ] ; clear dependent n.
         wp_if.
         (* conclude using the induction hypothesis: *)
-        iApply ("IH" with "HΨ").
+        iApply ("IH" with "Hγ2◯ HΨ").
   Qed.
 
-  Theorem tock_spec_simple (nmax : nat) v :
+  Theorem tock_spec_simple (nmax : nat) v (n : nat) :
     TOCKCTXT nmax -∗
-    {{{ True }}} tock v {{{ RET v ; TR 1 }}}.
+    {{{ TRdup n }}} tock v {{{ RET v ; TR 1 ∗ TRdup (n+1) }}}.
   Proof.
     iIntros "#Inv" (Ψ) "!# H HΨ".
     by iApply (tock_spec with "Inv H HΨ").
+  Qed.
+
+  Lemma TR_implementation (nmax : nat) : TOCKCTXT nmax -∗ TR_interface nmax TR TRdup tock.
+  Proof.
+    iIntros "#Hinv". repeat iSplitR.
+    - iPureIntro. by apply TR_timeless.
+    - iPureIntro. by apply TRdup_timeless.
+    - iPureIntro. by apply TRdup_persistent.
+    - iIntros (n). by iApply (TR_TRdup with "Hinv").
+    - by iApply (zero_TR with "Hinv").
+    - iPureIntro. by apply TR_plus.
+    - iPureIntro. by apply TRdup_max.
+    - by iApply (TRdup_nmax_absurd with "Hinv").
+    - iIntros (v n). by iApply (tock_spec_simple with "Hinv").
   Qed.
 
 End TockSpec.
@@ -345,6 +418,22 @@ Section Soundness.
     intros Inmax Hclosed Hspec HpreG σ.
     eapply adequate_trtranslation__adequate ; first done.
     intros Hloc. by eapply spec_trtranslation__adequate_translation.
+  Qed.
+
+  Lemma abstract_spec_trtranslation__adequate {Σ} (nmax : nat) (φ : val → Prop) e :
+    (0 < nmax)%nat →
+    is_closed [] e →
+    (∀ `{!heapG Σ} (TR TRdup : nat → iProp Σ) (tick : val),
+      TR_interface nmax TR TRdup tick -∗
+      {{{ True }}} translation tick e {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
+    ) →
+    ∀ {_ : timeReceiptHeapPreG Σ} σ,
+      adequate_n NotStuck (nmax-1) e σ φ.
+  Proof.
+    intros Inmax Hclosed Hspec HpreG σ.
+    eapply spec_trtranslation__adequate ; try done.
+    clear HpreG. iIntros (HtrHeapG) "#Hinv".
+    iApply Hspec. by iApply TR_implementation.
   Qed.
 
 End Soundness.

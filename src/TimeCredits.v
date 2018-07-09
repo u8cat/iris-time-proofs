@@ -17,6 +17,24 @@ Implicit Type m n : nat.
 
 
 (*
+ * Abstract interface of time credits
+ *)
+
+(* Ideally, this would be represented as a record (or a typeclass), but it has
+ * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
+Definition TC_interface `{!irisG heap_lang Σ}
+  (TC : nat → iProp Σ)
+  (tick : val)
+: iProp Σ := (
+    ⌜∀ n, Timeless (TC n)⌝
+  ∗ (|={⊤}=> TC 0%nat)
+  ∗ ⌜∀ m n, TC (m + n)%nat ≡ (TC m ∗ TC n)⌝
+  ∗ (∀ v, {{{ TC 1%nat }}} tick v {{{ RET v ; True }}})
+)%I.
+
+
+
+(*
  * Prerequisites on the global monoid Σ
  *)
 
@@ -54,10 +72,6 @@ Section Tick.
   Definition fail : val :=
     λ: <>, #() #().
 
-(*
-  Definition tick : val :=
-    λ: "x", if: ! #ℓ < #1 then fail #() else (FAA #ℓ (- #1) ;; "x").
-*)
   Definition tick : val :=
     tick fail ℓ.
 
@@ -87,7 +101,7 @@ Section TickSpec.
     Timeless (TC n).
   Proof. exact _. Qed.
 
-  (* note: IntoAnd false will become IntoSep *)
+  (* note: IntoAnd false will become IntoSep in a future version of Iris *)
   Global Instance into_sep_TC_plus m n p : IntoAnd p (TC (m + n)) (TC m) (TC n).
   Proof. rewrite /IntoAnd TC_plus ; iIntros "[Hm Hn]". destruct p ; iFrame. Qed.
   Global Instance from_sep_TC_plus m n : FromAnd false (TC (m + n)) (TC m) (TC n).
@@ -166,6 +180,15 @@ Section TickSpec.
   Proof.
     iIntros "#Hinv" (Ψ) "!# HTC HΨ".
     by iApply (tick_spec with "Hinv [HTC//] HΨ").
+  Qed.
+
+  Lemma TC_implementation : TICKCTXT -∗ TC_interface TC tick.
+  Proof.
+    iIntros "#Hinv". iSplit ; last iSplit ; last iSplit.
+    - iPureIntro. by apply TC_timeless.
+    - by iApply (zero_TC with "Hinv").
+    - iPureIntro. by apply TC_plus.
+    - iIntros (v). by iApply (tick_spec_simple with "Hinv").
   Qed.
 
 End TickSpec.
@@ -563,7 +586,7 @@ Section Soundness.
       TICKCTXT -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
-    ∀ `{timeCreditHeapPreG Σ} σ,
+    ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ φ  ∧  bounded_time e σ m.
   Proof.
     intros Hclosed Hspec HpreG σ.
@@ -574,24 +597,16 @@ Section Soundness.
   Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m (φ : val → Prop) e :
     is_closed [] e →
     (∀ `{heapG Σ} (TC : nat → iProp Σ) (tick : val),
-      (∀ m n, TC (m + n)%nat ≡ (TC m ∗ TC n)%I) →
-      (∀ n, Timeless (TC n)) →
-      (∀ v, {{{ TC 1%nat }}} tick v {{{ RET v ; True }}}) -∗
+      TC_interface TC tick -∗
       {{{ TC m }}} translation tick e {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
-    ∀ {_ : heapPreG Σ} {_ : inG Σ (authR natUR)} σ,
+    ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ φ  ∧  bounded_time e σ m.
   Proof.
-    intros Hclosed Hspec HpreG HinG σ.
-    (* a record of type (timeCreditHeapPreG Σ) is inferred from HpreG and HinG: *)
+    intros Hclosed Hspec HpreG σ.
     eapply spec_tctranslation__adequate_and_bounded ; try done.
-    clear HpreG HinG.
-    intros HtcHeapG.
-    specialize (Hspec _ TC tick).
-    iIntros "#Hinv".
-    iApply Hspec.
-    - exact TC_plus.
-    - iIntros (v). iApply (tick_spec_simple with "Hinv").
+    clear HpreG. iIntros (HtcHeapG) "#Hinv".
+    iApply Hspec. by iApply TC_implementation.
   Qed.
 
 End Soundness.
