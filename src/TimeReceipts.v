@@ -100,6 +100,11 @@ Section TockSpec.
   Lemma TR_succ n :
     TR (S n) ≡ (TR 1 ∗ TR n)%I.
   Proof. by rewrite (eq_refl : S n = 1 + n)%nat TR_plus. Qed.
+  Lemma TR_weaken (n₁ n₂ : nat) :
+    (n₂ ≤ n₁)%nat →
+    TR n₁ -∗ TR n₂.
+  Require Import Auth_nat.
+  Proof. apply own_auth_nat_weaken. Qed.
 
   Lemma TR_timeless n :
     Timeless (TR n).
@@ -118,6 +123,11 @@ Section TockSpec.
   Lemma TRdup_max m n :
     TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)%I.
   Proof. by rewrite /TRdup auth_frag_op own_op. Qed.
+  Lemma TRdup_weaken (n₁ n₂ : nat) :
+    (n₂ ≤ n₁)%nat →
+    TRdup n₁ -∗ TRdup n₂.
+  Require Import Auth_mnat.
+  Proof. apply own_auth_mnat_weaken. Qed.
 
   Lemma TRdup_timeless n :
     Timeless (TRdup n).
@@ -164,6 +174,16 @@ Section TockSpec.
     iDestruct (own_auth_nat_le with "Hγ1● Hγ1◯") as %In'.
     exfalso ; lia.
   Qed.
+  Lemma TR_lt_nmax n (E : coPset) :
+    ↑timeReceiptN ⊆ E →
+    TR_invariant -∗ TR n ={E}=∗ TR n ∗ ⌜n < nmax⌝%nat.
+  Proof.
+    iIntros (?) "#Inv Hγ1◯".
+    destruct (le_lt_dec nmax n) as [ I | I ] ; last by iFrame.
+    iDestruct (TR_weaken n nmax with "Hγ1◯") as "Hγ1◯" ; first done.
+    iDestruct (TR_nmax_absurd with "Inv Hγ1◯") as ">?" ; first done.
+    done.
+  Qed.
 
   Lemma TRdup_nmax_absurd (E : coPset) :
     ↑timeReceiptN ⊆ E →
@@ -173,6 +193,16 @@ Section TockSpec.
     iInv timeReceiptN as (n) ">(Hℓ & Hγ1● & Hγ2● & In)" "InvClose" ; iDestruct "In" as %In.
     iDestruct (own_auth_mnat_le with "Hγ2● Hγ2◯") as %In'.
     exfalso ; lia.
+  Qed.
+  Lemma TRdup_lt_nmax n (E : coPset) :
+    ↑timeReceiptN ⊆ E →
+    TR_invariant -∗ TRdup n ={E}=∗ TRdup n ∗ ⌜n < nmax⌝%nat.
+  Proof.
+    iIntros (?) "#Inv Hγ1◯".
+    destruct (le_lt_dec nmax n) as [ I | I ] ; last by iFrame.
+    iDestruct (TRdup_weaken n nmax with "Hγ1◯") as "Hγ1◯" ; first done.
+    iDestruct (TRdup_nmax_absurd with "Inv Hγ1◯") as ">?" ; first done.
+    done.
   Qed.
 
   Lemma TR_TRdup (E : coPset) n :
