@@ -75,7 +75,7 @@ Important modules are highlighted.
  *  __`Simulation`: generic definition of `tick`; operational lemmas about the
     translation with that `tick`__
  *  __`TimeCredits`: interface, implementation, and proof of soundness for time
-    credits (plus a proof-mode tactic `wp_pay`)__
+    credits (plus a proof-mode tactic `wp_tick`)__
  *  __`TimeCreditsAltProofs`: alternative proofs of the soundness theorem of
     time credits, that does not rely on the unsafe behavior of `tick`__
  *  __`TimeReceipts`: interface, implementation, and proof of soundness for time
