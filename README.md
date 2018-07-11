@@ -83,3 +83,48 @@ Important modules are highlighted.
  *  `Examples`: a very simple example illustrating the use of time credits to
     specify a program with lists
  *  __`Thunks`: implementation of timed thunks using time credits__
+
+### From the paper to the Coq code
+
+#### Generic translation and “tick”
+
+The basic properties of the translation are proven in `Translation.v` (for
+example, `translation_subst` and `translation_of_val`).
+
+In `Simulation.v`:
+
+ *  The operational semantics of “tick” in the nonzero case is given by lemma
+    `exec_tick_success`.
+ *  The “Forward Simulation” lemma is `simulation_exec_success`.
+ *  The “Forward Simulation of Unsafe Behaviors” lemma corresponds roughly to
+    `safe_translation__safe_here`.
+ *  The “Safety Transfer” lemma is `adequate_translation__adequate` (in the Coq
+    development, by contrast with the paper, not only do we prove safety of
+    programs, but also their _adequacy_ with respect to some formula φ; this is
+    not a difficult property to transfer anyway).
+
+#### Time credits
+
+In `TimeCredits.v`:
+
+ *  The “Credit Exhaustion” lemma is `simulation_exec_failure_now`.
+ *  The “Soundness of the Time Credit Translation” lemma is
+    `simulation_exec_failure`.
+ *  The “Time Credit Initialization” lemma does not have an exact counterpart in
+    the Coq development, but corresponds roughly to a portion of the proof of
+    `spec_tctranslation__adequate`. The fact that our implementation matches the
+    interface is stated by `TC_implementation`.
+ *  The “Soundness of Iris^$ ” lemma is
+    `abstract_spec_tctranslation__adequate_and_bounded`.
+
+#### Time receipts
+
+In `TimeReceipts.v`:
+
+ *  The “Time Receipt Initialization” lemma does not have an exact counterpart
+    in the Coq development, but corresponds roughly to a portion of the proof of
+    `spec_trtranslation__adequate_translation`. The fact that our implementation
+    matches the interface is stated by `TR_implementation`.
+ *  The “Credit Exhaustion” lemma is `simulation_exec_failure_now`.
+ *  The “Soundness of Iris^⧗ ” lemma is `abstract_spec_trtranslation__adequate`.
+
