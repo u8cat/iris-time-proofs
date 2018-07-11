@@ -16,28 +16,29 @@ Section machine_int.
 
 Context `{heapG Σ}.
 
-Definition is_machine_int (v : val) (n : Z) : iProp Σ :=
-  ⌜v = #n  ∧  min_int ≤ n < max_int⌝%I.
+Definition is_machine_int (n : Z) : iProp Σ :=
+  ⌜min_int ≤ n < max_int⌝%I.
 
 Definition machine_int_add : val :=
   λ: "x" "y",
     ("x" + "y" + #max_int) `rem` #max_uint - #max_int.
 
-Lemma machine_int_add_spec v1 n1 v2 n2 :
-  {{{ is_machine_int v1 n1 ∗ is_machine_int v2 n2 ∗ ⌜min_int ≤ n1+n2 < max_int⌝ }}}
-  machine_int_add v1 v2
-  {{{ v, RET v ; is_machine_int v (n1+n2) }}}.
+Lemma machine_int_add_spec n1 n2 :
+  {{{ is_machine_int n1 ∗ is_machine_int n2 ∗ ⌜min_int ≤ n1+n2 < max_int⌝ }}}
+  machine_int_add #n1 #n2
+  {{{ RET #(n1+n2) ; is_machine_int (n1+n2) }}}.
 Proof.
-  iIntros (Φ) "([->_] & [->_] & %) Post".
-  repeat (wp_pure _). iApply "Post". iPureIntro.
-  split ; last done. do 2 f_equal.
+  iIntros (Φ) "(_ & _ & %) Post". repeat (wp_pure _).
   (* boring arithmetic proof: *)
-  assert ((n1 + n2 + max_int) `rem` max_uint = n1 + n2 + max_int). {
-    (*assert (min_int = -max_int) by done.
-    assert (max_int + max_int = max_uint) by done.*)
-    apply Z.rem_small. unfold min_int, max_uint in *. lia.
+  assert ((n1 + n2 + max_int) `rem` max_uint - max_int = n1 + n2) as ->. {
+    assert ((n1 + n2 + max_int) `rem` max_uint = n1 + n2 + max_int). {
+      (*assert (min_int = -max_int) by done.
+      assert (max_int + max_int = max_uint) by done.*)
+      apply Z.rem_small. unfold min_int, max_uint in *. lia.
+    }
+    lia.
   }
-  lia.
+  by iApply "Post".
 Qed.
 
 End machine_int.
@@ -48,8 +49,8 @@ Context `{timeReceiptHeapG Σ}.
 Context (nmax : nat).
 Context `(nmax ≤ max_int).
 
-Definition is_clock_int (v : val) (n : nat) : iProp Σ :=
-  (⌜v = #n⌝  ∗  TR n)%I.
+Definition is_clock_int (n : nat) : iProp Σ :=
+  TR n.
 
   Lemma TR_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
@@ -68,25 +69,21 @@ Definition is_clock_int (v : val) (n : nat) : iProp Σ :=
     done.
   Qed.
 
-Lemma clock_int_add_spec v1 n1 v2 n2 :
+Lemma clock_int_add_spec n1 n2 :
   TR_invariant nmax -∗
-  {{{ is_clock_int v1 n1 ∗ is_clock_int v2 n2 }}}
-  machine_int_add v1 v2
-  {{{ v, RET v ; is_clock_int v (n1+n2) }}}.
+  {{{ is_clock_int n1 ∗ is_clock_int n2 }}}
+  machine_int_add #n1 #n2
+  {{{ RET #(n1+n2) ; is_clock_int (n1+n2) }}}.
 Proof.
-  iIntros "#Htrinv" (Φ) "!# ([->H1] & [->H2]) Post".
+  iIntros "#Htrinv" (Φ) "!# (H1 & H2) Post".
   iAssert (TR (n1+n2)) with "[H1 H2]" as "H" ; first by (rewrite TR_plus ; iFrame).
   iDestruct (TR_lt_nmax with "Htrinv H") as ">(H & %)" ; first done.
-  wp_apply (machine_int_add_spec _ n1 _ n2 with "[] [H Post]") .
+  wp_apply (machine_int_add_spec n1 n2 with "[] [H Post]") .
   {
-    iSplitR ; last iSplitR ; iPureIntro.
-    - split ; first done. unfold min_int in *. lia.
-    - split ; first done. unfold min_int in *. lia.
-    - unfold min_int in *. lia.
+    iPureIntro. unfold min_int in *. lia.
   }
   {
-    iNext ; iIntros (v) "[->%]". iApply "Post". iFrame "H".
-    iPureIntro. do 2 f_equal. lia.
+    iNext ; iIntros "%". iApply "Post". iFrame "H".
   }
 Qed.
 
@@ -98,8 +95,8 @@ Context `{timeReceiptHeapG Σ}.
 Context (nmax : nat).
 Context `(nmax ≤ max_int).
 
-Definition is_snapclock_int (v : val) (n : nat) : iProp Σ :=
-  (⌜v = #n⌝  ∗  TRdup n)%I.
+Definition is_snapclock_int (n : nat) : iProp Σ :=
+  TRdup n.
 
   Lemma TRdup_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
@@ -118,52 +115,41 @@ Definition is_snapclock_int (v : val) (n : nat) : iProp Σ :=
     done.
   Qed.
 
-Lemma snapclock_int_incr_spec v1 n1 :
+Lemma snapclock_int_incr_spec n1 :
   TR_invariant nmax -∗
-  {{{ is_snapclock_int v1 n1 }}}
-  tock #() ;; machine_int_add v1 #1
-  {{{ v, RET v ; is_snapclock_int v (n1+1) }}}.
+  {{{ is_snapclock_int n1 }}}
+  tock #() ;; machine_int_add #n1 #1
+  {{{ RET #(n1+1) ; is_snapclock_int (n1+1) }}}.
 Proof.
-  iIntros "#Htrinv" (Φ) "!# [->H1] Post".
+  iIntros "#Htrinv" (Φ) "!# H1 Post".
   wp_apply (tock_spec_simple nmax #() with "Htrinv H1"). iIntros "(_ & H)".
   iDestruct (TRdup_lt_nmax with "Htrinv H") as ">(H & %)" ; first done.
   wp_seq.
-  rewrite (_ : (#n1)%E = of_val (#n1)%V) // ;
-  rewrite (_ : (#1)%E = of_val (#1)%V) //.
-  wp_apply (machine_int_add_spec _ n1 _ 1 with "[] [H Post]") .
+  wp_apply (machine_int_add_spec n1 1 with "[] [H Post]") .
   {
-    iSplitR ; last iSplitR ; iPureIntro.
-    - split ; first done. unfold min_int in *. lia.
-    - split ; first done. done.
-    - unfold min_int in *. lia.
+    iPureIntro. unfold min_int in *. lia.
   }
   {
-    iNext ; iIntros (v) "[->%]".
-    iApply "Post". iFrame "H".
-    iPureIntro. do 2 f_equal. lia.
+    iNext ; iIntros "%". iApply "Post". iFrame "H".
   }
 Qed.
 
-Lemma snapclock_int_add_spec v1 n1 v2 n2 w m :
+Lemma snapclock_int_add_spec n1 n2 m :
   TR_invariant nmax -∗
-  {{{ is_snapclock_int v1 n1 ∗ is_snapclock_int v2 n2
-    ∗ is_snapclock_int w m ∗ ⌜n1+n2 ≤ m⌝ }}}
-  machine_int_add v1 v2
-  {{{ v, RET v ; is_snapclock_int v (n1+n2) }}}.
+  {{{ is_snapclock_int n1 ∗ is_snapclock_int n2
+    ∗ is_snapclock_int m ∗ ⌜n1+n2 ≤ m⌝ }}}
+  machine_int_add #n1 #n2
+  {{{ RET #(n1+n2) ; is_snapclock_int (n1+n2) }}}.
 Proof.
-  iIntros "#Htrinv" (Φ) "!# ([->H1] & [->H2] & [_ Hm] & %) Post".
+  iIntros "#Htrinv" (Φ) "!# (_ & _ & Hm & %) Post".
   iDestruct (TRdup_lt_nmax with "Htrinv Hm") as ">(Hm & %)" ; first done.
   iDestruct (TRdup_weaken m (n1 + n2) with "Hm") as "H" ; first lia.
-  wp_apply (machine_int_add_spec _ n1 _ n2 with "[] [H Post]") .
+  wp_apply (machine_int_add_spec n1 n2 with "[] [H Post]") .
   {
-    iSplitR ; last iSplitR ; iPureIntro.
-    - split ; first done. unfold min_int in *. lia.
-    - split ; first done. unfold min_int in *. lia.
-    - unfold min_int in *. lia.
+    iPureIntro. unfold min_int in *. lia.
   }
   {
-    iNext ; iIntros (v) "[->%]". iApply "Post". iFrame "H".
-    iPureIntro. do 2 f_equal. lia.
+    iNext ; iIntros "%". iApply "Post". iFrame "H".
   }
 Qed.
 
