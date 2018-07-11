@@ -86,6 +86,8 @@ Important modules are highlighted.
  *  `Examples`: a very simple example illustrating the use of time credits to
     specify a program with lists
  *  __`Thunks`: implementation of timed thunks using time credits__
+ *  __`ClockedIntegers`: reconstruction of Clochard’s integer types (`onetime`
+    and `peano`) using time receipts__
 
 ### From the paper to the Coq code
 

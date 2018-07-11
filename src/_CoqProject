@@ -1,6 +1,7 @@
 -Q . ""
 Auth_mnat.v
 Auth_nat.v
+ClockIntegers.v
 Examples.v
 Misc.v
 Reduction.v
