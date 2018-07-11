@@ -5,3 +5,4 @@ Makefile.coq
 *.glob
 *.vo
 .lia.cache
+*.tar.gz
