@@ -1,10 +1,45 @@
-## Compiling
+## Requirements
 
 The project is known to compile with:
  *  Coq 8.7.2
- *  iris-coq dev.2018-04-10.0 (development version of Iris)
+ *  coq-iris dev.2018-04-10.0 (development version of Iris)
 
-To install Iris, follow instructions [there][iris-coq].
+### Step 1: Install opam
+
+See instructions [there][install-opam]; then:
+
+    opam init --comp=4.06.1
+
+(This will create a `~/.opam` directory.)
+
+### Step 2: Install Coq
+
+    opam repo add coq-released https://coq.inria.fr/opam/released
+    opam update
+    opam install -j4 -v coq.8.7.2
+
+If you want to use CoqIDE (a graphical, interactive toplevel for Coq), install
+it as well:
+
+    opam install coqide.8.7.2
+
+### Step 3: Install a development version of Iris
+
+    opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
+    opam update
+
+    # to get a specific development version:
+    opam pin add coq-iris -k version dev.2018-04-10.0
+    # OR, to get the latest development version (beware that the analysis of
+    # dependencies can be very slow):
+    opam install coq-iris
+
+(This will also install `coq-stdpp`, another Coq library made available through
+the same repo.)
+
+More info on the Coq development of Iris: [there][coq-iris].
+
+## Compiling
 
 To compile the Coq scripts:
 
@@ -21,7 +56,8 @@ To create an archive of the project:
 
     ./make_archive.sh
 
-[iris-coq]: https://gitlab.mpi-sws.org/FP/iris-coq/blob/master/README.md
+[install-opam]: https://opam.ocaml.org/doc/Install.html
+[coq-iris]: https://gitlab.mpi-sws.org/FP/iris-coq
 [coqproject]: https://blog.zhenzhang.me/2016/09/19/coq-dev.html
 
 ## Index of modules
