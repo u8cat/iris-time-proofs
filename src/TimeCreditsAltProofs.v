@@ -9,6 +9,8 @@ Implicit Type σ : state.
 Implicit Type t : list expr.
 Implicit Type K : ectx heap_ectx_lang.
 Implicit Type m n : nat.
+Implicit Type φ ψ : val → Prop.
+Implicit Type Σ : gFunctors.
 
 Local Notation γ := timeCreditHeapG_name.
 Local Notation ℓ := tick_counter.
@@ -16,7 +18,7 @@ Local Notation ℓ := tick_counter.
 (* In general, one can prove:
  *     if the translated program with the counter initialized to m is safe,
  *     then the source program is m-safe.
- * This is lemma [adequate_translation__adequate] in `Simulation.v`.
+ * This is lemma [adequate_translation__nadequate] in `Simulation.v`.
  *
  * Moreover, for time credits, we can prove:
  *     if the translated program with the counter initialized to m is safe,
@@ -33,7 +35,7 @@ Local Notation ℓ := tick_counter.
  *     if the Hoare triple  { TC m } «e» { φ }  holds,
  *     then FOR ALL m' ≥ m,
  *       the translated program with the counter initialized to m' is safe.
- * This is lemma [spec_tctranslation__adequate] in `TimeCredits.v`.
+ * This is lemma [<spec_tctranslation__adequate_tctranslation>] in `TimeCredits.v`.
  *
  * Hence from the Hoare triple we can deduce that the source program
  *   (1)  computes in at most m steps (by taking m' = m), and
@@ -47,7 +49,7 @@ Local Notation ℓ := tick_counter.
  *     if the translated program with the counter initialized to m is safe,
  *     then the source program is safe.
  * The proof is given below. It is mostly a copy-paste of the general proof
- * of [adequate_translation__adequate] in `Simulation.v`, with additional calls
+ * of [adequate_translation__nadequate] in `Simulation.v`, with additional calls
  * to [safe_tctranslation__bounded] and one call to [not_safe_tick].
  *)
 
@@ -135,7 +137,7 @@ Qed.
 (* assuming the adequacy of the translated expression,
  * a proof that the original expression has adequate results. *)
 
-Lemma adequate_tctranslation__adequate_result {Hloc : TickCounter} m (φ : val → Prop) e σ t2 σ2 v2 :
+Lemma adequate_tctranslation__adequate_result {Hloc : TickCounter} m φ e σ t2 σ2 v2 :
   is_closed [] e →
   σ2 !! ℓ = None →
   adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
@@ -155,7 +157,7 @@ Qed.
 
 (* now let’s combine the two results. *)
 
-Lemma adequate_tctranslation__adequate_alt m (φ : val → Prop) e σ :
+Lemma adequate_tctranslation__adequate m φ e σ :
   is_closed [] e →
   (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
   adequate NotStuck e σ φ.
@@ -241,9 +243,9 @@ Proof.
   pose proof (eq_stepl Hσ H) as E. by injection E.
 Qed.
 
-Lemma spec_tctranslation__bounded {Σ} m (ψ : val → Prop) e :
+Lemma spec_tctranslation__bounded {Σ} m ψ e :
   (∀ `{timeCreditHeapG Σ},
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
   ) →
   ∀ `{TickCounter} `{timeCreditHeapPreG Σ} σ1 t2 σ2 (z : Z),
@@ -255,7 +257,7 @@ Proof.
   apply (wp_invariance Σ _ NotStuck «e» S«σ1,m» T«t2» S«σ2,z») ; simpl ; last assumption.
   intros HinvG.
   (* … now we have to prove a WP for some state interpretation, for which
-   * we settle the needed invariant TICKCTXT. *)
+   * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
   (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
   iMod (own_alloc (● to_gen_heap (<[ℓ := #m]> σ') ⋅ ◯ to_gen_heap {[ℓ := #m]}))
@@ -276,7 +278,7 @@ Proof.
   pose (Build_timeCreditHeapG Σ (HeapG Σ HinvG (GenHeapG _ _ Σ _ _ HgenHeapPreInG h)) HinG _ γ)
     as HtcHeapG.
   (* create the invariant: *)
-  iAssert (|={⊤}=> TICKCTXT)%I with "[Hℓ◯ Hγ●]" as "> #Hinv".
+  iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> #Hinv".
   {
     iApply inv_alloc.
     iExists m.
@@ -309,10 +311,10 @@ Axiom simulation_exec_alt : ∀ {Hloc : TickCounter} m n t1 σ1 t2 σ2,
   nsteps step m (t1, σ1) (t2, σ2) →
   rtc step (T«t1», S«σ1, n») (T«t2», S«σ2, (n-m)%Z»).
 
-Lemma spec_tctranslation__bounded' {Σ} m (ψ : val → Prop) e :
+Lemma spec_tctranslation__bounded' {Σ} m ψ e :
   is_closed [] e →
   (∀ `{timeCreditHeapG Σ},
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
   ) →
   ∀ `{!timeCreditHeapPreG Σ} σ,

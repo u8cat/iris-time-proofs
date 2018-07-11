@@ -11,17 +11,20 @@ Implicit Type t : list expr.
 Implicit Type K : ectx heap_ectx_lang.
 Implicit Type ℓ : loc.
 Implicit Type m n : nat.
+Implicit Type φ : val → Prop.
 
 
 
+(* Our definition of “tick” will depend on a location. This is made a typeclass
+ * so as to be inferred automatically. *)
 Class TickCounter := { tick_counter : loc }.
 Notation "S« σ , n »" := (<[tick_counter := LitV (LitInt n%nat)]> (translationS σ%V)).
 (* Notation "« σ , n »" := (<[ℓ := LitV (LitInt n%nat)]> (translationS σ%V)) (only printing). *)
 Local Notation ℓ := tick_counter.
 
 
-
-Section Simulation. (* this whole file is parameterized by a “runtime_error” value *)
+(* This whole file is parameterized by a “runtime_error” value: *)
+Section Simulation.
 Context (runtime_error : val).
 
 
@@ -139,13 +142,12 @@ Section Tick_exec.
     apply prim_exec_nil.
   Qed.
 
-  Lemma exec_tick_aux e1 v2 σ :
+  Lemma exec_tick_case_branch e1 v2 σ :
     is_closed [] e1 →
-    prim_exec (tick_aux (λ: <>, e1) v2)%E σ
-              (e1 (tick v2)           )   σ [].
+    prim_exec  (tick_case_branch (λ: <>, e1) v2)%E  σ (e1 (tick v2)) σ  [].
   Proof.
     intros ; assert (Closed [] e1) by exact.
-    unfold tick_aux ; unlock.
+    unfold tick_case_branch ; unlock.
     eapply prim_exec_cons_nofork.
     {
       prim_step.
@@ -265,13 +267,13 @@ Section SimulationLemma.
     (* SndS e1 v1 e2 v2 σ : *)
     - tick_then_step_then_stop.
     (* CaseLS e0 v0 e1 e2 σ : *)
-    - tick_then_step_then exec_tick_aux.
+    - tick_then_step_then exec_tick_case_branch.
       (* this is the only place where we need the term to be closed (because
        * the reduction rules for Case are adhoc somehow: *)
       simpl in Hclosed ; repeat (apply andb_True in Hclosed as [ Hclosed ? ]).
       by apply is_closed_translation.
     (* CaseRS e0 v0 e1 e2 σ : *)
-    - tick_then_step_then exec_tick_aux.
+    - tick_then_step_then exec_tick_case_branch.
       (* this is the only place where we need the term to be closed (because
        * the reduction rules for Case are adhoc somehow: *)
       simpl in Hclosed ; repeat (apply andb_True in Hclosed as [ Hclosed ? ]).
@@ -557,7 +559,7 @@ Section SimulationLemma.
   (* assuming the adequacy of the translated expression,
    * a proof that the original expression has m-adequate results. *)
 
-  Lemma adequate_translation__adequate_result m n (φ : val → Prop) e σ t2 σ2 v2 :
+  Lemma adequate_translation__adequate_result m n φ e σ t2 σ2 v2 :
     is_closed [] e →
     σ2 !! ℓ = None →
     adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
@@ -579,20 +581,10 @@ End SimulationLemma. (* we close the section here as we now want to quantify ove
 
 (* now let’s combine the two results. *)
 
-Record adequate_n (s : stuckness) (n : nat) e1 σ1 (φ : val → Prop) := {
-  adequate_n_result k t2 σ2 v2 :
-   nsteps step k ([e1], σ1) (of_val v2 :: t2, σ2) → (k ≤ n)%nat → φ v2;
-  adequate_n_not_stuck k t2 σ2 e2 :
-   s = NotStuck →
-   nsteps step k ([e1], σ1) (t2, σ2) →
-   (k < n)%nat →
-   e2 ∈ t2 → (is_Some (to_val e2) ∨ reducible e2 σ2)
-}.
-
-Lemma adequate_translation__adequate m (φ : val → Prop) e σ :
+Lemma adequate_translation__adequate m φ e σ :
   is_closed [] e →
   (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-  adequate_n NotStuck m e σ φ.
+  nadequate NotStuck m e σ φ.
 Proof.
   intros Hclosed Hadq.
   split.

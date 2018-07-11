@@ -87,7 +87,7 @@ Section Thunk.
       end.
 
   Lemma create_spec p nc φ f :
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ TC 1 ∗ ( {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}} ) }}}
     «create» f
     {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
@@ -107,7 +107,7 @@ Section Thunk.
   Lemma force_spec p F t φ :
     ↑(thunkN t) ⊆ F →
     (∀ (v : val), φ v -∗ φ v ∗ φ v) →
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ TC 7 ∗ Thunk p t 0 φ ∗ na_own p F }}}
     «force» #t
     {{{ v, RET v ; φ v ∗ na_own p F }}}.
@@ -186,7 +186,5 @@ Section Thunk.
       iDestruct (own_auth_mnat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
     }
   Qed.
-
-  (* TODO: prove these specifications on the translation of create, force *)
 
 End Thunk.

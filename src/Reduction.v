@@ -767,4 +767,19 @@ Section Safety.
     intros <-. apply not_safe_fill.
   Qed.
 
+  (* n-adequacy: *)
+  Record nadequate (s : stuckness) (n : nat) e1 σ1 (φ : val → Prop) : Prop := {
+    nadequate_result k t2 σ2 v2 :
+     nsteps step k ([e1], σ1) (of_val v2 :: t2, σ2) → (k ≤ n)%nat → φ v2;
+    nadequate_not_stuck k t2 σ2 e2 :
+     s = NotStuck →
+     nsteps step k ([e1], σ1) (t2, σ2) →
+     (k < n)%nat →
+     e2 ∈ t2 → (is_Some (to_val e2) ∨ reducible e2 σ2)
+  }.
+
+  (* n-safety: *)
+  Definition nsafe n e σ : Prop :=
+    nadequate NotStuck n e σ (λ _, True).
+
 End Safety.

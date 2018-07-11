@@ -119,7 +119,7 @@ Proof.
     iApply "Post". eauto with iFrame.
 Qed.
 Lemma sum_list_translation_spec `{!timeCreditHeapG Σ} (l : list Z) (v : val) :
-  TICKCTXT -∗
+  TC_invariant -∗
   {{{ is_list_tr l v ∗ TC (3 + 10 * length l) }}} « sum_list v » {{{ RET #(sum_list_coq l) ; is_list_tr l v }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "[Hl Htc] Post".
@@ -173,7 +173,7 @@ Proof.
     iApply "Post". eauto with iFrame.
 Qed.
 Lemma make_list_translation_spec `{!timeCreditHeapG Σ} (n : nat) :
-  TICKCTXT -∗
+  TC_invariant -∗
   {{{ TC (3+5*n) }}} «make_list #n» {{{ v', RET v' ; is_list (make_list_coq n) v' }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "Htc Post".
@@ -235,7 +235,7 @@ Proof.
   iApply ("Post" with "[%]"). repeat f_equal. apply sum_list_coq_make_list_coq.
 Qed.
 Lemma prgm_translation_spec `{!timeCreditHeapG Σ} (n : nat) :
-  TICKCTXT -∗
+  TC_invariant -∗
   {{{ TC (6+15*n) }}} «prgm n» {{{ v, RET v ; ⌜v = #(n*(n+1)/2)⌝ }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "Htc Post".
@@ -255,39 +255,10 @@ Proof.
   iApply ("Post" with "[%]"). repeat f_equal. apply sum_list_coq_make_list_coq.
 Qed.
 
-  Theorem spec_tctranslation__adequate_and_bounded' {Σ} m (φ : val → Prop) e :
-    (∀ v, φ v → closure_free v) →
-    is_closed [] e →
-    (∀ `{timeCreditHeapG Σ},
-      TICKCTXT -∗
-      {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ v⌝ }}}
-    ) →
-    ∀ {_ : timeCreditHeapPreG Σ} σ,
-      adequate NotStuck e σ φ  ∧  bounded_time e σ m.
-  Proof.
-    intros Hφ Hclosed Hspec HpreG σ.
-    apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)) ; try assumption.
-    intros HtcHeapG.
-    iIntros "#Htickinv !#" (Φ) "Htc Post".
-    wp_apply (Hspec with "Htickinv Htc"). iIntros (v Hv).
-    iApply ("Post" with "[%]").
-    by apply closure_free_predicate.
-  Qed.
-
 Lemma prgm_timed_spec (n : nat) (σ : state) `{!timeCreditHeapPreG Σ} :
     adequate NotStuck (prgm n) σ (λ v, v = #(n*(n+1)/2))
   ∧ bounded_time (prgm n) σ (6 + 15 * n)%nat.
 Proof.
-(*
-  apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)).
-  - rewrite !andb_True ; repeat split ; apply is_closed_of_val.
-  - intros HtcHeapG.
-    iIntros "#Htickinv !#". iIntros (Φ) "Htc Post".
-    wp_apply (prgm_translation_spec with "Htickinv Htc"). iIntros (v ->).
-    iApply ("Post" with "[%]"). done.
-  - assumption.
-Restart.
-*)
   apply (spec_tctranslation__adequate_and_bounded' (Σ:=Σ)).
   - by intros _ ->.
   - rewrite !andb_True ; repeat split ; apply is_closed_of_val.

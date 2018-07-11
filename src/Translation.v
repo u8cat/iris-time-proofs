@@ -16,13 +16,31 @@ Implicit Type m n : nat.
  * Translation with any arbitrary expression for [tick]
  *)
 
+(* “tick” is a typeclass so that it can be made an implicit argument of the
+ * translation and be inferred automatically from the context: *)
 Class Tick := { tick : val }.
 
 Section Translation.
 
   Context {Htick : Tick}.
 
-  Definition tick_aux : val :=
+  (* Unfortunately, the operational semantics of [match] in our language is
+   * ad-hoc somehow, as the rule is:
+   *     Case (InjL v) e1 e2  →  e1 v
+   * Instead of the more canonical rule:
+   *     Case (InjL v) (x1. e1) (x2. e2)  →  e1 [x1 := v]
+   * This means that the reduction of a match construct really takes two steps,
+   * since we still have to reduce the application; hence, in our time credit
+   * model, a match construct will cost two credits.
+   * It also means that the “branch” [e1] is not constrained be a λ-abstraction,
+   * and can reduce after the reduction of the [match] but before it is applied
+   * to [v]!
+   * This ad-hoc semantics calls for an ad-hoc definition of the translation in
+   * that case because, to observe the simulation lemma, the translation of
+   * [Case (InjL v) e1 e2] must reduce to the translation of [e1 v], which is
+   * [«e1» (tick «e2»)]. To do so --which means preserving the weird evaluation
+   * order--, we use the helper term below: *)
+  Definition tick_case_branch : val :=
     (λ: "f" "x", "f" #() (tick "x"))%V.
 
   Fixpoint translation (e : expr) : expr :=
@@ -45,8 +63,8 @@ Section Translation.
     | InjR e          => InjR (translation e)
     | Case e0 e1 e2   =>
         Case (tick $ translation e0)
-          (tick_aux (λ: <>, translation e1))
-          (tick_aux (λ: <>, translation e2))
+          (tick_case_branch (λ: <>, translation e1))
+          (tick_case_branch (λ: <>, translation e2))
     (* Concurrency *)
     | Fork e          => tick $ Fork (translation e)
     (* Heap *)
@@ -62,7 +80,7 @@ Section Translation.
     is_closed xs (translation e).
   Proof.
     assert (∀ xs, is_closed xs tick) by (intro ; apply is_closed_of_val).
-    revert xs. induction e ; simpl ; unlock tick_aux ; naive_solver.
+    revert xs. induction e ; simpl ; unlock tick_case_branch ; naive_solver.
   Qed.
 
   Fixpoint translationV (v : val) : val :=
@@ -95,8 +113,8 @@ Section Translation.
     | InjRCtx         => InjRCtx
     | CaseCtx e1 e2   =>
         CaseCtx
-          (tick_aux (λ: <>, translation e1))%E
-          (tick_aux (λ: <>, translation e2))%E
+          (tick_case_branch (λ: <>, translation e1))%E
+          (tick_case_branch (λ: <>, translation e2))%E
     | AllocCtx        => AllocCtx
     | LoadCtx         => LoadCtx
     | StoreLCtx e2    => StoreLCtx (tick $ translation e2)
@@ -163,7 +181,7 @@ Section Translation.
 
   Lemma translation_of_val_inv e v' :
     translation e = of_val v' →
-    ∃ v, e = of_val v. (* TODO: be more precise? *)
+    ∃ v, e = of_val v.
   Proof.
     revert e.
     induction v' as 
@@ -199,7 +217,7 @@ Section Translation.
 
   Lemma translation_to_val_inv e v' :
     to_val (translation e) = Some v' →
-    ∃ v, to_val e = Some v. (* TODO: be more precise? *)
+    ∃ v, to_val e = Some v.
   Proof.
     intros [v ->] % of_to_val % eq_sym % translation_of_val_inv.
     eauto using to_of_val.
@@ -404,8 +422,6 @@ Section Translation.
     by rewrite - _bool_decide_eq_translationV.
   Qed.
 
-
-
   Lemma translationV_lit lit :
     translationV #lit = #lit.
   Proof.
@@ -425,147 +441,6 @@ Section Translation.
     change (#lit)%E with (of_val (#lit)%V).
     by intros ? % of_val_inj % translationV_lit_inv.
   Qed.
-
-(*
- * Translation as a type class
- *)
-
-Class Translates e e' := translates : (translation e = e').
-Class TranslatesV v v' := translatesV : (translationV v = v').
-
-Program Instance Translates_Var: Translates (Var x) (Var x).
-Program Instance Translates_Rec: Translates e e' → Translates (Rec f x e ) (Rec f x e').
-Program Instance Translates_App: Translates e1 e1' → Translates e2 e2' →
-                                 Translates (e1 e2) (e1' (tick e2')).
-Program Instance Translates_Lit: Translates (Lit l) (Lit l).
-Program Instance Translates_UnOp: Translates e e' → Translates (UnOp op e) (UnOp op (tick e')).
-Program Instance Translates_BinOp: Translates e1 e1' → Translates e2 e2' →
-                                   Translates (BinOp op e1 e2) (BinOp op e1' (tick e2')).
-Program Instance Translates_If: Translates e0 e0' → Translates e1 e1' → Translates e2 e2' →
-                                Translates (If e0 e1 e2) (If (tick e0') e1' e2').
-Program Instance Translates_Pair: Translates e1 e1' → Translates e2 e2' →
-                                Translates (Pair e1 e2) (Pair e1' e2').
-Program Instance Translates_Fst: Translates e e' → Translates (Fst e) (Fst (tick e')).
-Program Instance Translates_Snd: Translates e e' → Translates (Snd e) (Snd (tick e')).
-Program Instance Translates_InjL: Translates e e' → Translates (InjL e) (InjL e').
-Program Instance Translates_InjR: Translates e e' → Translates (InjR e) (InjR e').
-Program Instance Translates_Case: Translates e0 e0' → Translates e1 e1' → Translates e2 e2' →
-                                  Translates (Case e0 e1 e2) (Case (tick e0') (tick_aux (λ: <>, e1')%E) (tick_aux (λ: <>, e2')%E)).
-Program Instance Translates_Fork: Translates e e' → Translates (Fork e) (tick (Fork e')).
-Program Instance Translates_Alloc: Translates e e' → Translates (Alloc e) (Alloc (tick e')).
-Program Instance Translates_Load: Translates e e' → Translates (Load e) (Load (tick e')).
-Program Instance Translates_Store: Translates e1 e1' → Translates e2 e2' →
-                                   Translates (Store e1 e2) (Store e1' (tick e2')).
-Program Instance Translates_CAS: Translates e0 e0' → Translates e1 e1' → Translates e2 e2' →
-                                 Translates (CAS e0 e1 e2) (CAS e0' e1' (tick e2')).
-Program Instance Translates_FAA: Translates e1 e1' → Translates e2 e2' →
-                                 Translates (FAA e1 e2) (FAA e1' (tick e2')).
-
-Instance Translates_of_val: TranslatesV v v' → Translates (of_val v) (of_val v').
-  Proof. intros v v' <-. apply translation_of_val. Qed.
-
-Local Lemma Closed_Translates {xs e e'} :
-(*   is_closed xs e → translation e = e' → is_closed xs e'. *)
-(*   Closed xs e → Translates e e' → Closed xs e'. *)
-  Translates e e' → Closed xs e → Closed xs e'.
-  Proof. intros <- C. by apply is_closed_translation. Defined.
-
-Program Instance TranslatesV_RecV: ∀ {T : Translates e e'},
-                                   ∀ {C : Closed (f :b: x :b: []) e},
-                                   TranslatesV (RecV f x e) (@RecV f x e' (Closed_Translates T C)).
-Program Instance TranslatesV_LitV: TranslatesV (LitV l) (LitV l).
-Program Instance TranslatesV_PairV: TranslatesV e1 e1' → TranslatesV e2 e2' →
-                                    TranslatesV (PairV e1 e2) (PairV e1' e2').
-Program Instance TranslatesV_InjLV: TranslatesV e e' → TranslatesV (InjLV e) (InjLV e').
-Program Instance TranslatesV_InjRV: TranslatesV e e' → TranslatesV (InjRV e) (InjRV e').
-
-Solve All Obligations with repeat (intros <- || intros ?) ; reflexivity.
-
-Definition expr_translation_of e : Set := { e' : expr | Translates e e' }.
-Definition infer_Translation {e} {e'} {T : Translates e e'} : expr_translation_of e :=
-  exist (Translates e) e' T.
-
-Definition val_translation_of v : Set := { v' : val | TranslatesV v v' }.
-Definition infer_TranslationV {v} {v'} {T : TranslatesV v v'} : val_translation_of v :=
-  exist (TranslatesV v) v' T.
-
-(* for some reason, the instance `TranslatesV_RecV` does not work well: *)
-Ltac solve_val_translation_of_RecV :=
-  econstructor ; apply TranslatesV_RecV.
-Hint Extern 0 (val_translation_of (RecV _ _ _)) => solve_val_translation_of_RecV.
-
-(* examples: *)
-
-(*
-Definition e : expr := #42.
-Let e'_aux : expr_translation_of e := infer_Translation.
-Definition e' : expr := Eval simpl in proj1_sig e'_aux.
-Instance: Translates e e' := proj2_sig e'_aux.
-Reset e.
-
-Definition e : expr := (InjR #34, InjL #57).
-Let e'_aux : expr_translation_of e := infer_Translation.
-Definition e' : expr := Eval simpl in proj1_sig e'_aux.
-Instance: Translates e e' := proj2_sig e'_aux.
-Reset e.
-
-Definition e : expr := λ: "x" "y", "x" "y" + #1.
-Let e'_aux : expr_translation_of e := infer_Translation.
-Definition e' : expr := Eval simpl in proj1_sig e'_aux.
-Instance: Translates e e' := proj2_sig e'_aux.
-Reset e.
-
-Definition v : val := #42.
-Let v'_aux : val_translation_of v := infer_TranslationV.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v.
-
-Definition v : val := (InjRV #34, InjLV #57).
-Let v'_aux : val_translation_of v := infer_TranslationV.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v.
-
-Definition v : val := RecV <> "x" (#())%E.
-Let v'_aux : val_translation_of v. Proof. unfold v ; by auto. Defined.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v'_aux.
-Fail Let v'_aux : val_translation_of v := infer_TranslationV.
-Fail Instance: TranslatesV v _ := _.
-Fail Instance: TranslatesV (RecV <> "x" (#())%E) _ := _.
-(* Instance: TranslatesV v (RecV <> "x" (#())%E) := _. apply TranslatesV_RecV. *)
-Instance: TranslatesV v (@RecV <> "x" (#())%E (Closed_Translates _ _)) := TranslatesV_RecV.
-Let v'_aux : val_translation_of v := infer_TranslationV.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v.
-
-Definition v : val := RecV <> "x" ("x" #1)%E.
-Let v'_aux : val_translation_of v. Proof. unfold v ; by auto. Defined.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v'_aux.
-Fail Let v'_aux : val_translation_of v := infer_TranslationV.
-Fail Instance: TranslatesV v _ := _.
-(* Instance: Translates ("x" #1) _ := _. *)
-Instance: TranslatesV (RecV <> "x" ("x" #1)%E) (@RecV <> "x" ("x" (tick #1))%E (Closed_Translates _ _)) :=
-  TranslatesV_RecV.
-(* Instance: TranslatesV v (RecV <> "x" #()) := _. apply TranslatesV_RecV. *)
-Instance: TranslatesV v (@RecV <> "x" ("x" (tick #1))%E (Closed_Translates _ _)) := _.
-Let v'_aux : val_translation_of v := infer_TranslationV.
-Definition v' : val := Eval simpl in proj1_sig v'_aux.
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v.
-
-Definition v : val := λ: "x", "x" #1.
-Let v'_aux : val_translation_of v. Proof. unlock v ; by auto. Defined.
-Definition v' : val := Eval cbn [proj1_sig] in proj1_sig v'_aux.
-Print v'_aux. Print v'. (* ← ugly because of unlock *)
-Instance: TranslatesV v v' := proj2_sig v'_aux.
-Reset v.
-*)
 
 End Translation.
 

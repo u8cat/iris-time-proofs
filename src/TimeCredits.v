@@ -1,11 +1,11 @@
 From iris.heap_lang Require Import proofmode notation adequacy.
-From iris.algebra Require Import auth.
 From iris.base_logic Require Import invariants.
-From iris.proofmode Require Import classes.
-From stdpp Require Import namespaces.
 
 Require Import Auth_nat Misc Reduction Tactics.
 Require Export Translation Simulation.
+
+From iris.proofmode Require Import coq_tactics.
+Import uPred.
 
 Implicit Type e : expr.
 Implicit Type v : val.
@@ -13,6 +13,8 @@ Implicit Type σ : state.
 Implicit Type t : list expr.
 Implicit Type K : ectx heap_ectx_lang.
 Implicit Type m n : nat.
+Implicit Type φ ψ : val → Prop.
+Implicit Type Σ : gFunctors.
 
 
 
@@ -106,11 +108,11 @@ Section TickSpec.
 
   Definition timeCreditN := nroot .@ "timeCredit".
 
-  Definition TICKCTXT : iProp Σ :=
+  Definition TC_invariant : iProp Σ :=
     inv timeCreditN (∃ (m:nat), ℓ ↦ #m ∗ own γ (●nat m))%I.
 
   Lemma zero_TC :
-    TICKCTXT ={⊤}=∗ TC 0.
+    TC_invariant ={⊤}=∗ TC 0.
   Proof.
     iIntros "#Htickinv".
     iInv timeCreditN as (m) ">[Hcounter H●]" "Hclose".
@@ -121,7 +123,7 @@ Section TickSpec.
   Theorem tick_spec s E e v :
     ↑timeCreditN ⊆ E →
     IntoVal e v →
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ ▷ TC 1 }}} tick e @ s ; E {{{ RET v ; True }}}.
   Proof.
     intros ? <- % of_to_val. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
@@ -168,14 +170,14 @@ Section TickSpec.
   Qed.
 
   Theorem tick_spec_simple v :
-    TICKCTXT -∗
+    TC_invariant -∗
     {{{ TC 1 }}} tick v {{{ RET v ; True }}}.
   Proof.
     iIntros "#Hinv" (Ψ) "!# HTC HΨ".
     by iApply (tick_spec with "Hinv [HTC//] HΨ").
   Qed.
 
-  Lemma TC_implementation : TICKCTXT -∗ TC_interface TC tick.
+  Lemma TC_implementation : TC_invariant -∗ TC_interface TC tick.
   Proof.
     iIntros "#Hinv". iSplit ; last iSplit ; last iSplit.
     - iPureIntro. by apply TC_timeless.
@@ -442,7 +444,7 @@ Section Soundness.
     by eapply simulation_exec_failure.
   Qed.
 
-  Lemma adequate_tctranslation__bounded m (φ : val → Prop) e σ :
+  Lemma adequate_tctranslation__bounded m φ e σ :
     is_closed [] e →
     (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
     bounded_time e σ m.
@@ -461,7 +463,7 @@ Section Soundness.
 
   (* now let’s combine the three results. *)
 
-  Lemma adequate_tctranslation__adequate_and_bounded m (φ : val → Prop) e σ :
+  Lemma adequate_tctranslation__adequate_and_bounded m φ e σ :
     is_closed [] e →
     (∀ (k : nat), (k ≥ m)%nat →
       ∀ `{TickCounter}, adequate NotStuck «e» S«σ, k» (φ ∘ invtranslationV)
@@ -471,24 +473,24 @@ Section Soundness.
     intros Hclosed Hadq.
     assert (bounded_time e σ m) as Hbounded
       by (eapply adequate_tctranslation__bounded, Hadq ; [ assumption | lia ]).
-    assert (adequate_n NotStuck (m + 1) e σ φ) as Hadqm
+    assert (nadequate NotStuck (m + 1) e σ φ) as Hadqm
       by (apply adequate_tctranslation__adequate, Hadq ; [ assumption | lia ]).
     clear Hadq.
     split ; last done.
     split.
     - intros t2 σ2 v2 [n Hnsteps] % rtc_nsteps.
       assert (n ≤ m)%nat as Inm by by eapply Hbounded.
-      eapply adequate_n_result ; try done ; lia.
+      eapply nadequate_result ; try done ; lia.
     - intros t2 σ2 e2 _ [n Hnsteps] % rtc_nsteps He2.
       assert (n ≤ m)%nat as Inm by by eapply Hbounded.
-      eapply adequate_n_not_stuck ; try done ; lia.
+      eapply nadequate_not_stuck ; try done ; lia.
   Qed.
 
   (* finally, derive the adequacy assumption from a Hoare triple in Iris. *)
 
-  Lemma spec_tctranslation__adequate {Σ} m (ψ : val → Prop) e :
+  Lemma spec_tctranslation__adequate {Σ} m ψ e :
     (∀ `{timeCreditHeapG Σ},
-      TICKCTXT -∗
+      TC_invariant -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
     ∀ `{timeCreditHeapPreG Σ} `{TickCounter} σ,
@@ -517,7 +519,7 @@ Section Soundness.
     pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ γ)
       as HtcHeapG.
     (* create the invariant: *)
-    iAssert (|={⊤}=> TICKCTXT)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
+    iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
     {
       iApply inv_alloc.
       iExists k.
@@ -532,10 +534,10 @@ Section Soundness.
     iApply (Hspec with "Hinv Hγ◯") ; auto.
   Qed.
 
-  Theorem spec_tctranslation__adequate_and_bounded {Σ} m (φ : val → Prop) e :
+  Theorem spec_tctranslation__adequate_and_bounded {Σ} m φ e :
     is_closed [] e →
     (∀ `{timeCreditHeapG Σ},
-      TICKCTXT -∗
+      TC_invariant -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,
@@ -546,7 +548,8 @@ Section Soundness.
     intros k Ik Hloc. by eapply spec_tctranslation__adequate.
   Qed.
 
-  Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m (φ : val → Prop) e :
+  (* The abstract version of the theorem: *)
+  Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m φ e :
     is_closed [] e →
     (∀ `{heapG Σ} (TC : nat → iProp Σ) (tick : val),
       let _ := {| Translation.tick := tick |} in
@@ -562,6 +565,28 @@ Section Soundness.
     iApply Hspec. by iApply TC_implementation.
   Qed.
 
+  (* A simplification for common use-cases: when the return value does not
+   * contain a closure, there is no need to compose the postcondition φ with
+   * the translation: *)
+  Theorem spec_tctranslation__adequate_and_bounded' {Σ} m (φ : val → Prop) e :
+    (∀ v, φ v → closure_free v) →
+    is_closed [] e →
+    (∀ `{timeCreditHeapG Σ},
+      TC_invariant -∗
+      {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ v⌝ }}}
+    ) →
+    ∀ {_ : timeCreditHeapPreG Σ} σ,
+      adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+  Proof.
+    intros Hφ Hclosed Hspec HpreG σ.
+    apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)) ; try assumption.
+    intros HtcHeapG.
+    iIntros "#Htickinv !#" (Φ) "Htc Post".
+    wp_apply (Hspec with "Htickinv Htc"). iIntros (v Hv).
+    iApply ("Post" with "[%]").
+    by apply closure_free_predicate.
+  Qed.
+
 End Soundness.
 
 
@@ -572,20 +597,17 @@ End Soundness.
 
 Section Tactics.
 
-From iris.proofmode Require Import coq_tactics tactics.
-From iris.program_logic Require Export weakestpre.
-From iris.heap_lang Require Export tactics lifting.
-Import uPred.
-Context {Σ : gFunctors}.
-Implicit Types Φ : val → iProp Σ.
-Implicit Types Δ : envs (iResUR Σ).
+  Context {Σ : gFunctors}.
+
+  Implicit Types Φ : val → iProp Σ.
+  Implicit Types Δ : envs (iResUR Σ).
 
   (* concrete version: *)
   Lemma tac_wp_tick `{timeCreditHeapG Σ} Δ Δ' Δ'' s E i j n K e v Φ :
     ↑timeCreditN ⊆ E →
     IntoVal e v →
     MaybeIntoLaterNEnvs 1 Δ Δ' →
-    envs_lookup i Δ  = Some (true, TICKCTXT) →
+    envs_lookup i Δ  = Some (true, TC_invariant) →
     envs_lookup j Δ' = Some (false, TC (S n)) →
     envs_simple_replace j false (Esnoc Enil j (TC n)) Δ' = Some Δ'' →
     envs_entails Δ'' (WP fill K v @ s; E {{ Φ }}) →
@@ -602,7 +624,7 @@ Implicit Types Δ : envs (iResUR Σ).
   Qed.
 
 (*
-  (* abstract version: *)
+  (* TODO: abstract version: *)
   Lemma tac_wp_tick_abstr `{heapG Σ} (TC : nat → iProp Σ) (tick : val) Δ Δ' Δ'' s E i j n K e v Φ :
     IntoVal e v →
     MaybeIntoLaterNEnvs 1 Δ Δ' →
@@ -618,7 +640,7 @@ End Tactics.
 
 Ltac wp_tick :=
   let solve_TICKCTXT _ :=
-    iAssumptionCore || fail "wp_tick: cannot find TICKCTXT" in
+    iAssumptionCore || fail "wp_tick: cannot find TC_invariant" in
   let solve_TC _ :=
     iAssumptionCore || fail "wp_tick: cannot find TC (S _)" in
   let finish _ :=
