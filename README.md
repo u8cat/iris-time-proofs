@@ -6,11 +6,16 @@ The project is known to compile with:
 
 ### Step 1: Install opam
 
-See instructions [there][install-opam]; then:
+_If opam is not already installed:_See instructions [there][install-opam] to
+install it; then:
 
     opam init --comp=4.06.1
 
 (This will create a `~/.opam` directory.)
+
+_If opam is already installed:_ Create a new switch for the project:
+
+    opam switch -A 4.06.1 iris-time-proofs
 
 ### Step 2: Install Coq
 
