@@ -76,7 +76,7 @@ Section Thunk.
       ref (UNEVALUATED "f").
 
   Definition force : val :=
-    rec: "force" "t" :=
+    λ: "t",
       match: ! "t" with
         UNEVALUATED "f" =>
           let: "v" := "f" #() in
@@ -117,7 +117,7 @@ Section Thunk.
     iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
     rewrite (_ : nc - 0 = nc)%nat ; last lia.
     iApply wp_fupd.
-    unlock force ; wp_rec.
+    unlock force ; wp_lam.
     (* reading the thunk… *)
     iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
