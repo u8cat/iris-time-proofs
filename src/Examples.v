@@ -127,20 +127,19 @@ Proof.
   - simpl.
     rewrite !translation_of_val.
     iDestruct "Hl" as %->.
-    wp_tick ; unlock sum_list ; wp_rec.
-    wp_tick ; wp_match ; do 2 wp_lam ; wp_tick.
+    wp_tick_rec. wp_tick_match.
     by iApply "Post".
   - replace (3 + 10 * length (x :: l))%nat with (13 + 10 * length l)%nat by (simpl ; lia).
     simpl.
     rewrite !translation_of_val. setoid_rewrite translation_of_val.
     iDestruct "Hl" as (p) "[-> Hl]" ; iDestruct "Hl" as (v) "[Hp Hl]".
-    wp_tick ; unlock sum_list ; wp_rec.
-    wp_tick ; wp_match ; do 2 wp_lam ; wp_tick ; wp_lam.
-    wp_tick ; wp_load.  wp_tick ; wp_proj.  wp_tick ; wp_let.
-    wp_tick ; wp_load.  wp_tick ; wp_proj.  wp_tick ; wp_let.
+    wp_tick_rec.
+    wp_tick_match ; wp_lam.
+    wp_tick_load. wp_tick_proj. wp_tick_let.
+    wp_tick_load. wp_tick_proj. wp_tick_let.
     iDestruct "Htc" as "[Htc1 Htc]".
     wp_apply ("IH" with "Hl Htc"). iIntros "Hl".
-    wp_tick ; wp_op.
+    wp_tick_op.
     iApply "Post". eauto with iFrame.
 Qed.
 
@@ -181,18 +180,18 @@ Proof.
   iInduction n as [|n'] "IH" forall (Φ).
   - simpl.
     rewrite !translation_of_val.
-    wp_tick ; unlock make_list ; wp_rec.  wp_tick ; wp_op.  wp_tick ; wp_if.
+    wp_tick_rec. wp_tick_op. wp_tick_if.
     by iApply "Post".
   - replace (3 + 5 * S n')%nat with (8 + 5 * n')%nat by lia.
     simpl.
     rewrite !translation_of_val.
-    wp_tick ; unlock make_list ; wp_rec.  wp_tick ; wp_op.  wp_tick ; wp_if.
-    wp_tick ; wp_op.
+    wp_tick_rec. wp_tick_op. wp_tick_if.
+    wp_tick_op.
     assert (Z.of_nat n' = Z.of_nat (S n') - 1) as Eq by lia ; simpl in Eq ; destruct Eq.
     iDestruct "Htc" as "[Htc1 Htc]".
     wp_apply ("IH" with "Htc"). iIntros (v') "Hl".
     change (Z.pos $ Pos.of_succ_nat n') with (Z.of_nat $ S n').
-    wp_tick ; wp_alloc p.
+    wp_tick_alloc p.
     iApply "Post". eauto with iFrame.
 Qed.
 
@@ -279,6 +278,7 @@ Lemma prgm_timed_spec (n : nat) (σ : state) `{!timeCreditHeapPreG Σ} :
     adequate NotStuck (prgm n) σ (λ v, v = #(n*(n+1)/2))
   ∧ bounded_time (prgm n) σ (6 + 15 * n)%nat.
 Proof.
+(*
   apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)).
   - rewrite !andb_True ; repeat split ; apply is_closed_of_val.
   - intros HtcHeapG.
@@ -287,6 +287,7 @@ Proof.
     iApply ("Post" with "[%]"). done.
   - assumption.
 Restart.
+*)
   apply (spec_tctranslation__adequate_and_bounded' (Σ:=Σ)).
   - by intros _ ->.
   - rewrite !andb_True ; repeat split ; apply is_closed_of_val.

@@ -88,15 +88,15 @@ Section Thunk.
 
   Lemma create_spec p nc φ f :
     TICKCTXT -∗
-    {{{ ( {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}} ) }}}
-    create f
+    {{{ TC 1 ∗ ( {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}} ) }}}
+    «create» f
     {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
   Proof.
-    iIntros "#Htickinv" (Φ) "!# Hf Post".
+    iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
     iDestruct (zero_TC with "Htickinv") as ">Htc0".
     iMod (auth_mnat_alloc 0) as (γ) "[Hγ● Hγ◯]".
     iApply wp_fupd.
-    wp_lam. wp_alloc t.
+    unlock create ; wp_lam. wp_tick_alloc t.
     iApply "Post".
     iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
     iFrame "Hγ◯".
@@ -107,15 +107,17 @@ Section Thunk.
   Lemma force_spec p F t φ :
     ↑(thunkN t) ⊆ F →
     (∀ (v : val), φ v -∗ φ v ∗ φ v) →
-    {{{ Thunk p t 0 φ ∗ na_own p F }}}
-    force #t
+    TICKCTXT -∗
+    {{{ TC 7 ∗ Thunk p t 0 φ ∗ na_own p F }}}
+    «force» #t
     {{{ v, RET v ; φ v ∗ na_own p F }}}.
   Proof.
-    iIntros (? Hφdup Φ) "[#Hthunk Hp] Post".
+    iIntros (? Hφdup).
+    iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp) Post".
     iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
     rewrite (_ : nc - 0 = nc)%nat ; last lia.
     iApply wp_fupd.
-    wp_rec.
+    unlock force ; wp_rec.
     (* reading the thunk… *)
     iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
@@ -124,11 +126,11 @@ Section Thunk.
       | iDestruct "Hevaluated" as (v) "(>Ht & Hv & >%)" ].
     (* (1) if it is UNEVALUATED, we evaluate it: *)
     {
-      wp_load. wp_match.
+      wp_tick_load. wp_tick_match ; wp_let.
       iDestruct (own_auth_mnat_le with "Hγ● Hγ◯") as %I.
       iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
-      wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
-      wp_let. wp_store.
+      wp_tick ; wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
+      wp_tick_let. wp_tick_store. wp_tick_seq.
       iApply "Post".
       iDestruct (Hφdup with "Hv") as "[Hv $]".
       iApply "Hclose". iFrame "Hp".
@@ -136,7 +138,7 @@ Section Thunk.
     }
     (* (2) if it is EVALUATED, we get the result which is already memoized: *)
     {
-      wp_load. wp_match.
+      wp_tick_load. wp_tick_match ; wp_let.
       iApply "Post".
       iDestruct (Hφdup with "Hv") as "[Hv $]".
       iApply "Hclose". iFrame "Hp".
