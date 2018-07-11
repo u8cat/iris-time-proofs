@@ -6,7 +6,7 @@ The project is known to compile with:
 
 ### Step 1: Install opam
 
-_If opam is not already installed:_See instructions [there][install-opam] to
+_If opam is not already installed:_ See instructions [there][install-opam] to
 install it; then:
 
     opam init --comp=4.06.1
@@ -30,14 +30,12 @@ it as well:
 
 ### Step 3: Install a development version of Iris
 
+Do _not_ install the latest development version, as this project does not
+support it.
+
     opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
     opam update
-
-    # to get a specific development version:
     opam pin add coq-iris -k version dev.2018-04-10.0
-    # OR, to get the latest development version (beware that the analysis of
-    # dependencies can be very slow):
-    opam install coq-iris
 
 (This will also install `coq-stdpp`, another Coq library made available through
 the same repo.)
