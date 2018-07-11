@@ -6,3 +6,5 @@ Makefile.coq
 *.vo
 .lia.cache
 *.tar.gz
+*.sw[po]
+\#*.v#
