@@ -1,0 +1,15 @@
+-Q theories iris_time
+-arg -w -arg -notation-overridden
+theories/Auth_mnat.v
+theories/Auth_nat.v
+theories/ClockIntegers.v
+theories/Examples.v
+theories/Misc.v
+theories/Reduction.v
+theories/Tactics.v
+theories/Simulation.v
+theories/Thunks.v
+theories/TimeCredits.v
+theories/TimeCreditsAltProofs.v
+theories/TimeReceipts.v
+theories/Translation.v

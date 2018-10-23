@@ -1,7 +1,7 @@
 From iris.heap_lang Require Import notation.
 From stdpp Require Import fin_maps.
 
-Require Import Reduction.
+From iris_time Require Import Reduction.
 
 Implicit Type e : expr.
 Implicit Type v : val.

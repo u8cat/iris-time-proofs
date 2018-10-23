@@ -1,8 +1,8 @@
 From iris.heap_lang Require Import proofmode notation adequacy.
 From iris.base_logic Require Import invariants.
 
-Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
-Require Export Translation Simulation.
+From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
+From iris_time Require Export Translation Simulation.
 
 Implicit Type e : expr.
 Implicit Type v : val.
@@ -103,7 +103,6 @@ Section TockSpec.
   Lemma TR_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
     TR n₁ -∗ TR n₂.
-  Require Import Auth_nat.
   Proof. apply own_auth_nat_weaken. Qed.
 
   Lemma TR_timeless n :
@@ -126,7 +125,6 @@ Section TockSpec.
   Lemma TRdup_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
     TRdup n₁ -∗ TRdup n₂.
-  Require Import Auth_mnat.
   Proof. apply own_auth_mnat_weaken. Qed.
 
   Lemma TRdup_timeless n :

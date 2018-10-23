@@ -2,7 +2,7 @@ From iris.heap_lang Require Import lang notation.
 From iris.heap_lang Require Import adequacy.
 From stdpp Require Import relations fin_maps gmap.
 
-Require Import Misc Tactics.
+From iris_time Require Import Misc Tactics.
 
 Implicit Type e : expr.
 Implicit Type v : val.

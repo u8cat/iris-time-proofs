@@ -1,7 +1,7 @@
 From iris.heap_lang Require Import proofmode notation adequacy.
 From iris.base_logic Require Import invariants.
 
-Require Import Auth_nat Reduction TimeCredits.
+From iris_time Require Import Auth_nat Reduction TimeCredits.
 
 Implicit Type e : expr.
 Implicit Type v : val.

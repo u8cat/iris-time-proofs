@@ -2,7 +2,7 @@ From iris.heap_lang Require Import proofmode notation.
 From iris.base_logic.lib Require Import na_invariants.
 From stdpp Require Import namespaces.
 
-Require Import TimeCredits Auth_mnat.
+From iris_time Require Import TimeCredits Auth_mnat.
 
 Section Thunk.
 

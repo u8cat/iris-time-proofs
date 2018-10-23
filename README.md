@@ -46,7 +46,6 @@ More info on the Coq development of Iris: [there][coq-iris].
 
 To compile the Coq scripts:
 
-    cd src/
     make
 
 The first time (and each time `_CoqProject` is updated), it also creates the
@@ -132,4 +131,3 @@ In `TimeReceipts.v`:
     matches the interface is stated by `TR_implementation`.
  *  The “Credit Exhaustion” lemma is `simulation_exec_failure_now`.
  *  The “Soundness of Iris^⧗ ” lemma is `abstract_spec_trtranslation__adequate`.
-

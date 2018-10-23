@@ -1,8 +1,8 @@
 From iris.heap_lang Require Import proofmode notation adequacy.
 From iris.base_logic Require Import invariants.
 
-Require Import Auth_nat Misc Reduction Tactics.
-Require Export Translation Simulation.
+From iris_time Require Import Auth_nat Misc Reduction Tactics.
+From iris_time Require Export Translation Simulation.
 
 From iris.proofmode Require Import coq_tactics.
 Import uPred.

@@ -2,7 +2,7 @@
 
 From iris.heap_lang Require Import proofmode notation.
 From iris.program_logic Require Import adequacy.
-Require Import TimeCredits Reduction.
+From iris_time Require Import TimeCredits Reduction.
 
 (** A function that sums all elements of a list, defined as a heap-lang value: *)
 Definition sum_list : val :=
@@ -195,7 +195,7 @@ Proof.
     iApply "Post". eauto with iFrame.
 Qed.
 
-Let prgm (n : nat) : expr :=
+Definition prgm (n : nat) : expr :=
   sum_list (make_list #n).
 
 Lemma length_make_list_coq (n : nat) :
