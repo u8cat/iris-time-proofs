@@ -1,4 +1,4 @@
-CoqMakefile.conf
+Makefile.coq.conf
 Makefile.coq
 *.v.d
 *.aux
