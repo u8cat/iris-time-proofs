@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy.
+From iris.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Reduction TimeCredits.
@@ -140,7 +140,7 @@ Qed.
 Lemma adequate_tctranslation__adequate_result {Hloc : TickCounter} m φ e σ t2 σ2 v2 :
   is_closed [] e →
   σ2 !! ℓ = None →
-  adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
+  adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
   rtc step ([e], σ) (of_val v2 :: t2, σ2) →
   φ v2.
 Proof.
@@ -149,7 +149,7 @@ Proof.
   assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
   replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
     by (simpl ; by rewrite invtranslationV_translationV).
-  eapply adequate_result ; first done.
+  eapply (adequate_result _ _ _ (λ v σ, φ (invtranslationV v))) ; first done.
   change [«e»%E] with T«[e]».
   replace (of_val «v2» :: _) with (T«of_val v2 :: t2») by by rewrite - translation_of_val.
   eapply simulation_exec_success' ; eauto.
@@ -159,8 +159,8 @@ Qed.
 
 Lemma adequate_tctranslation__adequate m φ e σ :
   is_closed [] e →
-  (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
-  adequate NotStuck e σ φ.
+  (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
+  adequate NotStuck e σ (λ v σ, φ v).
 Proof.
   intros Hclosed Hadq.
   split.

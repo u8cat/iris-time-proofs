@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy.
+From iris.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
@@ -109,15 +109,14 @@ Section TockSpec.
     Timeless (TR n).
   Proof. exact _. Qed.
 
-  (* note: IntoAnd false will become IntoSep in a future version of Iris *)
-  Global Instance into_sep_TR_plus m n p : IntoAnd p (TR (m + n)) (TR m) (TR n).
-  Proof. rewrite /IntoAnd TR_plus ; iIntros "[Hm Hn]". destruct p ; iFrame. Qed.
-  Global Instance from_sep_TR_plus m n : FromAnd false (TR (m + n)) (TR m) (TR n).
-  Proof. by rewrite /FromAnd TR_plus. Qed.
-  Global Instance into_sep_TR_succ n p : IntoAnd p (TR (S n)) (TR 1) (TR n).
-  Proof. rewrite /IntoAnd TR_succ ; iIntros "[H1 Hn]". destruct p ; iFrame. Qed.
-  Global Instance from_sep_TR_succ n : FromAnd false (TR (S n)) (TR 1) (TR n).
-  Proof. by rewrite /FromAnd [TR (S n)] TR_succ. Qed.
+  Global Instance into_sep_TR_plus m n : IntoSep (TR (m + n)) (TR m) (TR n).
+  Proof. by rewrite /IntoSep TR_plus. Qed.
+  Global Instance from_sep_TR_plus m n : FromSep (TR (m + n)) (TR m) (TR n).
+  Proof. by rewrite /FromSep TR_plus. Qed.
+  Global Instance into_sep_TR_succ n : IntoSep (TR (S n)) (TR 1) (TR n).
+  Proof. by rewrite /IntoSep TR_succ. Qed.
+  Global Instance from_sep_TR_succ n : FromSep (TR (S n)) (TR 1) (TR n).
+  Proof. by rewrite /FromSep [TR (S n)] TR_succ. Qed.
 
   Lemma TRdup_max m n :
     TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)%I.
@@ -134,11 +133,10 @@ Section TockSpec.
     Persistent (TRdup n).
   Proof. exact _. Qed.
 
-  (* note: IntoAnd false will become IntoSep in a future version of Iris *)
-  Global Instance into_sep_TRdup_max m n p : IntoAnd p (TRdup (m `max` n)) (TRdup m) (TRdup n).
-  Proof. rewrite /IntoAnd TRdup_max ; iIntros "[Hm Hn]". destruct p ; iFrame. Qed.
-  Global Instance from_sep_TRdup_max m n : FromAnd false (TRdup (m `max` n)) (TRdup m) (TRdup n).
-  Proof. by rewrite /FromAnd TRdup_max. Qed.
+  Global Instance into_sep_TRdup_max m n : IntoSep (TRdup (m `max` n)) (TRdup m) (TRdup n).
+  Proof. by rewrite /IntoSep TRdup_max. Qed.
+  Global Instance from_sep_TRdup_max m n : FromSep (TRdup (m `max` n)) (TRdup m) (TRdup n).
+  Proof. by rewrite /FromSep TRdup_max. Qed.
 
   Definition timeReceiptN := nroot .@ "timeReceipt".
 
@@ -230,7 +228,7 @@ Section TockSpec.
     TR_invariant -∗
     {{{ TRdup m }}} tock e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
   Proof.
-    intros ? <- % of_to_val. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
+    intros ? <-. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value k = nmax−n−1 of location ℓ: *)
@@ -317,7 +315,8 @@ Section Soundness.
       TR_invariant nmax -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
-    ∀ `{timeReceiptHeapPreG Σ} `{TickCounter} σ, adequate NotStuck «e» S«σ,nmax-1» ψ.
+    ∀ `{timeReceiptHeapPreG Σ} `{TickCounter} σ,
+      adequate NotStuck «e» S«σ,nmax-1» (λ v σ, ψ v).
   Proof.
     intros Inmax Hspec HpreG Hloc σ.
     (* apply the adequacy results. *)

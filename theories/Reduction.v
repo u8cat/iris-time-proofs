@@ -440,8 +440,8 @@ Section ActiveItem.
 
   Definition ectx_item_is_active (Ki : ectx_item) : bool :=
     match Ki with
-    | AppRCtx _ | UnOpCtx _ | BinOpRCtx _ _ | IfCtx _ _ | FstCtx | SndCtx
-    | CaseCtx _ _ | AllocCtx | LoadCtx | StoreRCtx _ | CasRCtx _ _ | FaaRCtx _ => true
+    | AppLCtx _ | UnOpCtx _ | BinOpLCtx _ _ | IfCtx _ _ | FstCtx | SndCtx
+    | CaseCtx _ _ | AllocCtx | LoadCtx | StoreLCtx _ | CasLCtx _ _ | FaaLCtx _ => true
     | _ => false
     end.
 
@@ -482,9 +482,9 @@ Section ActiveItem.
   Proof.
     induction e ;
       try maximal_ectx_from_subterm IHe  ;
-      try maximal_ectx_from_subterm IHe1 ;
-      try maximal_ectx_from_subterm IHe2 ;
       try maximal_ectx_from_subterm IHe3 ;
+      try maximal_ectx_from_subterm IHe2 ;
+      try maximal_ectx_from_subterm IHe1 ;
       maximal_ectx_empty.
   Qed.
 
@@ -605,7 +605,7 @@ End ActiveItem.
 Section Safety.
 
   Definition safe e σ : Prop :=
-    adequate NotStuck e σ (λ _, True).
+    adequate NotStuck e σ (λ _ _, True).
 
 (*
   Lemma safe_alt e σ :
@@ -622,7 +622,7 @@ Section Safety.
   Qed.
 *)
 
-  Lemma safe_adequate e σ (φ : val → Prop) :
+  Lemma safe_adequate e σ (φ : val → state → Prop) :
     adequate NotStuck e σ φ →
     safe e σ.
   Proof.

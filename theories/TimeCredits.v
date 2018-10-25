@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy.
+From iris.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Misc Reduction Tactics.
@@ -96,15 +96,14 @@ Section TickSpec.
     Timeless (TC n).
   Proof. exact _. Qed.
 
-  (* note: IntoAnd false will become IntoSep in a future version of Iris *)
-  Global Instance into_sep_TC_plus m n p : IntoAnd p (TC (m + n)) (TC m) (TC n).
-  Proof. rewrite /IntoAnd TC_plus ; iIntros "[Hm Hn]". destruct p ; iFrame. Qed.
-  Global Instance from_sep_TC_plus m n : FromAnd false (TC (m + n)) (TC m) (TC n).
-  Proof. by rewrite /FromAnd TC_plus. Qed.
-  Global Instance into_sep_TC_succ n p : IntoAnd p (TC (S n)) (TC 1) (TC n).
-  Proof. rewrite /IntoAnd TC_succ ; iIntros "[H1 Hn]". destruct p ; iFrame. Qed.
-  Global Instance from_sep_TC_succ n : FromAnd false (TC (S n)) (TC 1) (TC n).
-  Proof. by rewrite /FromAnd [TC (S n)] TC_succ. Qed.
+  Global Instance into_sep_TC_plus m n : IntoSep (TC (m + n)) (TC m) (TC n).
+  Proof. by rewrite /IntoSep TC_plus. Qed.
+  Global Instance from_sep_TC_plus m n : FromSep (TC (m + n)) (TC m) (TC n).
+  Proof. by rewrite /FromSep TC_plus. Qed.
+  Global Instance into_sep_TC_succ n : IntoSep (TC (S n)) (TC 1) (TC n).
+  Proof. by rewrite /IntoSep TC_succ. Qed.
+  Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n).
+  Proof. by rewrite /FromSep [TC (S n)] TC_succ. Qed.
 
   Definition timeCreditN := nroot .@ "timeCredit".
 
@@ -126,7 +125,7 @@ Section TickSpec.
     TC_invariant -∗
     {{{ ▷ TC 1 }}} tick e @ s ; E {{{ RET v ; True }}}.
   Proof.
-    intros ? <- % of_to_val. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
+    intros ? <-. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value n of location ℓ: *)
@@ -350,6 +349,8 @@ Section Simulation.
     try not_safe_tick.
     (* BetaS f x e1 e2 v2 e' σ : *)
     - assert (Closed (f :b: x :b: []) « e1 ») by by apply is_closed_translation.
+      replace (rec: f x := « e1 »)%E with (of_val (rec: f x := « e1 »)%V)
+        by by unlock.
       not_safe_tick.
     (* ForkS e σ : *)
     - eapply not_safe_prim_step ; last prim_step.
@@ -446,7 +447,7 @@ Section Soundness.
 
   Lemma adequate_tctranslation__bounded m φ e σ :
     is_closed [] e →
-    (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+    (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
     bounded_time e σ m.
   Proof.
     intros Hclosed Hadq.
@@ -466,9 +467,9 @@ Section Soundness.
   Lemma adequate_tctranslation__adequate_and_bounded m φ e σ :
     is_closed [] e →
     (∀ (k : nat), (k ≥ m)%nat →
-      ∀ `{TickCounter}, adequate NotStuck «e» S«σ, k» (φ ∘ invtranslationV)
+      ∀ `{TickCounter}, adequate NotStuck «e» S«σ, k» (λ v σ, φ (invtranslationV v))
     ) →
-    adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+    adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
     intros Hclosed Hadq.
     assert (bounded_time e σ m) as Hbounded
@@ -494,7 +495,7 @@ Section Soundness.
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
     ∀ `{timeCreditHeapPreG Σ} `{TickCounter} σ,
-      ∀ (k : nat), (k ≥ m)%nat → adequate NotStuck «e» S«σ,k» ψ.
+      ∀ (k : nat), (k ≥ m)%nat → adequate NotStuck «e» S«σ,k» (λ v σ, ψ v).
   Proof.
     intros Hspec HpreG Hloc σ k Ik.
     (* apply the adequacy results. *)
@@ -541,7 +542,7 @@ Section Soundness.
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,
-      adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+      adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
     intros Hclosed Hspec HpreG σ.
     apply adequate_tctranslation__adequate_and_bounded ; first done.
@@ -557,7 +558,7 @@ Section Soundness.
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,
-      adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+      adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
     intros Hclosed Hspec HpreG σ.
     eapply spec_tctranslation__adequate_and_bounded ; try done.
@@ -576,7 +577,7 @@ Section Soundness.
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ v⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,
-      adequate NotStuck e σ φ  ∧  bounded_time e σ m.
+      adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
     intros Hφ Hclosed Hspec HpreG σ.
     apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)) ; try assumption.
@@ -600,7 +601,7 @@ Section Tactics.
   Context {Σ : gFunctors}.
 
   Implicit Types Φ : val → iProp Σ.
-  Implicit Types Δ : envs (iResUR Σ).
+  Implicit Types Δ : envs (uPredI (iResUR Σ)).
 
   (* concrete version: *)
   Lemma tac_wp_tick `{timeCreditHeapG Σ} Δ Δ' Δ'' s E i j n K e v Φ :
@@ -613,8 +614,8 @@ Section Tactics.
     envs_entails Δ'' (WP fill K v @ s; E {{ Φ }}) →
     envs_entails Δ (WP fill K (App tick e) @ s; E {{ Φ }}).
   Proof.
-    unfold envs_entails => HsubsetE ????? Hentails''.
-    rewrite envs_lookup_persistent_sound // persistently_elim. apply wand_elim_r'.
+    rewrite envs_entails_eq => HsubsetE ????? Hentails''.
+    rewrite envs_lookup_persistent_sound // intuitionistically_elim. apply wand_elim_r'.
     rewrite -wp_bind.
     eapply wand_apply ; first by (iIntros "HTC1 HΦ #Htick" ; iApply (tick_spec with "Htick HTC1 HΦ")).
     rewrite into_laterN_env_sound -later_sep /=. apply later_mono.
@@ -657,7 +658,7 @@ Ltac wp_tick :=
       | exact _
       | solve_TICKCTXT ()
       | solve_TC ()
-      | env_cbv ; reflexivity
+      | proofmode.reduction.pm_reflexivity
       | finish () ]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
       fail "wp_tick is not implemented for twp"

@@ -71,11 +71,8 @@ Section Tick_exec.
         tick v
     )%E  (<[ℓ := #(S n)]> σ).
     {
-      prim_step ; first exact _.
-      replace (rec: "tick" "x" := _)%E with (of_val tick) by by unlock tick.
-      unfold subst ; simpl ; fold subst.
-      rewrite ! subst_is_closed_nil // ; apply is_closed_of_val.
-    }
+      prim_step ; first exact _. simpl_subst. repeat f_equal.
+      unfold tick. by unlock. }
     apply prim_exec_cons_nofork
     with (
       let: "k" := #(S n) in
@@ -100,9 +97,7 @@ Section Tick_exec.
         tick v
     )%E  (<[ℓ := #(S n)]> σ).
     {
-      prim_step ; first exact _.
-      unfold subst ; simpl ; fold subst.
-      rewrite ! subst_is_closed_nil // ; apply is_closed_of_val.
+      prim_step ; first exact _. by simpl_subst.
     }
     apply prim_exec_cons_nofork
     with (
@@ -129,8 +124,7 @@ Section Tick_exec.
     apply prim_exec_cons_nofork
     with  (if: #true then v else tick v)%E  (<[ℓ := #(S n - 1)]> (<[ℓ := #(S n)]> σ)).
     {
-      prim_step.
-      apply lookup_insert.
+      prim_step; [apply lookup_insert|auto].
     }
     replace (S n - 1) with (Z.of_nat n) by lia.
     rewrite insert_insert.
@@ -144,7 +138,7 @@ Section Tick_exec.
 
   Lemma exec_tick_case_branch e1 v2 σ :
     is_closed [] e1 →
-    prim_exec  (tick_case_branch (λ: <>, e1) v2)%E  σ (e1 (tick v2)) σ  [].
+    prim_exec  (tick_case_branch (λ: <>, e1) v2)%E  σ ((tick e1) v2) σ  [].
   Proof.
     intros ; assert (Closed [] e1) by exact.
     unfold tick_case_branch ; unlock.
@@ -154,20 +148,15 @@ Section Tick_exec.
       - rewrite /= decide_left //.
       - exact _.
     }
+    simpl_subst.
     eapply prim_exec_cons_nofork.
     {
-      prim_step ;
-      fold subst.
-      rewrite subst_is_closed_nil ; last apply is_closed_of_val.
-      exact _.
+      prim_step. exact _.
     }
-    eapply prim_exec_cons_nofork, prim_exec_nil ; simpl.
+    simpl_subst.
+    eapply prim_exec_cons_nofork, prim_exec_nil.
     {
-      unfold subst ; simpl ; fold subst.
-      rewrite subst_is_closed_nil ; last assumption.
-      rewrite subst_is_closed_nil ; last by apply is_closed_subst, is_closed_of_val.
-      rewrite subst_is_closed_nil ; last apply is_closed_of_val.
-      by prim_step.
+      prim_step.
     }
   Qed.
 
@@ -251,7 +240,12 @@ Section SimulationLemma.
     (* BetaS f x e1 e2 v2 e' σ : *)
     - assert (Closed (f :b: x :b: []) « e1 ») by by apply is_closed_translation.
       rewrite 2! translation_subst' translation_of_val.
-      tick_then_step_then_stop.
+      replace (rec: f x := « e1 »)%E with (of_val (rec: f x := « e1 »)%V)
+        by by unlock.
+      (* FIXME : tick_then_step_then_stop does not work here. *)
+      eapply prim_exec_transitive_nofork. exec_tick_success.
+      eapply prim_exec_cons_nofork, prim_exec_nil.
+      simpl. unlock. prim_step.
     (* UnOpS op e v v' σ : *)
     - tick_then_step_then_stop.
       by apply un_op_eval_translation.
@@ -301,10 +295,12 @@ Section SimulationLemma.
         rewrite lookup_insert_ne ; last done.
         by apply lookup_translationS_Some.
       + eauto using translationV_injective.
+      + by apply vals_cas_compare_safe_translationV.
     (* CasSucS l e1 v1 e2 v2 σ : *)
     - tick_then_step_then_stop.
-      rewrite lookup_insert_ne ; last exact I.
-      by apply lookup_translationS_Some.
+      + rewrite lookup_insert_ne ; last exact I.
+        by apply lookup_translationS_Some.
+      + by apply vals_cas_compare_safe_translationV.
     (* FaaS l i1 e2 i2 σ : *)
     - tick_then_step_then_stop.
       rewrite lookup_insert_ne ; last exact I.
@@ -429,7 +425,7 @@ Section SimulationLemma.
       | idtac
     ].
     (* BetaS *)
-    - destruct v1 ; try discriminate E.
+    - destruct v ; try discriminate E.
       eexhibit_prim_step.
     (* UnOpS *)
     - eexhibit_prim_step.
@@ -465,10 +461,12 @@ Section SimulationLemma.
     (* CasFailS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & ->).
       exhibit_prim_step (#false)%E.
-      intros ? % (f_equal translationV). contradiction.
+      + intros ? % (f_equal translationV). contradiction.
+      + by apply vals_cas_compare_safe_translationV_inv.
     (* CasSucS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & -> % translationV_injective).
       exhibit_prim_step (#true)%E.
+      by apply vals_cas_compare_safe_translationV_inv.
     (* FaaS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & -> % eq_sym % translationV_lit_inv).
       rewrite to_of_val in Hval_e2 ; injection Hval_e2 as -> % translationV_lit_inv.
@@ -559,10 +557,12 @@ Section SimulationLemma.
   (* assuming the adequacy of the translated expression,
    * a proof that the original expression has m-adequate results. *)
 
+  (* FIXME : this is a weaker result than the adequacy result of Iris,
+     where the predicate can also speak about the final state. *)
   Lemma adequate_translation__adequate_result m n φ e σ t2 σ2 v2 :
     is_closed [] e →
     σ2 !! ℓ = None →
-    adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV) →
+    adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
     nsteps step n ([e], σ) (of_val v2 :: t2, σ2) →
     (n ≤ m)%nat →
     φ v2.
@@ -571,7 +571,7 @@ Section SimulationLemma.
     assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
     replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
       by (simpl ; by rewrite invtranslationV_translationV).
-    eapply adequate_result ; first done.
+    eapply (adequate_result _ _ _ (λ v σ, φ (invtranslationV v))); first done.
     change [«e»%E] with T«[e]».
     replace (of_val «v2» :: _) with (T«of_val v2 :: t2») by by rewrite - translation_of_val.
     eapply simulation_exec_success' ; eauto.
@@ -583,7 +583,7 @@ End SimulationLemma. (* we close the section here as we now want to quantify ove
 
 Lemma adequate_translation__adequate m φ e σ :
   is_closed [] e →
-  (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (φ ∘ invtranslationV)) →
+  (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
   nadequate NotStuck m e σ φ.
 Proof.
   intros Hclosed Hadq.

@@ -240,7 +240,7 @@ Lemma prgm_translation_spec `{!timeCreditHeapG Σ} (n : nat) :
 Proof.
   iIntros "#Htickinv !#" (Φ) "Htc Post".
   unfold prgm.
-  change « sum_list (make_list (LitV n)) » with («sum_list» (tick «make_list #n»)).
+  change « sum_list (make_list (LitV n)) » with ((tick «sum_list») «make_list #n»).
   rewrite !translation_of_val.
   replace (6+15*n)%nat with ((3+5*n) + (3+10*n))%nat by lia ;
   rewrite TC_plus ; iDestruct "Htc" as "[Htc_make Htc_sum]".
@@ -256,7 +256,7 @@ Proof.
 Qed.
 
 Lemma prgm_timed_spec (n : nat) (σ : state) `{!timeCreditHeapPreG Σ} :
-    adequate NotStuck (prgm n) σ (λ v, v = #(n*(n+1)/2))
+    adequate NotStuck (prgm n) σ (λ v _, v = #(n*(n+1)/2))
   ∧ bounded_time (prgm n) σ (6 + 15 * n)%nat.
 Proof.
   apply (spec_tctranslation__adequate_and_bounded' (Σ:=Σ)).
