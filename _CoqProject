@@ -3,6 +3,7 @@
 
 theories/Auth_mnat.v
 theories/Auth_nat.v
+theories/MachineIntegers.v
 theories/ClockIntegers.v
 theories/Examples.v
 theories/Misc.v
@@ -48,3 +49,4 @@ theories/union_find/math/UnionFind41Potential.v
 theories/union_find/math/UnionFind42PotentialCompress.v
 theories/union_find/math/UnionFind43PotentialAnalysis.v
 theories/union_find/math/UnionFind44PotentialJoin.v
+theories/union_find/Code.v
