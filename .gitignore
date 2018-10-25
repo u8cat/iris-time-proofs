@@ -8,3 +8,4 @@ Makefile.coq
 *.tar.gz
 *.sw[po]
 \#*.v#
+_opam
