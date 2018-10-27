@@ -21,11 +21,10 @@ Implicit Type Σ : gFunctors.
 
 (* Ideally, this would be represented as a record (or a typeclass), but it has
  * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
-Definition TR_interface `{irisG heap_lang Σ}
+Definition TR_interface `{irisG heap_lang Σ, Tick}
   (nmax : nat)
   (TR : nat → iProp Σ)
   (TRdup : nat → iProp Σ)
-  (tick : val)
 : iProp Σ := (
     ⌜∀ n, Timeless (TR n)⌝
   ∗ ⌜∀ n, Timeless (TRdup n)⌝
@@ -68,21 +67,16 @@ Local Notation ℓ := tick_counter.
 
 
 (*
- * Implementation and specification of `TR` and `tock`
+ * Implementation and specification of `TR` and `tick`
  *)
 
 Definition loop : val :=
   rec: "f" <> := "f" #().
 
-Definition tock {_:TickCounter} : val :=
-  tick loop.
+Global Instance receipts_tick {_:TickCounter} : Tick :=
+  generic_tick loop.
 
-Global Instance Tick_tock (Hloc: TickCounter) : Tick :=
-  {| Translation.tick := tock |}.
-
-
-
-Section TockSpec.
+Section TickSpec.
 
   Context `{timeReceiptHeapG Σ}.
   Context (nmax : nat).
@@ -146,7 +140,7 @@ Section TockSpec.
   Lemma zero_TR :
     TR_invariant ={⊤}=∗ TR 0.
   Proof.
-    iIntros "#Htockinv".
+    iIntros "#Htickinv".
     iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & H)" "Hclose".
     iDestruct (own_auth_nat_null with "Hγ1●") as "[Hγ1● $]".
     iApply "Hclose" ; eauto with iFrame.
@@ -155,7 +149,7 @@ Section TockSpec.
   Lemma zero_TRdup :
     TR_invariant ={⊤}=∗ TRdup 0.
   Proof.
-    iIntros "#Htockinv".
+    iIntros "#Htickinv".
     iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & Hγ2● & Im)" "Hclose".
     iDestruct (own_auth_mnat_null with "Hγ2●") as "[Hγ2● $]".
     iApply "Hclose" ; eauto with iFrame.
@@ -222,11 +216,11 @@ Section TockSpec.
     iLöb as "IH". wp_rec. iExact "IH".
   Qed.
 
-  Theorem tock_spec s E e v m :
+  Theorem tick_spec s E e v m :
     ↑timeReceiptN ⊆ E →
     IntoVal e v →
     TR_invariant -∗
-    {{{ TRdup m }}} tock e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
+    {{{ TRdup m }}} tick e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
   Proof.
     intros ? <-. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
     iLöb as "IH".
@@ -273,15 +267,15 @@ Section TockSpec.
         iApply ("IH" with "Hγ2◯ HΨ").
   Qed.
 
-  Theorem tock_spec_simple v n :
+  Theorem tick_spec_simple v n :
     TR_invariant -∗
-    {{{ TRdup n }}} tock v {{{ RET v ; TR 1 ∗ TRdup (n+1) }}}.
+    {{{ TRdup n }}} tick v {{{ RET v ; TR 1 ∗ TRdup (n+1) }}}.
   Proof.
     iIntros "#Inv" (Ψ) "!# H HΨ".
-    by iApply (tock_spec with "Inv H HΨ").
+    by iApply (tick_spec with "Inv H HΨ").
   Qed.
 
-  Lemma TR_implementation : TR_invariant -∗ TR_interface nmax TR TRdup tock.
+  Lemma TR_implementation : TR_invariant -∗ TR_interface nmax TR TRdup.
   Proof.
     iIntros "#Hinv". repeat iSplitR.
     - iPureIntro. by apply TR_timeless.
@@ -292,10 +286,10 @@ Section TockSpec.
     - iPureIntro. by apply TR_plus.
     - iPureIntro. by apply TRdup_max.
     - by iApply (TRdup_nmax_absurd with "Hinv").
-    - iIntros (v n). by iApply (tock_spec_simple with "Hinv").
+    - iIntros (v n). by iApply (tick_spec_simple with "Hinv").
   Qed.
 
-End TockSpec.
+End TickSpec.
 
 
 
@@ -315,7 +309,7 @@ Section Soundness.
       TR_invariant nmax -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
     ) →
-    ∀ `{timeReceiptHeapPreG Σ} `{TickCounter} σ,
+    ∀ `{timeReceiptHeapPreG Σ, TickCounter} σ,
       adequate NotStuck «e» S«σ,nmax-1» (λ v σ, ψ v).
   Proof.
     intros Inmax Hspec HpreG Hloc σ.
@@ -374,9 +368,8 @@ Section Soundness.
   Theorem abstract_spec_trtranslation__adequate {Σ} nmax φ e :
     (0 < nmax)%nat →
     is_closed [] e →
-    (∀ `{heapG Σ} (TR TRdup : nat → iProp Σ) (tock : val),
-      let _ := {| Translation.tick := tock |} in
-      TR_interface nmax TR TRdup tock -∗
+    (∀ `{heapG Σ, Tick} (TR TRdup : nat → iProp Σ),
+      TR_interface nmax TR TRdup -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeReceiptHeapPreG Σ} σ,

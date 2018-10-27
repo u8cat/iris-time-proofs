@@ -62,11 +62,11 @@ Section snapclock_int.
   Lemma snapclock_int_incr_spec n1 :
     TR_invariant nmax -∗
     {{{ is_snapclock_int n1 }}}
-    tock #() ;; machine_int_add #n1 #1
+    tick #() ;; machine_int_add #n1 #1
     {{{ RET #(n1+1) ; is_snapclock_int (n1+1) }}}.
   Proof.
     iIntros "#Htrinv" (Φ) "!# H1 Post".
-    wp_apply (tock_spec_simple nmax #() with "Htrinv H1"). iIntros "(_ & H)".
+    wp_apply (tick_spec_simple nmax #() with "Htrinv H1"). iIntros "(_ & H)".
     iDestruct (TRdup_lt_nmax with "Htrinv H") as ">(H & %)" ; first done.
     wp_seq.
     wp_apply (machine_int_add_spec n1 1 with "[] [H Post]") .

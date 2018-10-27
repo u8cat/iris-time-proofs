@@ -2,7 +2,7 @@ From iris.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Misc Reduction Tactics.
-From iris_time Require Export Translation Simulation.
+From iris_time Require Export Simulation.
 
 From iris.proofmode Require Import coq_tactics.
 Import uPred.
@@ -24,9 +24,8 @@ Implicit Type Σ : gFunctors.
 
 (* Ideally, this would be represented as a record (or a typeclass), but it has
  * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
-Definition TC_interface `{!irisG heap_lang Σ}
+Definition TC_interface `{!irisG heap_lang Σ, Tick}
   (TC : nat → iProp Σ)
-  (tick : val)
 : iProp Σ := (
     ⌜∀ n, Timeless (TC n)⌝
   ∗ (|={⊤}=> TC 0%nat)
@@ -66,11 +65,8 @@ Local Notation ℓ := tick_counter.
 Definition fail : val :=
   λ: <>, #() #().
 
-Definition tick {_:TickCounter} : val :=
-  tick fail.
-
-Global Instance Tick_tick (Hloc : TickCounter) : Tick :=
-  {| Translation.tick := tick |}.
+Global Instance credits_tick {_:TickCounter} : Tick :=
+  generic_tick fail.
 
 
 
@@ -176,7 +172,7 @@ Section TickSpec.
     by iApply (tick_spec with "Hinv [HTC//] HΨ").
   Qed.
 
-  Lemma TC_implementation : TC_invariant -∗ TC_interface TC tick.
+  Lemma TC_implementation : TC_invariant -∗ TC_interface TC.
   Proof.
     iIntros "#Hinv". iSplit ; last iSplit ; last iSplit.
     - iPureIntro. by apply TC_timeless.
@@ -221,7 +217,7 @@ Section Tick_lemmas.
   Proof.
     assert (prim_exec  (tick v) (<[ℓ := #0]> σ)  (#() #()) (<[ℓ := #0]> σ)  []) as Hexec.
     {
-      unlock tick Simulation.tick.
+      unlock credits_tick generic_tick. simpl.
       apply prim_exec_cons_nofork
       with (
         let: "k" := ! #ℓ in
@@ -234,7 +230,8 @@ Section Tick_lemmas.
       )%E  (<[ℓ := #0]> σ).
       {
         prim_step ; first exact _.
-        replace (rec: "tick" "x" := _)%E with (of_val tick) by by unlock tick Simulation.tick.
+        replace (rec: "tick" "x" := _)%E with (of_val tick)
+          by by unfold tick, credits_tick, generic_tick; unlock.
         unfold subst ; simpl ; fold subst.
         rewrite ! subst_is_closed_nil // ; apply is_closed_of_val.
       }
@@ -552,9 +549,8 @@ Section Soundness.
   (* The abstract version of the theorem: *)
   Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m φ e :
     is_closed [] e →
-    (∀ `{heapG Σ} (TC : nat → iProp Σ) (tick : val),
-      let _ := {| Translation.tick := tick |} in
-      TC_interface TC tick -∗
+    (∀ `{heapG Σ, Tick} (TC : nat → iProp Σ),
+      TC_interface TC -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
     ∀ {_ : timeCreditHeapPreG Σ} σ,

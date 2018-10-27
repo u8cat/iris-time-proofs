@@ -33,19 +33,15 @@ Context (runtime_error : val).
  * Definition of “tick”
  *)
 
-Definition tick {Hloc : TickCounter} : val :=
-  rec: "tick" "x" :=
+Local Instance generic_tick {Hloc : TickCounter} : Tick :=
+ (rec: "tick" "x" :=
     let: "k" := ! #ℓ in
     if: "k" ≤ #0 then
       runtime_error #()
     else if: CAS #ℓ "k" ("k" - #1) then
       "x"
     else
-      "tick" "x".
-
-Local Instance Tick_tick (Hloc: TickCounter) : Tick :=
-  {| Translation.tick := tick |}.
-
+      "tick" "x")%V.
 
 
 (*
@@ -59,7 +55,7 @@ Section Tick_exec.
   Lemma exec_tick_success n v σ :
     prim_exec  (tick v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  [].
   Proof.
-    unlock tick.
+    unlock tick generic_tick.
     apply prim_exec_cons_nofork
     with (
       let: "k" := ! #ℓ in
@@ -72,7 +68,7 @@ Section Tick_exec.
     )%E  (<[ℓ := #(S n)]> σ).
     {
       prim_step ; first exact _. simpl_subst. repeat f_equal.
-      unfold tick. by unlock. }
+      unfold tick, generic_tick. by unlock. }
     apply prim_exec_cons_nofork
     with (
       let: "k" := #(S n) in

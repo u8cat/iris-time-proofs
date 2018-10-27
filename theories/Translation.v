@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import notation.
+From iris.heap_lang Require Export notation.
 From stdpp Require Import fin_maps.
 
 From iris_time Require Import Reduction.
@@ -17,8 +17,9 @@ Implicit Type m n : nat.
  *)
 
 (* “tick” is a typeclass so that it can be made an implicit argument of the
- * translation and be inferred automatically from the context: *)
-Class Tick := { tick : val }.
+ * translation and be inferred automatically from the context.
+   This also make it possible to share notations. *)
+Class Tick := tick : val.
 
 Section Translation.
 
@@ -493,6 +494,22 @@ Notation "« K »" := (translationK K) (only printing).
 Notation "« σ »" := (translationS σ%V) (only printing).
 Notation "« t »" := (translation <$> t%E) (only printing).
 *)
+
+Notation "'lettick:' x := e1 'in' e2" :=
+  ((tick (Lam x%bind e2%E)) e1%E)
+  (at level 200, x at level 1, e1, e2 at level 200,
+   format "'[' 'lettick:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.
+
+Notation "e1 ;tick; e2" :=
+  ((tick (Lam BAnon e2%E)) e1%E)
+  (at level 100, e2 at level 200,
+   format "'[' '[hv' '[' e1 ']'  ;tick;  ']' '/' e2 ']'") : expr_scope.
+
+Notation "'tickmatch:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
+  (Case (App (of_val tick) e0) (App (of_val tick_case_branch) (λ: <> x1, e1)%E)
+                               (App (of_val tick_case_branch) (λ: <> x2, e2)%E))
+  (e0, x1, e1, x2, e2 at level 200,
+   format "'[hv' 'tickmatch:'  e0  'with'  '/  ' '[' 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : expr_scope.
 
 
 
