@@ -134,7 +134,7 @@ Proof.
     rewrite !translation_of_val. setoid_rewrite translation_of_val.
     iDestruct "Hl" as (p) "[-> Hl]" ; iDestruct "Hl" as (v) "[Hp Hl]".
     wp_tick_rec.
-    wp_tick_match ; wp_lam.
+    wp_tick_match.
     wp_tick_load. wp_tick_proj. wp_tick_let.
     wp_tick_load. wp_tick_proj. wp_tick_let.
     iDestruct "Htc" as "[Htc1 Htc]".

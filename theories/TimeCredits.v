@@ -644,8 +644,6 @@ Ltac wp_tick :=
     iAssumptionCore || fail "wp_tick: cannot find TC_invariant" in
   let solve_TC _ :=
     iAssumptionCore || fail "wp_tick: cannot find TC (S _)" in
-  let finish _ :=
-    wp_expr_simpl ; try first [ wp_pure (Seq (Lit LitUnit) _) | wp_value_head ] in
   iStartProof ;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
@@ -659,7 +657,7 @@ Ltac wp_tick :=
       | solve_TICKCTXT ()
       | solve_TC ()
       | proofmode.reduction.pm_reflexivity
-      | finish () ]
+      | wp_expr_simpl ]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
       fail "wp_tick is not implemented for twp"
   | _ => fail "wp_tick: not a 'wp'"
@@ -679,10 +677,10 @@ Ltac wp_tick_rec :=
     | fail ].
 Ltac wp_tick_lam := wp_tick_rec.
 Ltac wp_tick_let := wp_tick ; wp_let.
-Ltac wp_tick_seq := wp_tick.
+Ltac wp_tick_seq := wp_tick ; wp_seq.
 Ltac wp_tick_op := wp_tick ; wp_op.
 Ltac wp_tick_if := wp_tick ; wp_if.
-Ltac wp_tick_match := wp_tick ; wp_match ; do 2 wp_lam ; wp_tick.
+Ltac wp_tick_match := wp_tick ; wp_match ; do 2 wp_lam ; wp_tick ; wp_lam.
 Ltac wp_tick_proj := wp_tick ; wp_proj.
 Ltac wp_tick_alloc loc := wp_tick ; wp_alloc loc.
 Ltac wp_tick_load := wp_tick ; wp_load.

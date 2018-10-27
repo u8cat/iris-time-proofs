@@ -126,7 +126,7 @@ Section Thunk.
       | iDestruct "Hevaluated" as (v) "(>Ht & Hv & >%)" ].
     (* (1) if it is UNEVALUATED, we evaluate it: *)
     {
-      wp_tick_load. wp_tick_match ; wp_let.
+      wp_tick_load. wp_tick_match.
       iDestruct (own_auth_mnat_le with "Hγ● Hγ◯") as %I.
       iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
       wp_tick ; wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
@@ -138,7 +138,7 @@ Section Thunk.
     }
     (* (2) if it is EVALUATED, we get the result which is already memoized: *)
     {
-      wp_tick_load. wp_tick_match ; wp_let.
+      wp_tick_load. wp_tick_match.
       iApply "Post".
       iDestruct (Hφdup with "Hv") as "[Hv $]".
       iApply "Hclose". iFrame "Hp".
