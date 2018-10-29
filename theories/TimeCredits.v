@@ -92,13 +92,15 @@ Section TickSpec.
     Timeless (TC n).
   Proof. exact _. Qed.
 
-  Global Instance into_sep_TC_plus m n : IntoSep (TC (m + n)) (TC m) (TC n).
+  (* We give higher priorities to the (+) instances so that the (S n)
+     instances are not chosen when m is a constant. *)
+  Global Instance into_sep_TC_plus m n : IntoSep (TC (m + n)) (TC m) (TC n) | 0.
   Proof. by rewrite /IntoSep TC_plus. Qed.
-  Global Instance from_sep_TC_plus m n : FromSep (TC (m + n)) (TC m) (TC n).
+  Global Instance from_sep_TC_plus m n : FromSep (TC (m + n)) (TC m) (TC n) | 0.
   Proof. by rewrite /FromSep TC_plus. Qed.
-  Global Instance into_sep_TC_succ n : IntoSep (TC (S n)) (TC 1) (TC n).
+  Global Instance into_sep_TC_succ n : IntoSep (TC (S n)) (TC 1) (TC n) | 100.
   Proof. by rewrite /IntoSep TC_succ. Qed.
-  Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n).
+  Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n) | 100.
   Proof. by rewrite /FromSep [TC (S n)] TC_succ. Qed.
 
   Definition timeCreditN := nroot .@ "timeCredit".

@@ -56,7 +56,7 @@ Definition link : val := λ: "x" "y",
               "x"
             else
               "y" <- LINK "x";;
-              "x" <- ROOT ("rx"+#1, "vx");;
+              "x" <- ROOT (machine_int_add "rx" #1, "vx");;
               "x"
         | LINK <> =>
           assert: #false
