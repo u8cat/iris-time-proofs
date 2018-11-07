@@ -14,6 +14,7 @@ theories/Thunks.v
 theories/TimeCredits.v
 theories/TimeCreditsAltProofs.v
 theories/TimeReceipts.v
+theories/Combined.v
 theories/Translation.v
 
 theories/union_find/math/Ackermann.v

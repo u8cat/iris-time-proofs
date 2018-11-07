@@ -92,6 +92,8 @@ Important modules are highlighted.
     time credits, that does not rely on the unsafe behavior of `tick`__
  *  __`TimeReceipts`: interface, implementation, and proof of soundness for time
     receipts (both exclusive and persistent)__
+ *  __`Combined`: logical system providing both time credits and time receipts
+    at the same time__
  *  `Examples`: a very simple example illustrating the use of time credits to
     specify a program with lists
  *  __`Thunks`: implementation of timed thunks using time credits__
