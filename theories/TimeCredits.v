@@ -188,7 +188,7 @@ End TickSpec.
 
 
 (*
- * Operation semantics of `tick`
+ * Operational semantics of `tick`
  *)
 
 Section Tick_lemmas.

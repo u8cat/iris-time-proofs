@@ -332,7 +332,7 @@ Section Soundness.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_mnat_alloc 0) as (γ2) "[Hγ2● _]".
-    (* packing all those bits, build the heap instance necessary to use time credits: *)
+    (* packing all those bits, build the heap instance necessary to use time receipts: *)
     pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ _ γ1 γ2)
       as HtrHeapG.
     (* create the invariant: *)
