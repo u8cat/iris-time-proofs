@@ -1,4 +1,4 @@
-From iris.heap_lang Require Export notation.
+From iris_time.heap_lang Require Export notation proofmode.
 From stdpp Require Import fin_maps.
 
 From iris_time Require Import Reduction.
@@ -48,20 +48,20 @@ Section Translation.
     match e with
     (* Base lambda calculus *)
     | Var _           => e
-    | Rec f x e       => Rec f x (translation e)
+    | Rec f x e       => tick $ Rec f x (translation e)
     | App e1 e2       => (tick $ translation e1) (translation e2)
+    | Val v           => Val $ translationV v
     (* Base types and their operations *)
-    | Lit _           => e
     | UnOp op e       => UnOp op (tick $ translation e)
     | BinOp op e1 e2  => BinOp op (tick $ translation e1) (translation e2)
     | If e0 e1 e2     => If (tick $ translation e0) (translation e1) (translation e2)
     (* Products *)
-    | Pair e1 e2      => Pair (translation e1) (translation e2)
+    | Pair e1 e2      => Pair (tick $ translation e1) (translation e2)
     | Fst e           => Fst (tick $ translation e)
     | Snd e           => Snd (tick $ translation e)
     (* Sums *)
-    | InjL e          => InjL (translation e)
-    | InjR e          => InjR (translation e)
+    | InjL e          => InjL (tick $ translation e)
+    | InjR e          => InjR (tick $ translation e)
     | Case e0 e1 e2   =>
         Case (tick $ translation e0)
           (tick_case_branch (λ: <>, translation e1))
@@ -74,19 +74,10 @@ Section Translation.
     | Store e1 e2     => Store (tick $ translation e1) (translation e2)
     | CAS e0 e1 e2    => CAS (tick $ translation e0) (translation e1) (translation e2)
     | FAA e1 e2       => FAA (tick $ translation e1) (translation e2)
-    end %E.
-
-  Lemma is_closed_translation xs e :
-    is_closed xs e →
-    is_closed xs (translation e).
-  Proof.
-    assert (∀ xs, is_closed xs tick) by (intro ; apply is_closed_of_val).
-    revert xs. induction e ; simpl ; unlock tick_case_branch ; naive_solver.
-  Qed.
-
-  Fixpoint translationV (v : val) : val :=
+    end %E
+  with translationV (v : val) : val :=
     match v with
-    | @RecV f x e C => @RecV f x (translation e) (is_closed_translation _ _ C)
+    | RecV f x e    => RecV f x (translation e)
     | LitV _        => v
     | PairV v1 v2   => PairV (translationV v1) (translationV v2)
     | InjLV v       => InjLV (translationV v)
@@ -107,7 +98,7 @@ Section Translation.
     | BinOpRCtx op e1 => BinOpRCtx op (tick $ translation e1)
     | IfCtx e1 e2     => IfCtx (translation e1) (translation e2)
     | PairLCtx v2     => PairLCtx (translationV v2)
-    | PairRCtx e1     => PairRCtx (translation e1)
+    | PairRCtx e1     => PairRCtx (tick $ translation e1)
     | FstCtx          => FstCtx
     | SndCtx          => SndCtx
     | InjLCtx         => InjLCtx
@@ -140,155 +131,50 @@ Section Translation.
  * Lemmas about translation
  *)
 
-  Lemma is_closed_translation_inv xs e :
-    is_closed xs (translation e) →
-    is_closed xs e.
+  Lemma translation_subst x e v :
+    translation (subst x v e) = subst x (translationV v) (translation e).
   Proof.
-    revert xs. induction e ; naive_solver.
-  Qed.
-
-  Lemma translation_subst x e1 e2 :
-    translation (subst x e2 e1) = subst x (translation e2) (translation e1).
-  Proof.
-    induction e1 ;
+    induction e ;
     unfold subst ; simpl ; fold subst ;
     try case_match ; (* ← this handles the cases of Var and Rec *)
     repeat f_equal ;
-    try assumption ;
-    rewrite subst_is_closed_nil // ; apply is_closed_of_val.
+    assumption.
   Qed.
 
-  Lemma translation_subst' x e1 e2 :
-    translation (subst' x e2 e1) = subst' x (translation e2) (translation e1).
+  Lemma translation_subst' x e v :
+    translation (subst' x v e) = subst' x (translationV v) (translation e).
   Proof.
     destruct x.
     - reflexivity.
     - apply translation_subst.
   Qed.
 
-  Lemma translation_of_val v :
-    translation (of_val v) = of_val (translationV v).
+  Lemma translation_injective :
+    ∀ e1 e2,
+      translation e1 = translation e2 →
+      e1 = e2
+  with translationV_injective :
+    ∀ v1 v2,
+      translationV v1 = translationV v2 →
+      v1 = v2.
   Proof.
-    induction v ; simpl ; firstorder.
-  Qed.
-
-  Lemma translation_to_val e v :
-    to_val e = Some v →
-    to_val (translation e) = Some (translationV v).
-  Proof.
-    intros <- % of_to_val.
-    by rewrite translation_of_val to_of_val.
-  Qed.
-
-  Lemma translation_of_val_inv e v' :
-    translation e = of_val v' →
-    ∃ v, e = of_val v.
-  Proof.
-    revert e.
-    induction v' as
-      [ (* RecV *) f' x' e1' Hclosed_e1'
-      | (* LitV *) lit'
-      | (* PairV *) v1' IH1 v2' IH2
-      | (* InjLV *) v1' IH1
-      | (* InjRV *) v1' IH1
-      ] ;
-    intros
-      [
-      | (* Rec *) f x e1
-      |
-      | (* Lit *) lit
-      | | |
-      | (* Pair *) e1 e2
-      | |
-      | (* InjL *) e1
-      | (* InjR *) e1
-      | | | | | | | ] ;
-    try discriminate 1.
-    - injection 1 as <- <- <-.
-      eassert (Closed (f :b: x :b: []) e1) by by apply is_closed_translation_inv.
-      by exists (RecV f x e1).
-    - eauto.
-    - injection 1 as [v1 ->] % IH1 [v2 ->] % IH2.
-      by exists (PairV v1 v2).
-    - injection 1 as [v1 ->] % IH1.
-      by exists (InjLV v1).
-    - injection 1 as [v1 ->] % IH1.
-      by exists (InjRV v1).
-  Qed.
-
-  Lemma translation_to_val_inv e v' :
-    to_val (translation e) = Some v' →
-    ∃ v, to_val e = Some v.
-  Proof.
-    intros [v ->] % of_to_val % eq_sym % translation_of_val_inv.
-    eauto using to_of_val.
-  Qed.
-
-  Lemma translation_is_val_inv e :
-    is_Some $ to_val (translation e) →
-    is_Some $ to_val e.
-  Proof.
-    intros [_ (v & ->) % translation_to_val_inv]. eauto.
-  Qed.
-
-  Lemma translation_not_val_inv e :
-    to_val (translation e) = None →
-    to_val e = None.
-  Proof.
-    destruct (to_val e) eqn:? ; last done.
-    erewrite translation_to_val ; last eassumption.
-    discriminate.
-  Qed.
-
-  Lemma translation_not_val e :
-    to_val e = None →
-    to_val (translation e) = None.
-  Proof.
-    destruct (to_val (translation e)) eqn:E ; last done.
-    apply translation_to_val_inv in E as (? & ->). discriminate.
-  Qed.
-
-  Lemma translation_injective e1 e2 :
-    translation e1 = translation e2 →
-    e1 = e2.
-  Proof. (* this is slow because there are 19² subgoals… *)
-    (* by induction on e1, generalizing over e2: *)
-    revert e2 ; induction e1 ; intros e2 ;
-    (* reasoning by case on e2 *)
-    destruct e2 ;
-    (* eliminating all spurious cases, since e2 must have the same head
-       constructor as e1: *)
-    try discriminate 1 ; injection 1 ;
-    (* most of the subgoals are straightforward by applying the induction hypotheses: *)
-    intros ; f_equal ; auto;
-    (* one last trick is needed for Fork *)
-    match goal with
-    | H : translation ?e = Fork (translation _) |- _ => by destruct e
-    | H : Fork (translation _) = translation ?e |- _ => by destruct e
-    end.
-  Qed.
-
-  Lemma translationV_injective v1 v2 :
-    translationV v1 = translationV v2 →
-    v1 = v2.
-  Proof.
-    intros E.
-    apply of_val_inj, translation_injective.
-    rewrite 2! translation_of_val ; f_equal.
-    done.
+    destruct e1, e2; try discriminate; intros [=]; subst; f_equal;
+      by (apply translation_injective || apply translationV_injective).
+    destruct v1, v2; try discriminate; intros [=]; subst; f_equal;
+      by (apply translation_injective || apply translationV_injective).
   Qed.
 
   Lemma translation_fill_item Ki e :
     translation (fill_item Ki e) = fill (translationKi_aux Ki) (translation e).
   Proof.
-    destruct Ki ; try (rewrite /= ? translation_of_val ; reflexivity).
+    destruct Ki ; reflexivity.
   Qed.
 
   Lemma translation_fill_item_active (ki : ectx_item) v :
     ectx_item_is_active ki →
     translation (fill_item ki v) = fill_item (translationKi ki) (tick (translationV v)).
   Proof.
-    rewrite translation_fill_item translation_of_val.
+    rewrite translation_fill_item.
     unfold translationKi_aux ; destruct (ectx_item_is_active ki) ; last contradiction.
     reflexivity.
   Qed.
@@ -367,8 +253,11 @@ Section Translation.
     intros H.
     destruct op ;
     destruct v ; try discriminate H ;
-    simpl ; case_match ; try discriminate H ;
-    by injection H as <-.
+    simpl ; case_match ; simpl in *;
+      try discriminate H;
+      try match goal with
+          |- context [to_mach_int ?x] => destruct (to_mach_int x); [|discriminate] end;
+      try by injection H as <-.
   Qed.
 
   Local Lemma _eval_EqOp_bool_decide v1 v2 :
@@ -397,6 +286,9 @@ Section Translation.
       destruct v1, v2 ; try discriminate H ;
       unfold bin_op_eval in * ;
       do 3 try (case_match ; try discriminate H) ;
+      simpl in *;
+      try match goal with
+          |- context [to_mach_int ?x] => destruct (to_mach_int x); [|discriminate] end;
       by injection H as <-
     ).
     (* Remaining case: op = EqOp *)
@@ -440,13 +332,6 @@ Section Translation.
   Proof.
     destruct v ; try discriminate. done.
   Qed.
-  Lemma translationV_lit_inv_expr v lit :
-    of_val (translationV v) = (#lit)%E →
-    v = #lit.
-  Proof.
-    change (#lit)%E with (of_val (#lit)%V).
-    by intros ? % of_val_inj % translationV_lit_inv.
-  Qed.
 
   Lemma vals_cas_compare_safe_translationV v1 v2 :
     vals_cas_compare_safe v1 v2 →
@@ -466,8 +351,6 @@ Section Translation.
   Qed.
 
 End Translation.
-
-
 
 (*
  * Notations
@@ -495,23 +378,55 @@ Notation "« σ »" := (translationS σ%V) (only printing).
 Notation "« t »" := (translation <$> t%E) (only printing).
 *)
 
+(* FIXME : the way coercions should or should not be included in
+   notations so that notations are pretty-printed back is completely
+   non-predictible. *)
+
+Notation "'tickrec:' f x y .. z := e" :=
+  (tick (Rec f%bind x%bind (tick (Lam y%bind .. (tick (Lam z%bind e%E)) ..))))
+  (at level 200, f, x, y, z at level 1, e at level 200,
+   format "'[' 'tickrec:'  f  x  y  ..  z  :=  '/  ' e ']'") : expr_scope.
+
+Notation "tickλ: x , e" := (tick (Lam x%bind e%E))
+  (at level 200, x at level 1, e at level 200,
+   format "'[' 'tickλ:'  x ,  '/  ' e ']'") : expr_scope.
+Notation "tickλ: x y .. z , e" :=
+  (tick (Lam x%bind (tick (Lam y%bind .. (tick (Lam z%bind e%E)) ..))))
+  (at level 200, x, y, z at level 1, e at level 200,
+   format "'[' 'tickλ:'  x  y  ..  z ,  '/  ' e ']'") : expr_scope.
+
 Notation "'lettick:' x := e1 'in' e2" :=
-  ((tick (Lam x%bind e2%E)) e1%E)
+  ((tick (App (Val tick) (Lam x%bind e2%E))) e1%E)
   (at level 200, x at level 1, e1, e2 at level 200,
    format "'[' 'lettick:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.
 
 Notation "e1 ;tick; e2" :=
-  ((tick (Lam BAnon e2%E)) e1%E)
+  ((tick (App (Val tick) (Lam BAnon e2%E))) e1%E)
   (at level 100, e2 at level 200,
    format "'[' '[hv' '[' e1 ']'  ;tick;  ']' '/' e2 ']'") : expr_scope.
 
 Notation "'tickmatch:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
-  (Case (App (of_val tick) e0) (App (of_val tick_case_branch) (λ: <> x1, e1)%E)
-                               (App (of_val tick_case_branch) (λ: <> x2, e2)%E))
+  (Case (App (Val tick) e0) (App (Val tick_case_branch) (λ: <>, App (Val tick) (λ: x1, e1))%E)
+                            (App (Val tick_case_branch) (λ: <>, App (Val tick) (λ: x2, e2))%E))
   (e0, x1, e1, x2, e2 at level 200,
    format "'[hv' 'tickmatch:'  e0  'with'  '/  ' '[' 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : expr_scope.
 
+(*
+  Typeclass instance for the proofmode
+ *)
 
+Instance AsRecV_translationV `{Tick} v f x e :
+  AsRecV v f x e →
+  AsRecV « v » f x « e ».
+Proof. by intros ->. Qed.
+
+(*
+ * Simplification tactic
+ *)
+
+(* simpl and cbn do not work well with mutual fixpoints... *)
+Ltac simpl_trans :=
+  cbn [translation translationV]; fold translation translationV.
 
 (*
  * (Partial) Inverse translation
@@ -526,20 +441,20 @@ Section InvTranslation.
     | App tick (Fork e)          => Fork (invtranslation e)
     (* Base lambda calculus *)
     | Var _                      => e
-    | Rec f x e                  => Rec f x (invtranslation e)
+    | App tick (Rec f x e)       => Rec f x (invtranslation e)
     | App (App tick e1) e2       => (invtranslation e1) (invtranslation e2)
+    | Val v                      => Val (invtranslationV v)
     (* Base types and their operations *)
-    | Lit _                      => e
     | UnOp op (App tick e)       => UnOp op (invtranslation e)
     | BinOp op (App tick e1) e2  => BinOp op (invtranslation e1) (invtranslation e2)
     | If (App tick e0) e1 e2     => If (invtranslation e0) (invtranslation e1) (invtranslation e2)
     (* Products *)
-    | Pair e1 e2                 => Pair (invtranslation e1) (invtranslation e2)
+    | Pair (App tick e1) e2      => Pair (invtranslation e1) (invtranslation e2)
     | Fst (App tick e)           => Fst (invtranslation e)
     | Snd (App tick e)           => Snd (invtranslation e)
     (* Sums *)
-    | InjL e                     => InjL (invtranslation e)
-    | InjR e                     => InjR (invtranslation e)
+    | InjL (App tick e)          => InjL (invtranslation e)
+    | InjR (App tick e)          => InjR (invtranslation e)
     | Case (App tick e0) (App tickaux1 (Rec BAnon BAnon e1)) (App tickaux2 (Rec BAnon BAnon e2)) =>
         Case (invtranslation e0) (invtranslation e1) (invtranslation e2)
     (* Heap *)
@@ -549,64 +464,34 @@ Section InvTranslation.
     | CAS (App tick e0) e1 e2    => CAS (invtranslation e0) (invtranslation e1) (invtranslation e2)
     | FAA (App tick e1) e2       => FAA (invtranslation e1) (invtranslation e2)
     | _ => #42
-    end %E.
-
-  Lemma is_closed_invtranslation xs e :
-    is_closed xs e →
-    is_closed xs (invtranslation e).
-  Proof.
-    revert xs e.
-    fix IH 2 => xs [] /= *;
-    try (repeat case_match ; naive_solver).
-
-    (* Handle the App case by hand because it overlaps with Fork. *)
-    match goal with
-    | H : Is_true (is_closed xs ?e1 && is_closed xs ?e2) |- _ =>
-      apply andb_prop_elim in H; destruct H as [? He2];
-      assert (He2':=IH _ _ He2)
-    end.
-    case_match; case_match;
-      match goal with
-      | |- Is_true (is_closed xs (#_)) => done
-      | |- Is_true (is_closed xs (Fork _)) => naive_solver
-      | |- Is_true (is_closed xs (App ?A ?B)) =>
-        change (is_closed xs A && is_closed xs B);
-        apply andb_prop_intro; split; [apply IH; naive_solver|apply He2']
-      end.
-  Qed.
-
-  Fixpoint invtranslationV (v : val) : val :=
+    end %E
+  with invtranslationV v :=
     match v with
-    | @RecV f x e C => @RecV f x (invtranslation e) (is_closed_invtranslation _ _ C)
+    | RecV f x e    => RecV f x (invtranslation e)
     | LitV _        => v
     | PairV v1 v2   => PairV (invtranslationV v1) (invtranslationV v2)
     | InjLV v       => InjLV (invtranslationV v)
     | InjRV v       => InjRV (invtranslationV v)
     end.
 
-  Lemma invtranslation_of_val v :
-    invtranslation (of_val v) = of_val (invtranslationV v).
-  Proof.
-    induction v ; simpl ; firstorder.
-  Qed.
-
   Lemma invtranslation_translation {Htick : Tick} e :
-    invtranslation (translation e) = e.
+    invtranslation (translation e) = e
+  with invtranslationV_translationV {Htick : Tick} v :
+    invtranslationV (translationV v) = v.
   Proof.
-    induction e ; simpl ; try by firstorder.
-    (* Handle the Fork/App case by hand. *)
-    { rewrite IHe1 IHe2. case_match; try done.
-      by destruct e2. }
-    { case_match; congruence. }
-  Qed.
+    - specialize (invtranslation_translation Htick).
+      specialize (invtranslationV_translationV Htick).
+      destruct e;
+        try by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
+      (* Handle the App case by hand. *)
+      { simpl. rewrite !invtranslation_translation. case_match=>//.
+          by destruct e2. by destruct e2. }
 
-  Lemma invtranslationV_translationV {Htick : Tick} v :
-     invtranslationV (translationV v) = v.
-  Proof.
-    apply of_val_inj. rewrite - invtranslation_of_val - translation_of_val.
-    apply invtranslation_translation.
+    - specialize (invtranslation_translation Htick).
+      specialize (invtranslationV_translationV Htick).
+      destruct v;
+        try by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
   Qed.
-
 End InvTranslation.
 
 
@@ -632,15 +517,15 @@ Section ClosureFree.
   Proof.
     intros ?.
     induction v as
-      [ (* RecV *) f x e1 Hclosed_e1
-      | (* LitV *) lit
+      [ (* LitV *) lit
+      | (* RecV *) f x e1
       | (* PairV *) v1 IH1 v2 IH2
       | (* InjLV *) v1 IH1
       | (* InjRV *) v1 IH1
-      ] ; simpl.
-    - contradiction.
+      ] ; cbn in *.
     - done.
-    - rewrite -> IH1, IH2 ; naive_solver.
+    - contradiction.
+    - rewrite IH1 ?IH2; naive_solver.
     - rewrite IH1 ; naive_solver.
     - rewrite IH1 ; naive_solver.
   Qed.
@@ -651,14 +536,14 @@ Section ClosureFree.
   Proof.
     intros ?.
     induction v as
-      [ (* RecV *) f x e1 Hclosed_e1
-      | (* LitV *) lit
+      [ (* LitV *) lit
+      | (* RecV *) f x e1
       | (* PairV *) v1 IH1 v2 IH2
       | (* InjLV *) v1 IH1
       | (* InjRV *) v1 IH1
-      ] ; simpl.
-    - contradiction.
+      ] ; cbn.
     - done.
+    - contradiction.
     - rewrite -> IH1, IH2 ; naive_solver.
     - rewrite IH1 ; naive_solver.
     - rewrite IH1 ; naive_solver.

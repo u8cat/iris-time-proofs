@@ -5,8 +5,8 @@ From iris_time.union_find.math Require Import TLCBuffer.
 From stdpp Require Import gmap.
 
 From iris.bi Require Import big_op.
-From iris.heap_lang Require Import proofmode.
-From iris_time Require Import TimeCredits MachineIntegers.
+From iris_time.heap_lang Require Import proofmode.
+From iris_time Require Import TimeCredits.
 
 (* Load extra math libraries. *)
 From iris_time.union_find.math Require Import LibNatExtra InverseAckermann.
@@ -34,11 +34,32 @@ Inductive content :=
 | Root : nat -> val -> content
 | Link : elem -> content.
 
-Definition val_of_content (c : content) : val :=
+Definition val_of_content (c : content) : option val :=
   match c with
-  | Root k v => ROOTV(#k, v)
-  | Link e => LINKV #e
+  | Root k v => (λ (k : mach_int), ROOTV(#k, v)) <$> to_mach_int k
+  | Link e => Some $ LINKV #e
   end.
+
+Lemma val_of_content_Some :
+  forall c v,
+    val_of_content c = Some v →
+    (∃ (k1 : mach_int) (k2 : nat) v', v = ROOTV(#k1, v') /\ c = Root k2 v' /\ `k1 = k2)
+    \/ (∃ e : elem, v = LINKV #e /\ c = Link e).
+Proof.
+  introv Hv. destruct c as [k2 v'|e]; [left|right].
+  - simpl in Hv. destruct (to_mach_int k2) as [k1|] eqn:Hk12; [|done].
+    eexists k1, k2, v'. repeat split; try naive_solver.
+    unfold to_mach_int in Hk12. case_decide; inversion Hk12. done.
+  - inversion Hv. eauto.
+Qed.
+
+Lemma val_of_content_Some_Root :
+  forall k2 v v',
+    val_of_content (Root k2 v') = Some v →
+    (∃ (k1 : mach_int), v = ROOTV(#k1, v') /\ `k1 = k2).
+Proof.
+  introv [(? & ? & ? & -> & [= -> ->] & ?)|(? & ? & [=])]%val_of_content_Some. eauto.
+Qed.
 
 (* Hints for the type-checker. *)
 
@@ -107,14 +128,14 @@ Notation Phi := (Phi 1).
    client. *)
 
 Definition mapsto_M M : iProp Σ :=
-  ([∗ map] l ↦ c ∈ M, l ↦ val_of_content c)%I.
+  ([∗ map] l ↦ c ∈ M, from_option (mapsto l 1) False (val_of_content c))%I.
 
 Definition UF D R V : iProp Σ :=
   (∃ F K M,
   ⌜ Inv D F K R V ⌝ ∗
   ⌜ Mem D F K V M ⌝ ∗
   mapsto_M M ∗
-  TC (7 * Phi D F K))%I.
+  TC (11 * Phi D F K))%I.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -446,21 +467,28 @@ Qed.
 
 Lemma mapsto_M_acc : forall M x c,
   M !! x = Some c ->
-  mapsto_M M -∗ x ↦ val_of_content c ∗
-     (∀ c', x ↦ val_of_content c' -∗ mapsto_M (<[x:=c']>M)).
+  mapsto_M M -∗
+    ∃ v, ⌜val_of_content c = Some v⌝ ∗ x ↦ v ∗
+     (∀ c' v', ⌜val_of_content c' = Some v'⌝ -∗
+               x ↦ v' -∗ mapsto_M (<[x:=c']>M)).
 Proof.
   introv HM. iIntros "HM".
   rewrite -[in mapsto_M _](insert_id _ _ _ HM) -insert_delete /mapsto_M.
-  rewrite big_sepM_insert ?lookup_delete //. iDestruct "HM" as "[$?]".
-  iIntros (?) "?". rewrite -insert_delete big_sepM_insert ?lookup_delete //.
-  iFrame.
+  rewrite big_sepM_insert ?lookup_delete //. iDestruct "HM" as "[Hc HM]".
+  destruct (val_of_content c); [|done]. iExists _. iFrame. iSplit; [done|].
+  iIntros (c' v' Hv') "?".
+  rewrite -insert_delete big_sepM_insert ?lookup_delete // Hv'. iFrame.
 Qed.
 
 Lemma mapsto_M_acc_same : forall M x c,
   M !! x = Some c ->
-  mapsto_M M -∗ x ↦ val_of_content c ∗ (x ↦ val_of_content c -∗ mapsto_M M).
+  mapsto_M M -∗
+    ∃ v, ⌜val_of_content c = Some v⌝ ∗ x ↦ v ∗ (x ↦ v -∗ mapsto_M M).
 Proof.
-  introv HM. by apply (big_sepM_lookup_acc (λ _ _, _)).
+  introv HM. iIntros "HM".
+  iDestruct (mapsto_M_acc with "HM") as (v Hv) "[Hv HM]"; [done|].
+  iExists _. iFrame. iSplit; [done|].
+  iSpecialize ("HM" $! _ _ Hv). by rewrite insert_id.
 Qed.
 
 (* TODO : that should go into Iris libraries for big ops *)
@@ -477,11 +505,12 @@ Proof.
   rewrite -assoc. f_equiv. apply IH. by eapply map_disjoint_insert_l.
 Qed.
 
-Lemma mapsto_M_insert : forall M x c,
-  M!!x = None ->
-  x ↦ val_of_content c ∗ mapsto_M M ⊣⊢ mapsto_M (<[x:=c]>M).
+Lemma mapsto_M_insert : forall M x c v,
+  M !! x = None ->
+  val_of_content c = Some v ->
+  x ↦ v ∗ mapsto_M M ⊣⊢ mapsto_M (<[x:=c]>M).
 Proof.
-  introv Mxc. rewrite /mapsto_M big_sepM_insert //.
+  introv Mxc Hcv. by rewrite /mapsto_M big_sepM_insert // Hcv.
 Qed.
 
 Lemma mapsto_M_disjoint : forall M1 M2,
@@ -491,6 +520,7 @@ Proof.
   destruct (M1!!x) eqn:HM1, (M2!!x) eqn:HM2=>//.
   iDestruct (big_sepM_lookup with "HM1") as "H1"=>//.
   iDestruct (big_sepM_lookup with "HM2") as "H2"=>//.
+  do 2 destruct val_of_content; try done.
   by iDestruct (mapsto_valid_2 with "H1 H2") as %[].
 Qed.
 
@@ -686,7 +716,7 @@ Qed.
 
 Theorem make_spec : forall D R V v,
   TC_invariant -∗
-  {{{ UF D R V ∗ TC 16 }}}
+  {{{ UF D R V ∗ TC 26 }}}
     «make v»
   {{{ (x : elem), RET #x;
       let D' := D \u \{x} in
@@ -695,13 +725,14 @@ Theorem make_spec : forall D R V v,
       ⌜x \notin D /\
        R x = x⌝ }}}.
 Proof using.
-  iIntros "* #?" (Φ) "!# [HF TC] HΦ". rewrite /= !translation_of_val.
-  wp_tick_rec. wp_tick. wp_alloc x as "Hx". iApply "HΦ".
+  iIntros "* #?" (Φ) "!# [HF TC] HΦ".
+  wp_tick_rec. wp_tick_pair. wp_tick_inj. wp_tick. wp_alloc x as "Hx". iApply "HΦ".
   iDestruct "HF" as (F K M HI HM) "[HM TC']".
 
   iAssert ⌜M !! x = None⌝%I as %Mx.
   { case HMx: (M!!x)=>//.
     iDestruct (big_sepM_lookup with "HM") as "Hx'"=>//.
+    destruct val_of_content; try done.
     by iDestruct (mapsto_valid_2 with "Hx Hx'") as %[]. }
   assert (x \notin D) as Dx.
   { intros Dx%HM. by rewrite Mx in Dx. }
@@ -711,7 +742,9 @@ Proof using.
   rewrite -Phi_extend 1?Nat.mul_add_distr_l; eauto; []. iCombine "TC' TC" as "$".
   repeat iSplit; try iPureIntro.
   { applys* Inv_make. } { applys* Mem_make. }
-  iApply mapsto_M_insert; [done|iFrame].
+  iApply mapsto_M_insert; [done| |by iFrame].
+  rewrite /= /to_mach_int decide_left /=; [by apply (proj2_sig mach_int_0)|].
+  intros ?. by rewrite (exists_proj1_pi _ mach_int_0).
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -732,17 +765,17 @@ Lemma find_spec_inductive: forall d D R F K F' M V x,
   x \in D ->
   bw_ipc F x d F' ->
   TC_invariant -∗
-  {{{ mapsto_M M ∗ TC (7*d+8) }}}
+  {{{ mapsto_M M ∗ TC (11*d+11) }}}
     «find #x»
   {{{ M', RET #(R x); mapsto_M M' ∗ ⌜ Mem D F' K V M' ⌝ }}}.
 Proof using.
-  intros d. rewrite /= translation_of_val /find. unlock. simpl.
-  induction_wf IH: Wf_nat.lt_wf d.
+  intros d. induction_wf IH: Wf_nat.lt_wf d.
   introv HI HM Dx HC. iIntros "#?" (Φ) "!# [HM TC] HΦ /=".
   iDestruct "TC" as "[TCd TC]". wp_tick_rec.
   assert (HV := HM _ Dx). destruct (M !! x) as [c|] eqn:? =>//.
-  iDestruct (mapsto_M_acc_same with "HM") as "[Hx HM]"=>//. wp_tick_load.
-  iDestruct ("HM" with "Hx") as "HM". destruct c as [k v|y].
+  iDestruct (mapsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
+  iDestruct ("HM" with "Hx") as "HM".
+  destruct (val_of_content_Some _ _ Hv) as [(k1 & k2 & v' & -> & -> & ?)|(y & -> & ->)].
   (* Case: Root. *)
   { wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_seq.
     destruct HV as [HR HP]. forwards* EQ : is_root_R_self HR. rewrite EQ.
@@ -758,15 +791,14 @@ Proof using.
     assert (z' = R y). { symmetry. eapply is_repr_incl_R; eauto. } subst z'.
     forwards IH' : IH HI HM HB'; [math|done|].
     iCombine "TCd TC" as "TC".
-    math_rewrite (7 * S d' + 4 = 7 * d' + 8 + 3)%nat.
+    math_rewrite (11 * S d' + 6 = 11 * d' + 11 + 6)%nat.
     iDestruct "TC" as "[TCd TC]".
-    (* FIXME : wp_apply does not work. *)
-    wp_bind (tick _ #y). iApply (IH' with "[//] [$HM $TCd]").
-    iIntros "!>" (M') "[HM' hM']". iDestruct "hM'" as %HM'. wp_tick_let.
+    wp_apply (IH' with "[//] [$HM $TCd]").
+    iIntros (M') "[HM' hM']". iDestruct "hM'" as %HM'. wp_tick_let.
     assert (HV := HM' _ Dx). destruct (M' !! x) as [c|] eqn:? =>//.
-    iDestruct (mapsto_M_acc with "HM'") as "[Hx HM']"=>//.
-    wp_tick_store. wp_tick_seq.
-    iDestruct ("HM'" $! (Link (R y)) with "Hx") as "HM'".
+    iDestruct (mapsto_M_acc with "HM'") as (v' Hv') "[Hx HM']"=>//.
+    wp_tick_inj. wp_tick_store. wp_tick_seq.
+    iDestruct ("HM'" $! (Link (R y)) _ eq_refl with "Hx") as "HM'".
     assert (is_equiv F x y). { eauto using path_is_equiv with rtclosure. }
     assert (R x = R y) as ->. { eauto using is_equiv_incl_same_R. }
     iApply ("HΦ" with "[$HM']").
@@ -778,7 +810,7 @@ Qed.
 
 Theorem find_spec : forall D R V x, x \in D ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC (14 * alpha (card D) + 29) }}}
+  {{{ UF D R V ∗ TC (22 * alpha (card D) + 44) }}}
     «find #x»
   {{{ RET #(R x); UF D R V }}}.
 Proof using.
@@ -786,7 +818,7 @@ Proof using.
   iDestruct "UF" as (F K M HI HM) "[HM TC2]".
   forwards* (d&F'&HC&HP): amortized_cost_of_iterated_path_compression_simplified x.
   iCombine "TC1 TC2" as "TC".
-  rewrite [TC (_ + _)](TC_weaken _ (7*Phi D F' K + (7 * d + 8))%nat); [|math].
+  rewrite [TC (_ + _)](TC_weaken _ (11*Phi D F' K + (11 * d + 11))%nat); [|math].
   iDestruct "TC" as "[TC1 TC2]".
   iApply (find_spec_inductive with "[//] [$TC2 $HM]")=>//.
   iIntros "!>" (M') "[HM' %]". iApply "HΦ".
@@ -803,21 +835,21 @@ Qed.
 
 Theorem get_spec : forall D R V x, x \in D ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC (14 * alpha (card D) + 38) }}}
+  {{{ UF D R V ∗ TC (22 * alpha (card D) + 57) }}}
     «get #x»
   {{{ RET V x; UF D R V }}}.
 Proof using.
   introv Dx. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  math_rewrite (14 * alpha (card D) + 38 = 14 * alpha (card D) + 29 + 9)%nat.
+  math_rewrite (22 * alpha (card D) + 57 = 22 * alpha (card D) + 44 + 13)%nat.
   iDestruct "TC" as "[TC1 TC2]".
-  (* FIXME : all these rewrites should not appear. *)
-  rewrite /get. unlock. rewrite /= !translation_of_val. wp_tick_let.
-  rewrite -(translation_of_val find). wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
+  wp_tick_rec.
+  wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
   iIntros "UF". wp_tick_let. iDestruct "UF" as (F K M HI HM) "[HM TC]".
   forwards* (Drx&Rrx): Inv_root x (R x).
   forwards* EM: Mem_root (R x).
-  iDestruct (mapsto_M_acc_same with "HM") as "[Hx HM]"=>//. wp_tick_load.
+  iDestruct (mapsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
   iDestruct ("HM" with "Hx") as "HM".
+  destruct (val_of_content_Some_Root _ _ _ Hv) as (k1 & -> & _).
   wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_let.
   rewrite -(Inv_data _ _ _ _ _ HI). iApply "HΦ".
   iExists _, _, _. eauto with iFrame.
@@ -835,24 +867,25 @@ Qed.
 Theorem set_spec : forall D R V x v,
   x \in D ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC (14 * alpha (card D) + 40) }}}
+  {{{ UF D R V ∗ TC (22 * alpha (card D) + 62) }}}
     «set #x v»
   {{{ RET #(); UF D R (update1 V R x «v»%V) }}}.
 Proof using.
   introv Dx. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  math_rewrite (14 * alpha (card D) + 40 = 14 * alpha (card D) + 29 + 11)%nat.
+  math_rewrite (22 * alpha (card D) + 62 = 22 * alpha (card D) + 44 + 18)%nat.
   iDestruct "TC" as "[TC1 TC2]".
-  (* FIXME : all these rewrites should not appear. *)
-  rewrite /set. unlock. rewrite /= !translation_of_val. wp_tick_let. wp_tick_let.
-  rewrite -(translation_of_val find). wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
+  wp_tick_rec. wp_tick_let. wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
   iIntros "UF". wp_tick_let. iDestruct "UF" as (F K M HI HM) "[HM TC]".
   forwards* (Drx&Rrx): Inv_root x (R x).
   forwards* EM: Mem_root (R x).
-  iDestruct (mapsto_M_acc with "HM") as "[Hx HM]"=>//. wp_tick_load.
-  wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_seq. wp_tick_store.
+  iDestruct (mapsto_M_acc with "HM") as (v' Hv') "[Hx HM]"=>//. wp_tick_load.
+  destruct (val_of_content_Some_Root _ _ _ Hv') as (k1 & -> & _).
+  wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_seq.
+  wp_tick_pair. wp_tick_inj. wp_tick_store.
   iApply "HΦ". iExists _, _, _. iFrame.
   iSplit; [auto using Inv_update1|]. iSplit; [eauto using Mem_update1|].
-  rewrite Rrx. by iApply "HM".
+  rewrite Rrx. iApply ("HM" with "[%] Hx").
+  simpl in *. by destruct (to_mach_int (K (R x))); inversion Hv'.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -866,46 +899,20 @@ Qed.
 Theorem eq_spec : forall D R V x y,
   x \in D -> y \in D ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC (28 * alpha (card D) + 61) }}}
+  {{{ UF D R V ∗ TC (44 * alpha (card D) + 92) }}}
     «eq #x #y»
   {{{ RET #(bool_decide (R x = R y)); UF D R V }}}.
 Proof using.
   introv Dx Dy. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  math_rewrite (28 * alpha (card D) + 61 =
-                (14 * alpha (card D) + 29) + (14 * alpha (card D) + 29) + 3)%nat.
+  math_rewrite (44 * alpha (card D) + 92 =
+                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 4)%nat.
   iDestruct "TC" as "[[TC1 TC2] TC3]".
-  (* FIXME : all these rewrites should not appear. *)
-  rewrite /eq. unlock. rewrite /= !translation_of_val. wp_tick_let. wp_tick_let.
-  rewrite -(translation_of_val find).
+  wp_tick_rec. wp_tick_let.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//. iIntros "UF".
   wp_apply (find_spec with "[//] [$TC2 $UF]")=>//. iIntros "UF".
   wp_tick_op.
   rewrite (bool_decide_iff (#(R x) = #(R y)) (R x = R y)); last (split; congruence).
   by iApply "HΦ".
-Qed.
-
-
-(* -------------------------------------------------------------------------- *)
-
-(* Machine int addition with time credits. *)
-
-Lemma machine_int_add_spec_tc n1 n2 :
-  TC_invariant -∗
-  {{{ is_machine_int n1 ∗ is_machine_int n2 ∗ ⌜min_int ≤ n1+n2 < max_int⌝ ∗
-      TC 6 }}}
-    «machine_int_add #n1 #n2»
-  {{{ RET #(n1+n2) ; is_machine_int (n1+n2) }}}.
-Proof.
-  iIntros "#? !#" (Φ) "(_ & _ & % & TC) Post". rewrite /= translation_of_val.
-  wp_tick_rec. wp_tick_let. repeat wp_tick_op.
-  (* boring arithmetic proof: *)
-  assert ((n1 + n2 + max_int) `rem` max_uint - max_int = n1 + n2) as ->. {
-    assert ((n1 + n2 + max_int) `rem` max_uint = n1 + n2 + max_int). {
-      apply Z.rem_small. unfold min_int, max_uint in *. lia.
-    }
-    lia.
-  }
-  by iApply "Post".
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -926,13 +933,13 @@ Lemma link_spec : forall D R V x y,
   R x = x ->
   R y = y ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC 46 }}}
+  {{{ UF D R V ∗ TC 61 }}}
     «link #x #y»
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗
                    ⌜z = x \/ z = y⌝}}}.
 Proof using.
   introv Dx Dy Rx Ry. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  rewrite /link. unlock. rewrite /= !translation_of_val. wp_tick_let. wp_tick_let.
+  wp_tick_rec. wp_tick_let.
   iDestruct "UF" as (F K M HI HM) "[HM TC']".
   wp_tick_op. case_bool_decide as Hxy.
   (* Case: [x == y]. *)
@@ -943,22 +950,22 @@ Proof using.
   wp_tick_if.
   forwards Hx: HM Dx. forwards Hy: HM Dy.
   destruct (M !! x) as [cx|] eqn:EQx, (M !! y) as [cy|] eqn:EQy=>//.
-  iDestruct (mapsto_M_acc_same _ x with "HM") as "[Hx HM]"=>//.
+  iDestruct (mapsto_M_acc_same _ x with "HM") as (v Hv) "[Hx HM]"=>//.
   wp_tick_load. iDestruct ("HM" with "Hx") as "HM".
-  destruct cx; wp_tick_match;
-    last by false; eauto using a_root_has_no_parent, R_self_is_root.
-  wp_tick_proj. wp_tick_let. wp_tick_proj. wp_tick_let.
-  iDestruct (mapsto_M_acc_same _ y with "HM") as "[Hy HM]"=>//.
+  destruct cx; last by false; eauto using a_root_has_no_parent, R_self_is_root.
+  destruct (val_of_content_Some_Root _ _ _ Hv) as (k1 & -> & ?).
+  wp_tick_match. wp_tick_proj. wp_tick_let. wp_tick_proj. wp_tick_let.
+  iDestruct (mapsto_M_acc_same _ y with "HM") as (v' Hv') "[Hy HM]"=>//.
   wp_tick_load. iDestruct ("HM" with "Hy") as "HM".
-  destruct cy; wp_tick_match;
-    last by false; eauto using a_root_has_no_parent, R_self_is_root.
-  wp_tick_proj. wp_tick_let. wp_tick_proj. wp_tick_let.
+  destruct cy; last by false; eauto using a_root_has_no_parent, R_self_is_root.
+  destruct (val_of_content_Some_Root _ _ _ Hv') as (k1' & -> & ?).
+  wp_tick_match. wp_tick_proj. wp_tick_let. wp_tick_proj. wp_tick_seq.
   destruct Hx as (HRx&Kx&Vx). substs. destruct Hy as (HRy&Ky&Vy). substs.
   wp_tick_op; case_bool_decide; wp_tick_if;
     [|wp_tick_op; case_bool_decide; wp_tick_if].
   (* Sub-case: [K x < K y]. *)
-  { iDestruct (mapsto_M_acc _ x with "HM") as "[Hx HM]"=>//.
-    wp_tick_store. wp_tick_seq. iApply "HΦ". iSplit; [|by auto].
+  { iDestruct (mapsto_M_acc _ _ _ EQx with "HM") as (? _) "[Hx HM]".
+    wp_tick_inj. wp_tick_store. wp_tick_seq. iApply "HΦ". iSplit; [|by auto].
     Inv_link
     (* F' := *) (UnionFind03Link.link F x y)
     (* K' := *) K
@@ -969,8 +976,8 @@ Proof using.
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x > K y]. *)
-  { iDestruct (mapsto_M_acc _ y with "HM") as "[Hy HM]"=>//.
-    wp_tick_store. wp_tick_seq. iApply "HΦ".
+  { iDestruct (mapsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]".
+    wp_tick_inj. wp_tick_store. wp_tick_seq. iApply "HΦ".
     rewrite [update2 _ _ _ _ x]update2_sym. rewrite [update2 _ _ _ _ (V x)]update2_sym.
     iSplit; [|by auto].
     Inv_link
@@ -983,33 +990,30 @@ Proof using.
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x = K y]. *)
-  { iDestruct (mapsto_M_acc _ y with "HM") as "[Hy HM]"=>//.
-    wp_tick_store.
-    iDestruct ("HM" $! (Link _) with "Hy") as "HM".
-    wp_tick_seq.
-    rewrite -translation_of_val (_:22=6+16)%nat //.
-    iDestruct "TC" as "[TC1 TC2]".
-    wp_apply (machine_int_add_spec_tc with "[//] [$TC1]").
-    admit. iIntros "_". (* No overflow. *)
-    rewrite -(Nat2Z.inj_add _ 1).
-    iDestruct (mapsto_M_acc _ x with "HM") as "[Hx HM]".
+  { iDestruct (mapsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]"=>//.
+    wp_tick_inj. wp_tick_store.
+    iDestruct ("HM" $! (Link _) _ eq_refl with "Hy") as "HM".
+    assert (bool_decide (mach_int_bounded (`k1 + 1))).
+    { admit. }
+    wp_tick_seq. wp_tick_op.
+    { by rewrite /bin_op_eval /= /to_mach_int decide_left. }
+    iDestruct (mapsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
     { rewrite lookup_insert_ne //. congruence. }
-    wp_tick_store.
-    iDestruct ("HM" $! (Root _ _) with "Hx") as "HM".
-    wp_tick_seq.
+    wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
     iApply "HΦ". iSplit; [|by auto].
-    assert (K x = K y). { math. }
     Inv_link
     (* F' := *) (UnionFind03Link.link F y x)
-    (* K' := *) (fupdate K x (1 + K x)%nat)
+    (* K' := *) (fupdate K x (1 + K y)%nat)
     (* V' := *) (update2 V R x y (V x))
                 x y
     (* z  := *) x.
-    iExists _, _, _. iSplit; [done|]. iFrame "HM".
-    iCombine "TC' TC2" as "TC".
-    rewrite TC_weaken; [iFrame "TC"|lia].
-    iPureIntro. applys* Mem_link_incr HM. congruence. applys update2_sym.
-  }
+    iExists _, _, _. iSplit; [done|].
+    iCombine "TC' TC" as "TC". rewrite TC_weaken; [iFrame "TC"|lia].
+    iSplit; last iApply ("HM" with "[%] Hx").
+    { iPureIntro. applys* Mem_link_incr HM. congruence. applys update2_sym. }
+    rewrite /= -(_:(`k1 + 1) = (K y + 1)%nat) //.
+    { by rewrite /to_mach_int decide_left /=. }
+    assert (`k1 + 1 = K y + 1)%Z as -> by lia. by rewrite ->Nat2Z.inj_add.
 Admitted.
 
 (* -------------------------------------------------------------------------- *)
@@ -1028,21 +1032,18 @@ Theorem union_spec : forall D R V x y,
   x \in D ->
   y \in D ->
   TC_invariant -∗
-  {{{ UF D R V ∗ TC (28 * alpha (card D) + 106) }}}
+  {{{ UF D R V ∗ TC (44 * alpha (card D) + 152) }}}
     «union #x #y»
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗
                  ⌜z = R x \/ z = R y⌝ }}}.
 Proof using.
   introv Dx Dy.
-  math_rewrite (28 * alpha (card D) + 106 =
-                (14 * alpha (card D) + 29) + (14 * alpha (card D) + 29) + 46 + 2)%nat.
+  math_rewrite (44 * alpha (card D) + 152 =
+                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 61 + 3)%nat.
   iIntros "#?" (Φ) "!# [UF [[[TC1 TC2] TC3] TC4]] HΦ".
-  rewrite /union. unlock. rewrite /= !translation_of_val. wp_tick_let. wp_tick_let.
-  rewrite -[in App _ #y]translation_of_val.
+  wp_tick_rec. wp_tick_let.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//. iIntros "UF".
-  rewrite -[in App _ #x]translation_of_val.
   wp_apply (find_spec with "[//] [$TC2 $UF]")=>//. iIntros "UF".
-  rewrite -translation_of_val.
   iDestruct (UF_image _ _ _ x with "UF") as %? =>//.
   iDestruct (UF_image _ _ _ y with "UF") as %? =>//.
   iDestruct (UF_idempotent with "UF") as %Idem =>//.

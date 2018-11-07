@@ -1,5 +1,4 @@
-From iris.heap_lang Require Import notation lib.assert.
-From iris_time Require Import MachineIntegers.
+From iris_time.heap_lang Require Import notation lib.assert.
 
 Notation ROOT x := (InjL x).
 Notation ROOTV x := (InjLV x).
@@ -13,7 +12,7 @@ Notation "'match:' e0 'with' 'ROOT' ( r , v ) => e1 | 'LINK' x => e2 'end'" :=
   (e0, r, v, e1, x, e2 at level 200, only parsing) : expr_scope.
 
 Definition make : val := λ: "v",
-  ref (ROOT (#0, "v")).
+  ref (ROOT (#(mach_int_0), "v")).
 
 Definition find : val := rec: "find" "x" :=
   match: !"x" with
@@ -56,7 +55,7 @@ Definition link : val := λ: "x" "y",
               "x"
             else
               "y" <- LINK "x";;
-              "x" <- ROOT (machine_int_add "rx" #1, "vx");;
+              "x" <- ROOT ("rx" + #mach_int_1, "vx");;
               "x"
         | LINK <> =>
           assert: #false

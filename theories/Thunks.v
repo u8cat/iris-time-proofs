@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation.
+From iris_time.heap_lang Require Import proofmode notation.
 From iris.base_logic.lib Require Import na_invariants.
 From stdpp Require Import namespaces.
 
@@ -34,12 +34,12 @@ Section Thunk.
         own γ (●mnat ac)
       ∗ (
           (∃ (f : val),
-              t ↦ UNEVALUATEDV f
-            ∗ {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}}
+              t ↦ UNEVALUATEDV « f »
+            ∗ {{{ TC nc }}} « f #() » {{{ v, RET « v » ; φ v }}}
             ∗ TC ac
           )
         ∨ (∃ (v : val),
-              t ↦ EVALUATEDV v
+              t ↦ EVALUATEDV « v »
             ∗ φ v
             ∗ ⌜(nc ≤ ac)%nat⌝
           )
@@ -88,15 +88,15 @@ Section Thunk.
 
   Lemma create_spec p nc φ f :
     TC_invariant -∗
-    {{{ TC 1 ∗ ( {{{ TC nc }}} f #() {{{ v, RET v ; φ v }}} ) }}}
-    «create» f
+    {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; φ v }}} ) }}}
+    «create f»
     {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
   Proof.
     iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
     iDestruct (zero_TC with "Htickinv") as ">Htc0".
     iMod (auth_mnat_alloc 0) as (γ) "[Hγ● Hγ◯]".
     iApply wp_fupd.
-    unlock create ; wp_lam. wp_tick_alloc t.
+    wp_tick_lam. wp_tick_inj. wp_tick_alloc t.
     iApply "Post".
     iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
     iFrame "Hγ◯".
@@ -108,16 +108,16 @@ Section Thunk.
     ↑(thunkN t) ⊆ F →
     (∀ (v : val), φ v -∗ φ v ∗ φ v) →
     TC_invariant -∗
-    {{{ TC 7 ∗ Thunk p t 0 φ ∗ na_own p F }}}
-    «force» #t
-    {{{ v, RET v ; φ v ∗ na_own p F }}}.
+    {{{ TC 11 ∗ Thunk p t 0 φ ∗ na_own p F }}}
+    «force #t»
+    {{{ v, RET «v» ; φ v ∗ na_own p F }}}.
   Proof.
     iIntros (? Hφdup).
     iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp) Post".
     iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
     rewrite (_ : nc - 0 = nc)%nat ; last lia.
     iApply wp_fupd.
-    unlock force ; wp_lam.
+    wp_tick_lam.
     (* reading the thunk… *)
     iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
@@ -129,8 +129,8 @@ Section Thunk.
       wp_tick_load. wp_tick_match.
       iDestruct (own_auth_mnat_le with "Hγ● Hγ◯") as %I.
       iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
-      wp_tick ; wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
-      wp_tick_let. wp_tick_store. wp_tick_seq.
+      wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
+      wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
       iApply "Post".
       iDestruct (Hφdup with "Hv") as "[Hv $]".
       iApply "Hclose". iFrame "Hp".

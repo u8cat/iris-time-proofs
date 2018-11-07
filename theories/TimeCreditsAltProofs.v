@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Reduction TimeCredits.
@@ -57,12 +57,11 @@ Local Notation ℓ := tick_counter.
  * a proof that the original expression is safe. *)
 
 Lemma safe_tctranslation__safe_here {Hloc : TickCounter} m e σ :
-  is_closed [] e →
   loc_fresh_in_expr ℓ e →
   safe «e» S«σ, m» →
   is_Some (to_val e) ∨ reducible e σ.
 Proof.
-  intros Hclosed Hfresh Hsafe.
+  intros Hfresh Hsafe.
   (* case analysis on whether e is a value… *)
   destruct (to_val e) as [ v | ] eqn:Hnotval.
   (* — if e is a value, then we get the result immediately: *)
@@ -70,11 +69,23 @@ Proof.
   (* — if e is not a value, then we show that it is reducible: *)
   - right.
     (* we decompose e into a maximal evaluation context K and a head-redex: *)
-    pose proof (not_val_fill_active_item _ Hclosed Hnotval) as He ; clear Hclosed Hnotval.
-    destruct He as [ (K & e1 & ->) | (K & ki & v & -> & Hactive) ].
+    pose proof (not_val_fill_active_item _ Hnotval) as He ; clear Hnotval.
+    destruct He as [ (K & x & ->) |
+                   [ (K & e1 & ->) |
+                   [ (K & f & x & e1 & ->) |
+                     (K & ki & v & -> & Hactive) ]]].
+    (* — either e = Var x: *)
+    + (* then Var x is stuck *)
+      exfalso. eapply stuck_not_safe; [|done]. rewrite translation_fill.
+      apply stuck_fill, head_stuck_stuck.
+      { split; [done|]. intros ???? Hstep. inversion Hstep. }
+      apply ectxi_language_sub_redexes_are_values=>-[] //.
     (* — either e = K[Fork e1]: *)
     + (* then we easily derive a reduction from e: *)
-      eexists _, _, _. apply Ectx_step', ForkS.
+      eexists _, _, _, _. apply Ectx_step', ForkS.
+    (* — either e = K[Rec f x e1]: *)
+    + (* then we easily derive a reduction from e: *)
+      eexists _, _, _, _. apply Ectx_step', RecS.
     (* — or e = K[ki[v]] where ki is an active item: *)
     + (* it is enough to show that ki[v] is reducible: *)
       apply loc_fresh_in_expr_fill_inv in Hfresh ;
@@ -108,15 +119,14 @@ Proof.
       * exact Hred.
 Qed.
 Lemma safe_tctranslation__safe {Hloc : TickCounter} m e σ t2 σ2 e2 :
-  is_closed [] e →
   loc_fresh_in_expr ℓ e2 →
   σ2 !! ℓ = None →
   safe «e» S«σ, m» →
-  rtc step ([e], σ) (t2, σ2) →
+  rtc erased_step ([e], σ) (t2, σ2) →
   e2 ∈ t2 →
   is_Some (to_val e2) ∨ reducible e2 σ2.
 Proof.
-  intros Hclosed Hℓe Hℓσ Hsafe [n Hnsteps] % rtc_nsteps He2.
+  intros Hℓe Hℓσ Hsafe [n Hnsteps] % rtc_nsteps He2.
   assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
   assert (safe «e2» S«σ2, m-n») as Hsafe2.
   {
@@ -125,12 +135,6 @@ Proof.
     - eassumption.
     - change [«e»] with T«[e]». apply simulation_exec_success' ; auto.
   }
-  assert (is_closed [] e2) as Hclosede2.
-  {
-    assert (Forall (is_closed []) t2) as Hclosedt2
-      by eauto using nsteps_rtc, is_closed_exec.
-    by eapply Forall_forall in Hclosedt2 ; last exact He2.
-  }
   by eapply safe_tctranslation__safe_here.
 Qed.
 
@@ -138,31 +142,29 @@ Qed.
  * a proof that the original expression has adequate results. *)
 
 Lemma adequate_tctranslation__adequate_result {Hloc : TickCounter} m φ e σ t2 σ2 v2 :
-  is_closed [] e →
   σ2 !! ℓ = None →
   adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
-  rtc step ([e], σ) (of_val v2 :: t2, σ2) →
+  rtc erased_step ([e], σ) (Val v2 :: t2, σ2) →
   φ v2.
 Proof.
-  intros Hclosed Hfresh Hadq [n Hnsteps] % rtc_nsteps.
+  intros Hfresh Hadq [n Hnsteps] % rtc_nsteps.
   assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
   assert (n ≤ m)%nat by by eapply safe_tctranslation__bounded.
   replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
     by (simpl ; by rewrite invtranslationV_translationV).
   eapply (adequate_result _ _ _ (λ v σ, φ (invtranslationV v))) ; first done.
   change [«e»%E] with T«[e]».
-  replace (of_val «v2» :: _) with (T«of_val v2 :: t2») by by rewrite - translation_of_val.
+  replace (Val «v2» :: _) with (T«Val v2 :: t2») by done.
   eapply simulation_exec_success' ; eauto.
 Qed.
 
 (* now let’s combine the two results. *)
 
 Lemma adequate_tctranslation__adequate m φ e σ :
-  is_closed [] e →
   (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
   adequate NotStuck e σ (λ v σ, φ v).
 Proof.
-  intros Hclosed Hadq.
+  intros Hadq.
   split.
   (* (1) adequate result: *)
   - intros t2 σ2 v2 Hsteps.
@@ -180,7 +182,7 @@ Proof.
     eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
       by (unfold ℓ ; apply is_fresh).
     assert (loc_fresh_in_expr ℓ e2)
-      by by apply loc_not_in_set_is_fresh.
+      by by apply loc_not_in_set_is_fresh_in_expr.
     assert (σ2 !! ℓ = None)
       by by (simpl ; eapply not_elem_of_dom).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
@@ -249,13 +251,13 @@ Lemma spec_tctranslation__bounded {Σ} m ψ e :
     {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
   ) →
   ∀ `{TickCounter} `{timeCreditHeapPreG Σ} σ1 t2 σ2 (z : Z),
-    rtc step ([«e»], S«σ1, m») (T«t2», S«σ2, z») →
+    rtc erased_step ([«e»], S«σ1, m») (T«t2», S«σ2, z») →
     0 ≤ z.
 Proof.
   intros Hspec Hloc HtcPreG σ1 t2 σ2 z Hsteps.
   (* apply the invariance result. *)
   apply (wp_invariance Σ _ NotStuck «e» S«σ1,m» T«t2» S«σ2,z») ; simpl ; last assumption.
-  intros HinvG.
+  intros HinvG κs κs'.
   (* … now we have to prove a WP for some state interpretation, for which
    * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
@@ -287,7 +289,7 @@ Proof.
     by iFrame.
   }
   (* finally, use the user-given specification: *)
-  iModIntro. iExists gen_heap_ctx. iFrame "Hh●".
+  iModIntro. iExists (λ σ _ _, gen_heap_ctx σ), (λ _, True)%I. iFrame "Hh●".
   iSplitL ; first (iApply (Hspec with "Hinv Hγ◯") ; auto).
   (* it remains to prove that the interpretation of the final state, along
    * with the invariant, implies the inequality… *)
@@ -307,12 +309,10 @@ Qed.
 (* The simulation lemma with no assumption that m ≤ n. *)
 Axiom simulation_exec_alt : ∀ {Hloc : TickCounter} m n t1 σ1 t2 σ2,
   σ2 !! ℓ = None →
-  Forall (is_closed []) t1 →
-  nsteps step m (t1, σ1) (t2, σ2) →
-  rtc step (T«t1», S«σ1, n») (T«t2», S«σ2, (n-m)%Z»).
+  nsteps erased_step m (t1, σ1) (t2, σ2) →
+  rtc erased_step (T«t1», S«σ1, n») (T«t2», S«σ2, (n-m)%Z»).
 
 Lemma spec_tctranslation__bounded' {Σ} m ψ e :
-  is_closed [] e →
   (∀ `{timeCreditHeapG Σ},
     TC_invariant -∗
     {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
@@ -320,7 +320,7 @@ Lemma spec_tctranslation__bounded' {Σ} m ψ e :
   ∀ `{!timeCreditHeapPreG Σ} σ,
     bounded_time e σ m.
 Proof.
-  intros Hclosed Hspec HtcPreG σ t2 σ2 n Hnsteps.
+  intros Hspec HtcPreG σ t2 σ2 n Hnsteps.
   (* build a location ℓ which is not in the domain of σ2: *)
   pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
   assert (σ2 !! ℓ = None)

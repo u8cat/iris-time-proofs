@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Misc Reduction Tactics.
@@ -117,13 +117,12 @@ Section TickSpec.
     iApply "Hclose" ; eauto with iFrame.
   Qed.
 
-  Theorem tick_spec s E e v :
+  Theorem tick_spec s E (v : val) :
     ↑timeCreditN ⊆ E →
-    IntoVal e v →
     TC_invariant -∗
-    {{{ ▷ TC 1 }}} tick e @ s ; E {{{ RET v ; True }}}.
+    {{{ ▷ TC 1 }}} tick v @ s ; E {{{ RET v ; True }}}.
   Proof.
-    intros ? <-. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
+    intros ?. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value n of location ℓ: *)
@@ -208,76 +207,22 @@ Section Tick_lemmas.
   Proof.
     assert (prim_exec  (tick v) (<[ℓ := #0]> σ)  (#() #()) (<[ℓ := #0]> σ)  []) as Hexec.
     {
-      unlock credits_tick generic_tick. simpl.
-      apply prim_exec_cons_nofork
-      with (
-        let: "k" := ! #ℓ in
-        if: "k" ≤ #0 then
-          fail #()
-        else if: CAS #ℓ "k" ("k" - #1) then
-          v
-        else
-          tick v
-      )%E  (<[ℓ := #0]> σ).
-      {
-        prim_step ; first exact _.
-        replace (rec: "tick" "x" := _)%E with (of_val tick)
-          by by unfold tick, credits_tick, generic_tick; unlock.
-        unfold subst ; simpl ; fold subst.
-        rewrite ! subst_is_closed_nil // ; apply is_closed_of_val.
-      }
-      apply prim_exec_cons_nofork
-      with (
-        let: "k" := #0 in
-        if: "k" ≤ #0 then
-          fail #()
-        else if: CAS #ℓ "k" ("k" - #1) then
-          v
-        else
-          tick v
-      )%E  (<[ℓ := #0]> σ).
-      {
-        prim_step.
-        apply lookup_insert.
-      }
-      apply prim_exec_cons_nofork
-      with (
-        if: #0 ≤ #0 then
-          fail #()
-        else if: CAS #ℓ #0 (#0 - #1) then
-          v
-        else
-          tick v
-      )%E  (<[ℓ := #0]> σ).
-      {
-        prim_step ; first exact _.
-        unfold subst ; simpl ; fold subst.
-        rewrite ! subst_is_closed_nil // ; apply is_closed_of_val.
-      }
-      apply prim_exec_cons_nofork
-      with (
-        if: #true then
-          fail #()
-        else if: CAS #ℓ #0 (#0 - #1) then
-          v
-        else
-          tick v
-      )%E  (<[ℓ := #0]> σ).
-      {
-        prim_step.
-      }
-      apply prim_exec_cons_nofork
-      with (fail #())%E (<[ℓ := #0]> σ).
-      {
-        prim_step.
-      }
-      apply prim_exec_cons_nofork
-      with (#() #())%E (<[ℓ := #0]> σ).
-      {
-        unlock fail.
-        by prim_step.
-      }
-      apply prim_exec_nil.
+      unlock tick credits_tick generic_tick fail.
+      eapply prim_exec_cons_nofork.
+      { by prim_step. }
+      simpl. eapply prim_exec_cons_nofork.
+      { prim_step. apply lookup_insert. }
+      simpl. eapply prim_exec_cons_nofork.
+      { prim_step. }
+      simpl. eapply prim_exec_cons_nofork.
+      { by prim_step. }
+      simpl. eapply prim_exec_cons_nofork.
+      { by prim_step. }
+      simpl. eapply prim_exec_cons_nofork.
+      { by prim_step. }
+      simpl. eapply prim_exec_cons_nofork.
+      { by prim_step. }
+      simpl. apply prim_exec_nil.
     }
     assert (¬ safe (#() #()) (<[ℓ := #0]> σ)) as Hnotsafe.
     {
@@ -286,12 +231,6 @@ Section Tick_lemmas.
       - intros [] ; try discriminate 1 ; inversion 1 ; by eauto.
     }
     intros Hsafe. eapply Hnotsafe, safe_exec_nofork, prim_exec_exec ; eassumption.
-  Qed.
-  Lemma not_safe_tick' e v σ :
-    to_val e = Some v →
-    ¬ safe (tick e) (<[ℓ := #0]> σ).
-  Proof.
-    intros <- % of_to_val. apply not_safe_tick.
   Qed.
 
 End Tick_lemmas.
@@ -316,37 +255,34 @@ Section Simulation.
   Local Ltac not_safe_tick :=
     lazymatch goal with
     | |- ¬ safe ?e _ =>
-        reshape_expr e ltac:(fun K e' =>
+        reshape_expr false e ltac:(fun K e' =>
           apply not_safe_fill' with K e' ; first reflexivity ;
-          eapply not_safe_tick'
+          eapply not_safe_tick
         )
     end ;
-    by simpl_to_of_val.
+    done.
 
-  Lemma simulation_head_step_failure e1 σ1 e2 σ2 efs :
-    head_step e1 σ1 e2 σ2 efs →
+  Lemma simulation_head_step_failure e1 σ1 κ e2 σ2 efs :
+    head_step e1 σ1 κ e2 σ2 efs →
     ¬ safe «e1» S«σ1, 0».
   Proof.
     destruct 1 as
-      [ (* BetaS *) f x e1 e2 v2 e' σ  Hval_e2 Hclosed_e1 ->
-      | | | | | | | |
+      [(* RecS *) f x e σ
+      | | | | | | | | | | | |
       | (* ForkS *) e1 σ
       | | | | | | ] ;
-    cbn [translation] ;
-    rewrite_into_values ; rewrite ? translation_of_val ;
+    simpl_trans ;
     try not_safe_tick.
-    (* BetaS f x e1 e2 v2 e' σ : *)
-    - assert (Closed (f :b: x :b: []) « e1 ») by by apply is_closed_translation.
-      replace (rec: f x := « e1 »)%E with (of_val (rec: f x := « e1 »)%V)
-        by by unlock.
-      not_safe_tick.
+    (* RecS f x e σ : *)
+    - eapply not_safe_prim_step; last prim_step.
+      eapply not_safe_tick.
     (* ForkS e σ : *)
     - eapply not_safe_prim_step ; last prim_step.
-      eapply (not_safe_tick #()).
+      eapply not_safe_tick.
   Qed.
 
-  Lemma simulation_prim_step_failure e1 σ1 e2 σ2 efs :
-    prim_step e1 σ1 e2 σ2 efs →
+  Lemma simulation_prim_step_failure e1 σ1 κ e2 σ2 efs :
+    prim_step e1 σ1 κ e2 σ2 efs →
     ¬ safe «e1» S«σ1, 0».
   Proof.
     intros [ K e1' e2' -> -> H ].
@@ -354,8 +290,8 @@ Section Simulation.
     by eapply not_safe_fill, simulation_head_step_failure.
   Qed.
 
-  Lemma simulation_step_failure t1 σ1 t2 σ2 :
-    step (t1, σ1) (t2, σ2) →
+  Lemma simulation_step_failure t1 σ1 κ t2 σ2 :
+    step (t1, σ1) κ (t2, σ2) →
     ∃ e1, e1 ∈ t1 ∧
     ¬ safe «e1» S«σ1, 0».
   Proof.
@@ -366,27 +302,26 @@ Section Simulation.
   Qed.
 
   Local Lemma simulation_exec_failure_now n t1 σ1 t2 σ2 :
-    nsteps step (S n) (t1, σ1) (t2, σ2) →
+    nsteps erased_step (S n) (t1, σ1) (t2, σ2) →
     ∃ e1, e1 ∈ t1 ∧
     ¬ safe «e1» S«σ1, 0».
   Proof.
     make_eq (S n) as Sn En.
     make_eq (t1, σ1) as config1 E1.
-    destruct 1 as [ ? | ? ? [] ? ? _ ], E1.
+    destruct 1 as [ ? | ? ? [] ? [? ?] _ ], E1.
     - discriminate En.
     - by eapply simulation_step_failure.
   Qed.
 
   Lemma simulation_exec_failure m n e1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    is_closed [] e1 →
-    nsteps step (m + S n) ([e1], σ1) (t2, σ2) →
+    nsteps erased_step (m + S n) ([e1], σ1) (t2, σ2) →
     ¬ safe «e1» S«σ1, m».
   Proof.
-    intros Hℓ Hclosed Hnsteps.
+    intros Hℓ Hnsteps.
     assert (
       ∃ t3 σ3,
-        rtc step (T«[e1]», S«σ1, m») (T«t3», S«σ3, 0») ∧
+        rtc erased_step (T«[e1]», S«σ1, m») (T«t3», S«σ3, 0») ∧
         ∃ e3, e3 ∈ t3 ∧
         ¬ safe «e3» S«σ3, 0»
     ) as (t3 & σ3 & Hsteps & e3 & E3 & Hsafe).
@@ -394,7 +329,6 @@ Section Simulation.
       apply nsteps_split in Hnsteps as ((t3, σ3) & Hnsteps1to3 & Hnsteps3to2).
       exists t3, σ3 ; repeat split.
       - assert (σ3 !! ℓ = None) by (eapply loc_fresh_in_dom_nsteps ; cycle 1 ; eassumption).
-        assert (Forall (is_closed []) [e1]) by auto.
         replace m with (m+0)%nat by lia.
         apply simulation_exec_success ; assumption.
       - by eapply simulation_exec_failure_now.
@@ -420,13 +354,12 @@ Section Soundness.
     intro. exists (m - S n)%nat. lia.
   Qed.
   Lemma safe_tctranslation__bounded {Hloc : TickCounter} m e σ t2 σ2 n :
-    is_closed [] e →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
-    nsteps step n ([e], σ) (t2, σ2) →
+    nsteps erased_step n ([e], σ) (t2, σ2) →
     (n ≤ m)%nat.
   Proof.
-    intros Hclosed Hfresh Hsafe Hnsteps.
+    intros Hfresh Hsafe Hnsteps.
     (* reasoning by contradiction: assume (n > m), ie. (n = m + S k) for some k: *)
     apply not_gt ; intros [k ->] % gt_sum.
     (* apply the simulation lemma: *)
@@ -434,11 +367,10 @@ Section Soundness.
   Qed.
 
   Lemma adequate_tctranslation__bounded m φ e σ :
-    is_closed [] e →
     (∀ `{TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
     bounded_time e σ m.
   Proof.
-    intros Hclosed Hadq.
+    intros Hadq.
     intros t2 σ2 k.
     (* build a location ℓ which is not in the domain of σ2: *)
     pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
@@ -453,17 +385,16 @@ Section Soundness.
   (* now let’s combine the three results. *)
 
   Lemma adequate_tctranslation__adequate_and_bounded m φ e σ :
-    is_closed [] e →
     (∀ (k : nat), (k ≥ m)%nat →
       ∀ `{TickCounter}, adequate NotStuck «e» S«σ, k» (λ v σ, φ (invtranslationV v))
     ) →
     adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
-    intros Hclosed Hadq.
+    intros Hadq.
     assert (bounded_time e σ m) as Hbounded
-      by (eapply adequate_tctranslation__bounded, Hadq ; [ assumption | lia ]).
+      by (eapply adequate_tctranslation__bounded, Hadq ; lia).
     assert (nadequate NotStuck (m + 1) e σ φ) as Hadqm
-      by (apply adequate_tctranslation__adequate, Hadq ; [ assumption | lia ]).
+      by (apply adequate_tctranslation__adequate, Hadq ; lia).
     clear Hadq.
     split ; last done.
     split.
@@ -516,15 +447,14 @@ Section Soundness.
       unfold to_gen_heap ; rewrite fmap_insert fmap_empty insert_empty.
       by iFrame.
     }
-    iModIntro.
+    iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists gen_heap_ctx. iFrame "Hh●".
+    iExists (λ σ _, gen_heap_ctx σ). iFrame "Hh●".
     iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
     iApply (Hspec with "Hinv Hγ◯") ; auto.
   Qed.
 
   Theorem spec_tctranslation__adequate_and_bounded {Σ} m φ e :
-    is_closed [] e →
     (∀ `{timeCreditHeapG Σ},
       TC_invariant -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
@@ -532,14 +462,13 @@ Section Soundness.
     ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
-    intros Hclosed Hspec HpreG σ.
-    apply adequate_tctranslation__adequate_and_bounded ; first done.
+    intros Hspec HpreG σ.
+    apply adequate_tctranslation__adequate_and_bounded.
     intros k Ik Hloc. by eapply spec_tctranslation__adequate.
   Qed.
 
   (* The abstract version of the theorem: *)
   Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m φ e :
-    is_closed [] e →
     (∀ `{heapG Σ, Tick} (TC : nat → iProp Σ),
       TC_interface TC -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
@@ -547,7 +476,7 @@ Section Soundness.
     ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
-    intros Hclosed Hspec HpreG σ.
+    intros Hspec HpreG σ.
     eapply spec_tctranslation__adequate_and_bounded ; try done.
     clear HpreG. iIntros (HtcHeapG) "#Hinv".
     iApply Hspec. by iApply TC_implementation.
@@ -558,7 +487,6 @@ Section Soundness.
    * the translation: *)
   Theorem spec_tctranslation__adequate_and_bounded' {Σ} m (φ : val → Prop) e :
     (∀ v, φ v → closure_free v) →
-    is_closed [] e →
     (∀ `{timeCreditHeapG Σ},
       TC_invariant -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ v⌝ }}}
@@ -566,7 +494,7 @@ Section Soundness.
     ∀ {_ : timeCreditHeapPreG Σ} σ,
       adequate NotStuck e σ (λ v σ, φ v)  ∧  bounded_time e σ m.
   Proof.
-    intros Hφ Hclosed Hspec HpreG σ.
+    intros Hφ Hspec HpreG σ.
     apply (spec_tctranslation__adequate_and_bounded (Σ:=Σ)) ; try assumption.
     intros HtcHeapG.
     iIntros "#Htickinv !#" (Φ) "Htc Post".
@@ -591,17 +519,16 @@ Section Tactics.
   Implicit Types Δ : envs (uPredI (iResUR Σ)).
 
   (* concrete version: *)
-  Lemma tac_wp_tick `{timeCreditHeapG Σ} Δ Δ' Δ'' s E i j n K e v Φ :
+  Lemma tac_wp_tick `{timeCreditHeapG Σ} Δ Δ' Δ'' s E i j n K (v : val) Φ :
     ↑timeCreditN ⊆ E →
-    IntoVal e v →
     MaybeIntoLaterNEnvs 1 Δ Δ' →
     envs_lookup i Δ  = Some (true, TC_invariant) →
     envs_lookup j Δ' = Some (false, TC (S n)) →
     envs_simple_replace j false (Esnoc Enil j (TC n)) Δ' = Some Δ'' →
     envs_entails Δ'' (WP fill K v @ s; E {{ Φ }}) →
-    envs_entails Δ (WP fill K (App tick e) @ s; E {{ Φ }}).
+    envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
   Proof.
-    rewrite envs_entails_eq => HsubsetE ????? Hentails''.
+    rewrite envs_entails_eq => HsubsetE ???? Hentails''.
     rewrite envs_lookup_persistent_sound // intuitionistically_elim. apply wand_elim_r'.
     rewrite -wp_bind.
     eapply wand_apply ; first by (iIntros "HTC1 HΦ #Htick" ; iApply (tick_spec with "Htick HTC1 HΦ")).
@@ -613,14 +540,13 @@ Section Tactics.
 
 (*
   (* TODO: abstract version: *)
-  Lemma tac_wp_tick_abstr `{heapG Σ} (TC : nat → iProp Σ) (tick : val) Δ Δ' Δ'' s E i j n K e v Φ :
-    IntoVal e v →
+  Lemma tac_wp_tick_abstr `{heapG Σ} (TC : nat → iProp Σ) (tick : val) Δ Δ' Δ'' s E i j n K e (v : val) Φ :
     MaybeIntoLaterNEnvs 1 Δ Δ' →
     envs_lookup i Δ' = Some (true,  ∀ (v : val), {{{ TC 1%nat }}} tick v @ s ; E {{{ RET v ; True }}})%I →
     envs_lookup j Δ' = Some (false, TC (S n)) →
     envs_simple_replace i false (Esnoc Enil j (TC n)) Δ' = Some Δ'' →
-    envs_entails Δ'' (WP fill K e @ s; E {{ Φ }}) →
-    envs_entails Δ (WP fill K (App tick e) @ s; E {{ Φ }}).
+    envs_entails Δ'' (WP fill K v @ s; E {{ Φ }}) →
+    envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
   Admitted.
 *)
 
@@ -632,11 +558,12 @@ Ltac wp_tick :=
   let solve_TC _ :=
     iAssumptionCore || fail "wp_tick: cannot find TC (S _)" in
   iStartProof ;
+  simpl_trans ;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       first
-        [ reshape_expr e ltac:(fun K e' =>
-            eapply (tac_wp_tick _ _ _ _ _ _ _ _ K) ; [ | exact _ | ..]
+        [ reshape_expr false e ltac:(fun K e' =>
+            eapply (tac_wp_tick _ _ _ _ _ _ _ _ K)
           )
         | fail 1 "wp_tick: cannot find 'tick ?v' in" e ] ;
       [ try solve_ndisj
@@ -645,29 +572,22 @@ Ltac wp_tick :=
       | solve_TC ()
       | proofmode.reduction.pm_reflexivity
       | wp_expr_simpl ]
-  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
-      fail "wp_tick is not implemented for twp"
   | _ => fail "wp_tick: not a 'wp'"
   end.
 
-Ltac wp_tick_rec :=
-  wp_tick ; first
-    [ wp_rec
-    | match goal with
-      | |-context [ App ?f _ ] =>
-          unlock f ; wp_rec
-      | |-context [ App (translation ?f) _ ] =>
-          unlock f ; wp_rec
-      | |-context [ App (of_val (translationV ?f)) _ ] =>
-          unlock f ; wp_rec
-      end
-    | fail ].
+Ltac wp_tick_closure := wp_closure; wp_tick.
+Ltac wp_tick_pair := wp_tick; wp_pair.
+Ltac wp_tick_inj := wp_tick; wp_inj.
+
+Ltac wp_tick_rec := wp_tick ; wp_rec; simpl_trans.
 Ltac wp_tick_lam := wp_tick_rec.
-Ltac wp_tick_let := wp_tick ; wp_let.
-Ltac wp_tick_seq := wp_tick ; wp_seq.
+Ltac wp_tick_let := wp_tick_closure; wp_tick_lam.
+Ltac wp_tick_seq := wp_tick_let.
 Ltac wp_tick_op := wp_tick ; wp_op.
 Ltac wp_tick_if := wp_tick ; wp_if.
-Ltac wp_tick_match := wp_tick ; wp_match ; do 2 wp_lam ; wp_tick ; wp_lam.
+Ltac wp_tick_match :=
+  wp_tick; wp_match; (wp_let || wp_seq); wp_lam;
+  wp_closure; wp_tick; wp_tick; wp_lam.
 Ltac wp_tick_proj := wp_tick ; wp_proj.
 Ltac wp_tick_alloc loc := wp_tick ; wp_alloc loc.
 Ltac wp_tick_load := wp_tick ; wp_load.

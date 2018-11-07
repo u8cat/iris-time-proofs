@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import notation proofmode.
+From iris_time.heap_lang Require Import notation proofmode.
 From iris.program_logic Require Import adequacy.
 
 From iris_time Require Import Misc Reduction Tactics.
@@ -55,105 +55,48 @@ Section Tick_exec.
   Lemma exec_tick_success n v σ :
     prim_exec  (tick v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  [].
   Proof.
+    remember (Z.of_nat (S n)) as Sn.
     unlock tick generic_tick.
-    apply prim_exec_cons_nofork
-    with (
-      let: "k" := ! #ℓ in
-      if: "k" ≤ #0 then
-        runtime_error #()
-      else if: CAS #ℓ "k" ("k" - #1) then
-        v
-      else
-        tick v
-    )%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step ; first exact _. simpl_subst. repeat f_equal.
-      unfold tick, generic_tick. by unlock. }
-    apply prim_exec_cons_nofork
-    with (
-      let: "k" := #(S n) in
-      if: "k" ≤ #0 then
-        runtime_error #()
-      else if: CAS #ℓ "k" ("k" - #1) then
-        v
-      else
-        tick v
-    )%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step.
-      apply lookup_insert.
-    }
-    apply prim_exec_cons_nofork
-    with (
-      if: #(S n) ≤ #0 then
-        runtime_error #()
-      else if: CAS #ℓ #(S n) (#(S n) - #1) then
-        v
-      else
-        tick v
-    )%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step ; first exact _. by simpl_subst.
-    }
-    apply prim_exec_cons_nofork
-    with (
-      if: #false then
-        runtime_error #()
-      else if: CAS #ℓ #(S n) (#(S n) - #1) then
-        v
-      else
-        tick v
-    )%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step.
-    }
-    apply prim_exec_cons_nofork
-    with  (if: CAS #ℓ #(S n) (#(S n) - #1) then v else tick v)%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step.
-    }
-    apply prim_exec_cons_nofork
-    with  (if: CAS #ℓ #(S n) (#(S n - 1)) then v else tick v)%E  (<[ℓ := #(S n)]> σ).
-    {
-      prim_step.
-    }
-    apply prim_exec_cons_nofork
-    with  (if: #true then v else tick v)%E  (<[ℓ := #(S n - 1)]> (<[ℓ := #(S n)]> σ)).
-    {
-      prim_step; [apply lookup_insert|auto].
-    }
-    replace (S n - 1) with (Z.of_nat n) by lia.
+    eapply prim_exec_cons_nofork. (* Initial β-redex *)
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork. (* Load of ℓ *)
+    { prim_step; apply lookup_insert. }
+    simpl. eapply prim_exec_cons_nofork. (* First redex of let *)
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork. (* Second redex of let *)
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork. (* Comparison ["k" ≤ #0] *)
+    { by prim_step. }
+    rewrite /= bool_decide_false; [|lia].
+    eapply prim_exec_cons_nofork.        (* If *)
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork. (* Decrementing "k" *)
+    { by prim_step. }
+                                         (* CAS *)
+    simpl. eapply (prim_exec_cons_nofork _ _ _ (if: #true then _ else _)).
+    { prim_step; [apply lookup_insert|by left]. }
+    eapply prim_exec_cons_nofork.        (* If *)
+    { by prim_step. }
+    replace (Sn - 1) with (Z.of_nat n) by lia.
     rewrite insert_insert.
-    apply prim_exec_cons_nofork
-    with  v  (<[ℓ := #n]> σ).
-    {
-      prim_step.
-    }
     apply prim_exec_nil.
   Qed.
 
   Lemma exec_tick_case_branch e1 v2 σ :
-    is_closed [] e1 →
     prim_exec  (tick_case_branch (λ: <>, e1) v2)%E  σ ((tick e1) v2) σ  [].
   Proof.
-    intros ; assert (Closed [] e1) by exact.
     unfold tick_case_branch ; unlock.
     eapply prim_exec_cons_nofork.
-    {
-      prim_step.
-      - rewrite /= decide_left //.
-      - exact _.
-    }
-    simpl_subst.
-    eapply prim_exec_cons_nofork.
-    {
-      prim_step. exact _.
-    }
-    simpl_subst.
-    eapply prim_exec_cons_nofork, prim_exec_nil.
-    {
-      prim_step.
-    }
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork.
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork.
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork.
+    { by prim_step. }
+    simpl. eapply prim_exec_cons_nofork.
+    { by prim_step. }
+    apply prim_exec_nil.
   Qed.
 
 End Tick_exec.
@@ -168,25 +111,15 @@ Section SimulationLemma.
 
   Context {Hloc : TickCounter}.
 
-  (* from a reduction of the source expression,
-   * deduce a reduction of the translated expression. *)
-
-  Lemma exec_tick_success' n e v σ :
-    to_val e = Some v →
-    prim_exec  (tick e) (<[ℓ := #(S n)]> σ)  e (<[ℓ := #n]> σ)  [].
-  Proof.
-    intros <- % of_to_val. eapply exec_tick_success.
-  Qed.
-
   Local Ltac exec_tick_success :=
     lazymatch goal with
     | |- prim_exec ?e _ _ _ _ =>
-        reshape_expr e ltac:(fun K e' =>
+        reshape_expr false e ltac:(fun K e' =>
           eapply prim_exec_fill' with K e' _ ; [ done | done | ] ;
-          eapply exec_tick_success'
+          eapply exec_tick_success
         )
     end ;
-    by simpl_to_of_val.
+    done.
   (* in this tactic, the parameter ‘afterwards’ allows to unify the expression
    * resulting from the step before running the tactic ‘prim_step’;
    * this matters when the reduction rule to apply is directed by the syntax of
@@ -202,78 +135,76 @@ Section SimulationLemma.
   Local Ltac tick_then_step_then_stop :=
     tick_then_step_then prim_exec_nil.
 
-  Lemma simulation_head_step_success n e1 σ1 e2 σ2 efs :
+  Lemma simulation_head_step_success n e1 σ1 κ e2 σ2 efs :
     σ2 !! ℓ = None →
-    is_closed [] e1 →
-    head_step e1 σ1 e2 σ2 efs →
+    head_step e1 σ1 κ e2 σ2 efs →
     prim_exec «e1» S«σ1, S n» «e2» S«σ2, n» T«efs».
   Proof.
-    intros Hℓ Hclosed Hstep.
+    intros Hℓ Hstep.
     destruct Hstep as
-      [ (* BetaS *) f x e1 e2 v2 e' σ  Hval_e2 Hclosed_e1 ->
-      | (* UnOpS *) op e v v' σ  Hval_e Hopeval
-      | (* BinOpS *) op e1 e2 v1 v2 v' σ  Hval_e1 Hval_e2 Hopeval
+      [ (* RecS *) f x e σ
+      | (* PairS *) v1 v2 σ
+      | (* InjLS *) v σ
+      | (* InjRS *) v σ
+      | (* BetaS *) f x e1 v2 e' σ  ->
+      | (* UnOpS *) op v v' σ  Hopeval
+      | (* BinOpS *) op v1 v2 v' σ  Hopeval
       | (* IfTrueS  *) e1 e2 σ
       | (* IfFalseS *) e1 e2 σ
-      | (* FstS *) e1 v1 e2 v2 σ  Hval_e1 Hval_e2
-      | (* SndS *) e1 v1 e2 v2 σ  Hval_e1 Hval_e2
-      | (* CaseLS *) e0 v0 e1 e2 σ  Hval_e0
-      | (* CaseRS *) e0 v0 e1 e2 σ  Hval_e0
+      | (* FstS *) v1 v2 σ
+      | (* SndS *) v1 v2 σ
+      | (* CaseLS *) v0 e1 e2 σ
+      | (* CaseRS *) v0 e1 e2 σ
       | (* ForkS *) e σ
-      | (* AllocS *) e v σ l  Hval_e Hfree_l
+      | (* AllocS *) v σ l  Hfree_l
       | (* LoadS *) l v σ  Hbound_l
-      | (* StoreS *) l e v σ  Hval_e Hisbound_l
-      | (* CasFailS *) l e1 v1 e2 v2 vl σ  Hval_e1 Hval_e2 Hbound_l Hneq_vl_v1
-      | (* CasSucS *) l e1 v1 e2 v2 σ  Hval_e1 Hval_e2 Hbound_l
-      | (* FaaS *) l i1 e2 i2 σ  Hval_e2 Hbound_l
-      ] ;
-    cbn [translation fmap list_fmap] ;
-    rewrite_into_values ; rewrite ? translation_of_val ;
+      | (* StoreS *) l v σ  Hisbound_l
+      | (* CasFailS *) l v1 v2 vl σ  Hbound_l Hneq_vl_v1
+      | (* CasSucS *) l v1 v2 σ  Hbound_l
+      | (* FaaS *) l i1 i2 σ  Hbound_l
+      ];
+    simpl_trans;
     (try (
       assert (ℓ ≠ l) as I by (by apply lookup_insert_None in Hℓ as [ _ I ]) ;
       rewrite translationS_insert insert_commute ; last exact I
     )).
-    (* BetaS f x e1 e2 v2 e' σ : *)
-    - assert (Closed (f :b: x :b: []) « e1 ») by by apply is_closed_translation.
-      rewrite 2! translation_subst' translation_of_val.
-      replace (rec: f x := « e1 »)%E with (of_val (rec: f x := « e1 »)%V)
-        by by unlock.
-      (* FIXME : tick_then_step_then_stop does not work here. *)
-      eapply prim_exec_transitive_nofork. exec_tick_success.
-      eapply prim_exec_cons_nofork, prim_exec_nil.
-      simpl. unlock. prim_step.
-    (* UnOpS op e v v' σ : *)
+    (* RecS f x e σ : *)
+    - eapply (prim_exec_cons _ _ _ _ _ [] _ _ []).
+      + prim_step.
+      + exec_tick_success.
+    (* PairS *)
+    - tick_then_step_then_stop.
+    (* InjLS *)
+    - tick_then_step_then_stop.
+    (* InjRS *)
+    - tick_then_step_then_stop.
+    (* BetaS f x e1 v2 e' σ : *)
+    - rewrite 2! translation_subst'.
+      by tick_then_step_then_stop.
+    (* UnOpS op v v' σ : *)
     - tick_then_step_then_stop.
       by apply un_op_eval_translation.
-    (* BinOpS op e1 e2 v1 v2 v' σ : *)
+    (* BinOpS op v1 v2 v' σ : *)
     - tick_then_step_then_stop.
       by apply bin_op_eval_translation.
     (* IfTrueS e1 e2 σ : *)
     - tick_then_step_then_stop.
     (* IfFalseS e1 e2 σ : *)
     - tick_then_step_then_stop.
-    (* FstS e1 v1 e2 v2 σ : *)
+    (* FstS v1 v2 σ : *)
     - tick_then_step_then_stop.
-    (* SndS e1 v1 e2 v2 σ : *)
+    (* SndS v1 v2 σ : *)
     - tick_then_step_then_stop.
-    (* CaseLS e0 v0 e1 e2 σ : *)
+    (* CaseLS v0 e1 e2 σ : *)
     - tick_then_step_then exec_tick_case_branch.
-      (* this is the only place where we need the term to be closed (because
-       * the reduction rules for Case are adhoc somehow: *)
-      simpl in Hclosed ; repeat (apply andb_True in Hclosed as [ Hclosed ? ]).
-      by apply is_closed_translation.
-    (* CaseRS e0 v0 e1 e2 σ : *)
+    (* CaseRS v0 e1 e2 σ : *)
     - tick_then_step_then exec_tick_case_branch.
-      (* this is the only place where we need the term to be closed (because
-       * the reduction rules for Case are adhoc somehow: *)
-      simpl in Hclosed ; repeat (apply andb_True in Hclosed as [ Hclosed ? ]).
-      by apply is_closed_translation.
     (* ForkS e σ : *)
-    - replace [« e »] with ([« e »] ++ []) by apply app_nil_r.
+    - replace T« [e] » with ([« e »] ++ []) by apply app_nil_r.
       eapply prim_exec_cons.
       + prim_step.
       + exec_tick_success.
-    (* AllocS e v σ l : *)
+    (* AllocS v σ l : *)
     - tick_then_step_then_stop.
       apply lookup_insert_None ; auto using lookup_translationS_None.
     (* LoadS l v σ : *)
@@ -281,88 +212,81 @@ Section SimulationLemma.
       assert (ℓ ≠ l) as I by (intros <- ; rewrite -> Hℓ in * ; discriminate).
       rewrite lookup_insert_ne ; last exact I.
       by apply lookup_translationS_Some.
-    (* StoreS l e v σ : *)
+    (* StoreS l v σ : *)
     - tick_then_step_then_stop.
       rewrite lookup_insert_ne ; last exact I.
       by apply lookup_translationS_is_Some.
-    (* CasFailS l e1 v1 e2 v2 vl σ : *)
+    (* CasFailS l v1 v2 vl σ : *)
     - tick_then_step_then_stop.
       + assert (ℓ ≠ l) as I by (intros <- ; rewrite -> Hℓ in * ; discriminate).
         rewrite lookup_insert_ne ; last done.
         by apply lookup_translationS_Some.
       + eauto using translationV_injective.
       + by apply vals_cas_compare_safe_translationV.
-    (* CasSucS l e1 v1 e2 v2 σ : *)
+    (* CasSucS l v1 v2 σ : *)
     - tick_then_step_then_stop.
       + rewrite lookup_insert_ne ; last exact I.
         by apply lookup_translationS_Some.
       + by apply vals_cas_compare_safe_translationV.
-    (* FaaS l i1 e2 i2 σ : *)
+    (* FaaS l i1 i2 σ : *)
     - tick_then_step_then_stop.
       rewrite lookup_insert_ne ; last exact I.
       change (#i1)%V with V« #i1 ».
       by apply lookup_translationS_Some.
   Qed.
 
-  Lemma simulation_prim_step_success n e1 σ1 e2 σ2 efs :
+  Lemma simulation_prim_step_success n e1 σ1 κ e2 σ2 efs :
     σ2 !! ℓ = None →
-    is_closed [] e1 →
-    prim_step e1 σ1 e2 σ2 efs →
+    prim_step e1 σ1 κ e2 σ2 efs →
     prim_exec «e1» S«σ1, S n» «e2» S«σ2, n» T«efs».
   Proof.
-    intros Hℓ Hclosed [ K e1' e2' -> -> H ].
+    intros Hℓ [ K e1' e2' -> -> H ].
     rewrite 2! translation_fill.
-    apply is_closed_fill_inv in Hclosed.
     by eapply prim_exec_fill, simulation_head_step_success.
   Qed.
 
-  Lemma simulation_step_success n t1 σ1 t2 σ2 :
+  Lemma simulation_step_success n t1 σ1 κ t2 σ2 :
     σ2 !! ℓ = None →
-    Forall (is_closed []) t1 →
-    step (t1, σ1) (t2, σ2) →
-    rtc step (T«t1», S«σ1, S n») (T«t2», S«σ2, n»).
+    step (t1, σ1) κ (t2, σ2) →
+    rtc erased_step (T«t1», S«σ1, S n») (T«t2», S«σ2, n»).
   Proof.
-    intros Hℓ Hclosed Hstep.
+    intros Hℓ Hstep.
     destruct Hstep as [ e1 σ1_ e2 σ2_ efs t t' E1 E2 Hprimstep ] ;
     injection E1 as -> <- ;
     injection E2 as -> <-.
     repeat rewrite ? fmap_app ? fmap_cons.
-    apply Forall_app, proj2, Forall_cons, proj1 in Hclosed.
-    by apply exec_frame_singleton_thread_pool, prim_exec_exec, simulation_prim_step_success.
+    by eapply exec_frame_singleton_thread_pool, prim_exec_exec,
+       simulation_prim_step_success.
   Qed.
 
   Lemma simulation_exec_success m n t1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    Forall (is_closed []) t1 →
-    nsteps step m (t1, σ1) (t2, σ2) →
-    rtc step (T«t1», S«σ1, m+n») (T«t2», S«σ2, n»).
+    nsteps erased_step m (t1, σ1) (t2, σ2) →
+    rtc erased_step (T«t1», S«σ1, m+n») (T«t2», S«σ2, n»).
   Proof.
     make_eq (t1, σ1) as config1 E1.
     make_eq (t2, σ2) as config2 E2.
-    intros Hℓ Hclosed Hnsteps.
-    revert t1 σ1 E1 Hclosed ;
-    induction Hnsteps as [ config | m' config1 (t3, σ3) config2 Hstep Hsteps IHnsteps ] ;
-    intros t1 σ1 E1 Hclosed.
+    intros Hℓ Hnsteps.
+    revert t1 σ1 E1 ;
+    induction Hnsteps as [ config | m' config1 (t3, σ3) config2 [κ Hstep] Hsteps IHnsteps ] ;
+    intros t1 σ1 E1.
     - destruct E2 ; injection E1 as -> ->.
       apply rtc_refl.
     - destruct E2, E1.
       specialize (IHnsteps eq_refl t3 σ3 eq_refl).
       assert (σ3 !! ℓ = None) as Hℓ3 by (eapply loc_fresh_in_dom_nsteps ; cycle 1 ; eassumption).
-      assert (Forall (is_closed []) t3) as Hclosed3 by by eapply is_closed_step.
-      specialize (IHnsteps Hclosed3).
       eapply rtc_transitive.
-      + apply simulation_step_success ; cycle -1 ; eassumption.
+      + eapply simulation_step_success ; cycle -1 ; eassumption.
       + apply IHnsteps.
   Qed.
 
   Lemma simulation_exec_success' m n t1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    Forall (is_closed []) t1 →
     (m ≤ n)%nat →
-    nsteps step m (t1, σ1) (t2, σ2) →
-    rtc step (T«t1», S«σ1, n») (T«t2», S«σ2, n-m»).
+    nsteps erased_step m (t1, σ1) (t2, σ2) →
+    rtc erased_step (T«t1», S«σ1, n») (T«t2», S«σ2, n-m»).
   Proof.
-    intros Hℓ Hclosed I.
+    intros Hℓ I.
     replace #n with #(m + (n-m))%nat ; last (repeat f_equal ; lia).
     by apply simulation_exec_success.
   Qed.
@@ -373,10 +297,10 @@ Section SimulationLemma.
   (* note: this does not depend on the operational behavior of `tick`. *)
 
   Local Ltac exhibit_prim_step e2 :=
-    eexists e2, _, _ ; simpl ; prim_step.
+    eexists _, e2, _, _ ; simpl ; prim_step.
 
   Local Ltac eexhibit_prim_step :=
-    eexists _, _, _ ; simpl ; prim_step.
+    eexists _, _, _, _ ; simpl ; prim_step.
 
   Lemma active_item_translation_reducible ki v σ m :
     ectx_item_is_active ki →
@@ -384,35 +308,37 @@ Section SimulationLemma.
     reducible (fill_item Ki«ki» V«v») S«σ, m» →
     reducible (fill_item ki v) σ.
   Proof.
-    intros Hactive Hfresh (e2' & σ2' & efs & Hheadstep % active_item_prim_step_is_head_step) ;
+    intros Hactive Hfresh (e2' & σ2' & efs &
+                           [κ Hheadstep % active_item_prim_step_is_head_step]) ;
       last by apply is_active_translationKi.
     make_eq (fill_item Ki«ki» V«v») as e1' Ee1' ; rewrite Ee1' in Hheadstep.
     make_eq (S«σ, m») as σ1' Eσ1' ; rewrite Eσ1' in Hheadstep.
-    destruct Hheadstep as
-      [ (* BetaS *) f x e1 e2 v2 e' σ1  Hval_e2 Hclosed_e1 E'
-      | (* UnOpS *) op e1 v1 v' σ1  Hval_e1 Hopeval
-      | (* BinOpS *) op e1 e2 v1 v2 v' σ1  Hval_e1 Hval_e2 Hopeval
+    destruct Hheadstep  as
+      [ (* RecS *) f x e σ1
+      | (* PairS *) v1 v2 σ1
+      | (* InjLS *) v1 σ1
+      | (* InjRS *) v1 σ1
+      | (* BetaS *) f x e1 v2 e' σ1  ->
+      | (* UnOpS *) op v1 v' σ1  Hopeval
+      | (* BinOpS *) op v1 v2 v' σ1  Hopeval
       | (* IfTrueS  *) e1 e2 σ1
       | (* IfFalseS *) e1 e2 σ1
-      | (* FstS *) e1 v1 e2 v2 σ1  Hval_e1 Hval_e2
-      | (* SndS *) e1 v1 e2 v2 σ1  Hval_e1 Hval_e2
-      | (* CaseLS *) e0 v0 e1 e2 σ1  Hval_e0
-      | (* CaseRS *) e0 v0 e1 e2 σ1  Hval_e0
+      | (* FstS *) v1 v2 σ1
+      | (* SndS *) v1 v2 σ1
+      | (* CaseLS *) v0 e1 e2 σ1
+      | (* CaseRS *) v0 e1 e2 σ1
       | (* ForkS *) e σ1
-      | (* AllocS *) e1 v1 σ1 l  Hval_e1 Hfree_l
+      | (* AllocS *) v1 σ1 l  Hfree_l
       | (* LoadS *) l v1 σ1  Hbound_l
-      | (* StoreS *) l e1 v1 σ1  Hval_e1 Hisbound_l
-      | (* CasFailS *) l e1 v1 e2 v2 vl σ1  Hval_e1 Hval_e2 Hbound_l Hneq_vl_v1
-      | (* CasSucS *) l e1 v1 e2 v2 σ1  Hval_e1 Hval_e2 Hbound_l
-      | (* FaaS *) l i1 e2 i2 σ1  Hval_e2 Hbound_l
-      ] ;
+      | (* StoreS *) l v1 σ1  Hisbound_l
+      | (* CasFailS *) l v1 v2 vl σ1  Hbound_l Hneq_vl_v1
+      | (* CasSucS *) l v1 v2 σ1  Hbound_l
+      | (* FaaS *) l i1 i2 σ1  Hbound_l
+      ];
     destruct ki ; try contradiction Hactive ; try discriminate Ee1' ;
     injection Ee1' ; clear Ee1' ;
-    repeat (intros -> || intros <- || intros -> % translationV_lit_inv_expr || intros E) ;
-    destruct Eσ1' ;
-    repeat lazymatch goal with H : to_val (of_val «_»%V) = Some _ |- _ =>
-      rewrite to_of_val in H ; injection H as <-
-    end .
+    repeat (intros -> || intros <- || intros -> % translationV_lit_inv || intros E) ;
+    destruct Eσ1'.
     (* replacing the state S«σ, m» with S«σ»: *)
     all: first [
         apply lookup_insert_None in Hfree_l as [Hfree_l _]
@@ -420,9 +346,15 @@ Section SimulationLemma.
       | apply lookup_insert_is_Some in Hisbound_l as [ <- | [_ Hisbound_l] ] ; first naive_solver
       | idtac
     ].
+    (* PairS *)
+    - eexhibit_prim_step.
+    (* InjLS *)
+    - eexhibit_prim_step.
+    (* InjRS *)
+    - eexhibit_prim_step.
     (* BetaS *)
     - destruct v ; try discriminate E.
-      eexhibit_prim_step.
+      by eexhibit_prim_step.
     (* UnOpS *)
     - eexhibit_prim_step.
       by eapply un_op_eval_translation_inv.
@@ -450,36 +382,35 @@ Section SimulationLemma.
       by eapply lookup_translationS_None_inv.
     (* LoadS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & _).
-      eexhibit_prim_step.
+      by eexhibit_prim_step.
     (* StoreS *)
     - eexhibit_prim_step.
       by eapply lookup_translationS_is_Some_inv.
     (* CasFailS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & ->).
-      exhibit_prim_step (#false)%E.
+      exhibit_prim_step (Val #false).
+      + done.
       + intros ? % (f_equal translationV). contradiction.
       + by apply vals_cas_compare_safe_translationV_inv.
     (* CasSucS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & -> % translationV_injective).
-      exhibit_prim_step (#true)%E.
-      by apply vals_cas_compare_safe_translationV_inv.
+      exhibit_prim_step (Val #true)%E.
+      done. by apply vals_cas_compare_safe_translationV_inv.
     (* FaaS *)
     - apply lookup_translationS_Some_inv in Hbound_l as (? & ? & -> % eq_sym % translationV_lit_inv).
-      rewrite to_of_val in Hval_e2 ; injection Hval_e2 as -> % translationV_lit_inv.
-      eexhibit_prim_step.
+      by eexhibit_prim_step.
   Qed.
 
   (* assuming the safety of the translated expression,
    * a proof that the original expression is m-safe. *)
 
   Lemma safe_translation__safe_here m e σ :
-    is_closed [] e →
     loc_fresh_in_expr ℓ e →
     (m > 0)%nat →
     safe «e» S«σ, m» →
     is_Some (to_val e) ∨ reducible e σ.
   Proof.
-    intros Hclosed Hfresh Im Hsafe.
+    intros Hfresh Im Hsafe.
     (* case analysis on whether e is a value… *)
     destruct (to_val e) as [ v | ] eqn:Hnotval.
     (* — if e is a value, then we get the result immediately: *)
@@ -487,11 +418,26 @@ Section SimulationLemma.
     (* — if e is not a value, then we show that it is reducible: *)
     - right.
       (* we decompose e into a maximal evaluation context K and a head-redex: *)
-      pose proof (not_val_fill_active_item _ Hclosed Hnotval) as He ; clear Hclosed Hnotval.
-      destruct He as [ (K & e1 & ->) | (K & ki & v & -> & Hactive) ].
+      pose proof (not_val_fill_active_item _ Hnotval) as He ; clear Hnotval.
+      destruct He as [ (K & x & ->) |
+                     [ (K & e1 & ->) |
+                     [ (K & f & x & e1 & ->) |
+                       (K & ki & v & -> & Hactive) ] ]].
+      (* — either e = K[Var x]: *)
+      + (* then [«fill K x»] is stuck: *)
+        exfalso. clear -Hsafe. rewrite translation_fill in Hsafe.
+        apply safe_fill_inv in Hsafe. destruct Hsafe as [_ Hsafe].
+        destruct (Hsafe _ _ x eq_refl (rtc_refl _ _)) as
+            [[? [=]]|(?&?&?&?&[K' ?? Hx ? Hred])]; first set_solver+; simpl in *.
+        destruct (decide (K' = [])) as [->|(K''&Ki&->)%exists_last]; last first.
+        { rewrite !fill_app in Hx. by destruct Ki. }
+        simpl in Hx. subst e1'. inversion Hred.
       (* — either e = K[Fork e1]: *)
       + (* then we easily derive a reduction from e: *)
-        eexists _, _, _. apply Ectx_step', ForkS.
+        eexists _, _, _, _. apply Ectx_step', ForkS.
+      (* — either e = K[Rec f x e1]: *)
+      + (* then we easily derive a reduction from e: *)
+        eexists _, _, _, _. apply Ectx_step', RecS.
       (* — or e = K[ki[v]] where ki is an active item: *)
       + (* it is enough to show that ki[v] is reducible: *)
         apply loc_fresh_in_expr_fill_inv in Hfresh ;
@@ -523,28 +469,21 @@ Section SimulationLemma.
         * exact Hred.
   Qed.
   Lemma safe_translation__safe m n e σ t2 σ2 e2 :
-    is_closed [] e →
     loc_fresh_in_expr ℓ e2 →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
-    nsteps step n ([e], σ) (t2, σ2) →
+    nsteps erased_step n ([e], σ) (t2, σ2) →
     (n < m)%nat →
     e2 ∈ t2 →
     is_Some (to_val e2) ∨ reducible e2 σ2.
   Proof.
-    intros Hclosed Hℓe Hℓσ Hsafe Hnsteps Inm He2.
+    intros Hℓe Hℓσ Hsafe Hnsteps Inm He2.
     assert (safe «e2» S«σ2, m-n») as Hsafe2.
     {
       eapply safe_exec.
       - eapply elem_of_list_fmap_1. eassumption.
       - eassumption.
-      - change [«e»] with T«[e]». apply simulation_exec_success' ; [ assumption | auto | lia | assumption ].
-    }
-    assert (is_closed [] e2) as Hclosede2.
-    {
-      assert (Forall (is_closed []) t2) as Hclosedt2
-        by eauto using nsteps_rtc, is_closed_exec.
-      by eapply Forall_forall in Hclosedt2 ; last exact He2.
+      - change [«e»] with T«[e]». apply simulation_exec_success' ; [ assumption | lia | assumption ].
     }
     assert (m - n > 0)%nat by lia.
     by eapply safe_translation__safe_here.
@@ -556,20 +495,19 @@ Section SimulationLemma.
   (* FIXME : this is a weaker result than the adequacy result of Iris,
      where the predicate can also speak about the final state. *)
   Lemma adequate_translation__adequate_result m n φ e σ t2 σ2 v2 :
-    is_closed [] e →
     σ2 !! ℓ = None →
     adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
-    nsteps step n ([e], σ) (of_val v2 :: t2, σ2) →
+    nsteps erased_step n ([e], σ) (Val v2 :: t2, σ2) →
     (n ≤ m)%nat →
     φ v2.
   Proof.
-    intros Hclosed Hfresh Hadq Hnsteps Inm.
+    intros Hfresh Hadq Hnsteps Inm.
     assert (safe «e» S«σ, m») as Hsafe by by eapply safe_adequate.
     replace (φ v2) with ((φ ∘ invtranslationV) (translationV v2))
       by (simpl ; by rewrite invtranslationV_translationV).
     eapply (adequate_result _ _ _ (λ v σ, φ (invtranslationV v))); first done.
-    change [«e»%E] with T«[e]».
-    replace (of_val «v2» :: _) with (T«of_val v2 :: t2») by by rewrite - translation_of_val.
+    simpl. change [«e»%E] with T«[e]».
+    replace (Val «v2» :: _) with (T«Val v2 :: t2») by done.
     eapply simulation_exec_success' ; eauto.
   Qed.
 
@@ -578,11 +516,10 @@ End SimulationLemma. (* we close the section here as we now want to quantify ove
 (* now let’s combine the two results. *)
 
 Lemma adequate_translation__adequate m φ e σ :
-  is_closed [] e →
   (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
   nadequate NotStuck m e σ φ.
 Proof.
-  intros Hclosed Hadq.
+  intros Hadq.
   split.
   (* (1) adequate result: *)
   - intros n t2 σ2 v2 Hnsteps Inm.
@@ -600,7 +537,7 @@ Proof.
     eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
       by (unfold ℓ ; apply is_fresh).
     assert (loc_fresh_in_expr ℓ e2)
-      by by apply loc_not_in_set_is_fresh.
+      by by apply loc_not_in_set_is_fresh_in_expr.
     assert (σ2 !! ℓ = None)
       by by (simpl ; eapply not_elem_of_dom).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.

@@ -103,7 +103,7 @@ Important modules are highlighted.
 #### Generic translation and “tick”
 
 The basic properties of the translation are proven in `Translation.v` (for
-example, `translation_subst` and `translation_of_val`).
+example, `translation_subst`).
 
 In `Simulation.v`:
 

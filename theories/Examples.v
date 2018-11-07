@@ -1,6 +1,6 @@
 (* code taken from the Iris tutorial… *)
 
-From iris.heap_lang Require Import proofmode notation.
+From iris_time.heap_lang Require Import proofmode notation.
 From iris.program_logic Require Import adequacy.
 From iris_time Require Import TimeCredits Reduction.
 
@@ -120,27 +120,23 @@ Proof.
 Qed.
 Lemma sum_list_translation_spec `{!timeCreditHeapG Σ} (l : list Z) (v : val) :
   TC_invariant -∗
-  {{{ is_list_tr l v ∗ TC (3 + 10 * length l) }}} « sum_list v » {{{ RET #(sum_list_coq l) ; is_list_tr l v }}}.
+  {{{ is_list_tr l v ∗ TC (4 + 13 * length l) }}} « sum_list v » {{{ RET #(sum_list_coq l) ; is_list_tr l v }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "[Hl Htc] Post".
   iInduction l as [|x l] "IH" forall (v Φ).
   - simpl.
-    rewrite !translation_of_val.
     iDestruct "Hl" as %->.
     wp_tick_rec. wp_tick_match.
     by iApply "Post".
-  - replace (3 + 10 * length (x :: l))%nat with (13 + 10 * length l)%nat by (simpl ; lia).
-    simpl.
-    rewrite !translation_of_val. setoid_rewrite translation_of_val.
+  - replace (4 + 13 * length (x :: l))%nat with (17 + 13 * length l)%nat by (simpl ; lia).
     iDestruct "Hl" as (p) "[-> Hl]" ; iDestruct "Hl" as (v) "[Hp Hl]".
-    wp_tick_rec.
-    wp_tick_match.
+    wp_tick_rec. wp_tick_match.
     wp_tick_load. wp_tick_proj. wp_tick_let.
     wp_tick_load. wp_tick_proj. wp_tick_let.
     iDestruct "Htc" as "[Htc1 Htc]".
     wp_apply ("IH" with "Hl Htc"). iIntros "Hl".
     wp_tick_op.
-    iApply "Post". eauto with iFrame.
+    iApply "Post". simpl. eauto with iFrame.
 Qed.
 
 Definition make_list : val :=
@@ -162,37 +158,33 @@ Lemma make_list_spec `{!heapG Σ} (n : nat) :
 Proof.
   iIntros (Φ) "_ Post".
   iInduction n as [|n'] "IH" forall (Φ) ; simpl.
-  - wp_rec. wp_op. wp_if.
+  - wp_rec. wp_op. wp_if. wp_inj.
     by iApply "Post".
   - wp_rec. wp_op. wp_if.
     wp_op.
     assert (Z.of_nat n' = Z.of_nat (S n') - 1) as Eq by lia ; simpl in Eq ; destruct Eq.
     wp_apply "IH". iIntros (v') "Hl".
     change (Z.pos $ Pos.of_succ_nat n') with (Z.of_nat $ S n').
-    wp_alloc p.
+    wp_alloc p. wp_inj.
     iApply "Post". eauto with iFrame.
 Qed.
 Lemma make_list_translation_spec `{!timeCreditHeapG Σ} (n : nat) :
   TC_invariant -∗
-  {{{ TC (3+5*n) }}} «make_list #n» {{{ v', RET v' ; is_list (make_list_coq n) v' }}}.
+  {{{ TC (4+7*n) }}} «make_list #n» {{{ v', RET v' ; is_list (make_list_coq n) v' }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "Htc Post".
   iInduction n as [|n'] "IH" forall (Φ).
-  - simpl.
-    rewrite !translation_of_val.
-    wp_tick_rec. wp_tick_op. wp_tick_if.
+  - wp_tick_rec. wp_tick_op. wp_tick_if. wp_tick_inj.
     by iApply "Post".
-  - replace (3 + 5 * S n')%nat with (8 + 5 * n')%nat by lia.
-    simpl.
-    rewrite !translation_of_val.
+  - replace (4 + 7 * S n')%nat with (11 + 7 * n')%nat by lia.
     wp_tick_rec. wp_tick_op. wp_tick_if.
     wp_tick_op.
     assert (Z.of_nat n' = Z.of_nat (S n') - 1) as Eq by lia ; simpl in Eq ; destruct Eq.
-    iDestruct "Htc" as "[Htc1 Htc]".
+    iDestruct "Htc" as "[? [? [? Htc]]]".
     wp_apply ("IH" with "Htc"). iIntros (v') "Hl".
     change (Z.pos $ Pos.of_succ_nat n') with (Z.of_nat $ S n').
-    wp_tick_alloc p.
-    iApply "Post". eauto with iFrame.
+    wp_tick_pair. wp_tick_alloc p. wp_tick_inj.
+    iApply "Post". simpl. eauto with iFrame.
 Qed.
 
 Definition prgm (n : nat) : expr :=
@@ -236,18 +228,14 @@ Proof.
 Qed.
 Lemma prgm_translation_spec `{!timeCreditHeapG Σ} (n : nat) :
   TC_invariant -∗
-  {{{ TC (6+15*n) }}} «prgm n» {{{ v, RET v ; ⌜v = #(n*(n+1)/2)⌝ }}}.
+  {{{ TC (8+20*n) }}} «prgm n» {{{ v, RET v ; ⌜v = #(n*(n+1)/2)⌝ }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "Htc Post".
-  unfold prgm.
-  change « sum_list (make_list (LitV n)) » with ((tick «sum_list») «make_list #n»).
-  rewrite !translation_of_val.
-  replace (6+15*n)%nat with ((3+5*n) + (3+10*n))%nat by lia ;
+  replace (8+20*n)%nat with ((4+7*n) + (4+13*n))%nat by lia ;
   rewrite TC_plus ; iDestruct "Htc" as "[Htc_make Htc_sum]".
+  unfold prgm. simpl_trans.
   wp_apply (make_list_translation_spec with "Htickinv Htc_make"). iIntros (v) "Hl".
   iDestruct (is_list_translation with "Hl") as "[Hl ->]".
-  rewrite - !translation_of_val.
-  change (« sum_list » (tick « v »)) with « sum_list v ».
   wp_apply (sum_list_translation_spec with "Htickinv [Hl Htc_sum]"). {
     rewrite - is_list_tr_is_list_translation.
     erewrite length_make_list_coq. iFrame.
@@ -257,11 +245,10 @@ Qed.
 
 Lemma prgm_timed_spec (n : nat) (σ : state) `{!timeCreditHeapPreG Σ} :
     adequate NotStuck (prgm n) σ (λ v _, v = #(n*(n+1)/2))
-  ∧ bounded_time (prgm n) σ (6 + 15 * n)%nat.
+  ∧ bounded_time (prgm n) σ (8 + 20 * n)%nat.
 Proof.
   apply (spec_tctranslation__adequate_and_bounded' (Σ:=Σ)).
   - by intros _ ->.
-  - rewrite !andb_True ; repeat split ; apply is_closed_of_val.
   - intros HtcHeapG. apply prgm_translation_spec.
   - assumption.
 Qed.

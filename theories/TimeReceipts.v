@@ -1,4 +1,4 @@
-From iris.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
@@ -73,7 +73,7 @@ Local Notation ℓ := tick_counter.
 Definition loop : val :=
   rec: "f" <> := "f" #().
 
-Global Instance receipts_tick {_:TickCounter} : Tick :=
+Global Instance receipts_tick `{TickCounter} : Tick :=
   generic_tick loop.
 
 Section TickSpec.
@@ -216,13 +216,12 @@ Section TickSpec.
     iLöb as "IH". wp_rec. iExact "IH".
   Qed.
 
-  Theorem tick_spec s E e v m :
+  Theorem tick_spec s E (v : val) m :
     ↑timeReceiptN ⊆ E →
-    IntoVal e v →
     TR_invariant -∗
-    {{{ TRdup m }}} tick e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
+    {{{ TRdup m }}} tick v @ s ; E {{{ RET v ; TR 1 ∗ TRdup (m+1) }}}.
   Proof.
-    intros ? <-. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
+    intros ?. iIntros "#Inv" (Ψ) "!# Hγ2◯ HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value k = nmax−n−1 of location ℓ: *)
@@ -314,7 +313,7 @@ Section Soundness.
   Proof.
     intros Inmax Hspec HpreG Hloc σ.
     (* apply the adequacy results. *)
-    apply (wp_adequacy _ _) ; simpl ; intros HinvG.
+    apply (wp_adequacy _ _) ; simpl ; intros HinvG κ.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
@@ -346,13 +345,12 @@ Section Soundness.
     }
     iModIntro.
     (* finally, use the user-given specification: *)
-    iExists gen_heap_ctx. iFrame "Hh●".
+    iExists (λ σ _, gen_heap_ctx σ). iFrame "Hh●".
     iApply (Hspec with "Hinv") ; auto.
   Qed.
 
   Theorem spec_trtranslation__adequate {Σ} nmax φ e :
     (0 < nmax)%nat →
-    is_closed [] e →
     (∀ `{timeReceiptHeapG Σ},
       TR_invariant nmax -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
@@ -360,14 +358,13 @@ Section Soundness.
     ∀ `{!timeReceiptHeapPreG Σ} σ,
       nadequate NotStuck (nmax-1) e σ φ.
   Proof.
-    intros Inmax Hclosed Hspec HpreG σ.
-    eapply adequate_trtranslation__adequate ; first done.
+    intros Inmax Hspec HpreG σ.
+    eapply adequate_trtranslation__adequate.
     intros Hloc. by eapply spec_trtranslation__adequate_translation.
   Qed.
 
   Theorem abstract_spec_trtranslation__adequate {Σ} nmax φ e :
     (0 < nmax)%nat →
-    is_closed [] e →
     (∀ `{heapG Σ, Tick} (TR TRdup : nat → iProp Σ),
       TR_interface nmax TR TRdup -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
@@ -375,8 +372,8 @@ Section Soundness.
     ∀ {_ : timeReceiptHeapPreG Σ} σ,
       nadequate NotStuck (nmax-1) e σ φ.
   Proof.
-    intros Inmax Hclosed Hspec HpreG σ.
-    eapply spec_trtranslation__adequate ; try done.
+    intros Inmax Hspec HpreG σ.
+    eapply spec_trtranslation__adequate; try done.
     clear HpreG. iIntros (HtrHeapG) "#Hinv".
     iApply Hspec. by iApply TR_implementation.
   Qed.

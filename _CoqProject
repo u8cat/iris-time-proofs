@@ -1,9 +1,16 @@
 -Q theories iris_time
--arg -w -arg -notation-overridden
+-arg -w -arg -notation-overridden,-redundant-canonical-projection
+
+theories/heap_lang/lang.v
+theories/heap_lang/adequacy.v
+theories/heap_lang/lifting.v
+theories/heap_lang/notation.v
+theories/heap_lang/proofmode.v
+theories/heap_lang/tactics.v
+theories/heap_lang/lib/assert.v
 
 theories/Auth_mnat.v
 theories/Auth_nat.v
-theories/MachineIntegers.v
 theories/ClockIntegers.v
 theories/Examples.v
 theories/Misc.v
