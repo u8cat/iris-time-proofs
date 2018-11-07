@@ -20,6 +20,10 @@ Set Default Proof Using "Type".
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
+(* FIXME : we would like to parameterize the whole language with
+   respect to a typeclass containing the following, but then coercions
+   for LitInt, LitBool, Var and BNamed stop working because we break
+   the uniform inheritance condition. *)
 Parameter word_size : nat.
 Axiom word_size_gt_1 : word_size > 1.
 

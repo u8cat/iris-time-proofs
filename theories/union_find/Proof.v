@@ -21,6 +21,9 @@ From iris_time.union_find.math Require Import UnionFind01Data
 (* Load the heap_lang code *)
 From iris_time.union_find Require Import Code.
 
+(* TODO remove this when we have time receipts. *)
+Parameter nmax : nat.
+
 Section UnionFind.
 
 Context `{!timeCreditHeapG Σ}.
@@ -928,6 +931,7 @@ Qed.
 *)
 
 Lemma link_spec : forall D R V x y,
+  (log2 (log2 nmax) < word_size - 1)%nat ->
   x \in D ->
   y \in D ->
   R x = x ->
@@ -938,7 +942,7 @@ Lemma link_spec : forall D R V x y,
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗
                    ⌜z = x \/ z = y⌝}}}.
 Proof using.
-  introv Dx Dy Rx Ry. iIntros "#?" (Φ) "!# [UF TC] HΦ".
+  introv Hnmax Dx Dy Rx Ry. iIntros "#?" (Φ) "!# [UF TC] HΦ".
   wp_tick_rec. wp_tick_let.
   iDestruct "UF" as (F K M HI HM) "[HM TC']".
   wp_tick_op. case_bool_decide as Hxy.
@@ -993,28 +997,40 @@ Proof using.
   { iDestruct (mapsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]"=>//.
     wp_tick_inj. wp_tick_store.
     iDestruct ("HM" $! (Link _) _ eq_refl with "Hy") as "HM".
-    assert (bool_decide (mach_int_bounded (`k1 + 1))).
-    { admit. }
-    wp_tick_seq. wp_tick_op.
-    { by rewrite /bin_op_eval /= /to_mach_int decide_left. }
-    iDestruct (mapsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
-    { rewrite lookup_insert_ne //. congruence. }
-    wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
-    iApply "HΦ". iSplit; [|by auto].
     Inv_link
     (* F' := *) (UnionFind03Link.link F y x)
     (* K' := *) (fupdate K x (1 + K y)%nat)
     (* V' := *) (update2 V R x y (V x))
                 x y
     (* z  := *) x.
+    assert (bool_decide (mach_int_bounded (`k1 + 1))).
+    { skip HDnmax%Nat.log2_le_mono : (card D ≤ nmax)%nat. (* FIXME : Use time receipts. *)
+      assert (log2 nmax < 2 ^ (word_size - 1))%nat.
+      { destruct (decide (0 < log2 nmax)%nat); [by eapply Nat.log2_lt_pow2|].
+        assert (log2 nmax = 0%nat) as -> by lia. apply power_positive. lia. }
+      forwards* Hklog: rank_is_logarithmic (fupdate K x (S (K y))) x.
+      rewrite fupdate_same in Hklog.
+      assert (S (K y) < 2 ^ (word_size - 1))%nat as HK%inj_lt by lia.
+      rewrite Z2Nat_inj_pow -Z.shiftl_1_l Nat2Z.inj_sub in HK;
+        [|pose proof word_size_gt_1; lia].
+      apply bool_decide_pack. split.
+      { destruct (bool_decide_unpack _ (proj2_sig k1)) as [? _]. lia. }
+      assert (`k1 = `k1') as -> by lia. rewrite (_:`k1' = K y) //.
+      rewrite Z.add_comm -(Nat2Z.inj_add 1). done. }
+    wp_tick_seq. wp_tick_op.
+    { by rewrite /bin_op_eval /= /to_mach_int decide_left. }
+    iDestruct (mapsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
+    { rewrite lookup_insert_ne //. congruence. }
+    wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
+    iApply "HΦ". iSplit; [|by auto].
     iExists _, _, _. iSplit; [done|].
     iCombine "TC' TC" as "TC". rewrite TC_weaken; [iFrame "TC"|lia].
     iSplit; last iApply ("HM" with "[%] Hx").
     { iPureIntro. applys* Mem_link_incr HM. congruence. applys update2_sym. }
     rewrite /= -(_:(`k1 + 1) = (K y + 1)%nat) //.
     { by rewrite /to_mach_int decide_left /=. }
-    assert (`k1 + 1 = K y + 1)%Z as -> by lia. by rewrite ->Nat2Z.inj_add.
-Admitted.
+    assert (`k1 + 1 = K y + 1)%Z as -> by lia. by rewrite ->Nat2Z.inj_add. }
+Qed.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1029,6 +1045,7 @@ Admitted.
 *)
 
 Theorem union_spec : forall D R V x y,
+  (log2 (log2 nmax) < word_size - 1)%nat ->
   x \in D ->
   y \in D ->
   TC_invariant -∗
@@ -1037,7 +1054,7 @@ Theorem union_spec : forall D R V x y,
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗
                  ⌜z = R x \/ z = R y⌝ }}}.
 Proof using.
-  introv Dx Dy.
+  introv Hnmax Dx Dy.
   math_rewrite (44 * alpha (card D) + 152 =
                 (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 61 + 3)%nat.
   iIntros "#?" (Φ) "!# [UF [[[TC1 TC2] TC3] TC4]] HΦ".
@@ -1047,21 +1064,23 @@ Proof using.
   iDestruct (UF_image _ _ _ x with "UF") as %? =>//.
   iDestruct (UF_image _ _ _ y with "UF") as %? =>//.
   iDestruct (UF_idempotent with "UF") as %Idem =>//.
-  wp_apply (link_spec with "[//] [$TC3 $UF]")=>//.
+  wp_apply (link_spec _ _ _ _ _ Hnmax with "[//] [$TC3 $UF]")=>//.
   iIntros (z). by rewrite !update2_root.
 Qed.
 
 End UnionFind.
 
-(* Print Assumptions UF_idempotent. *)
-(* Print Assumptions UF_image. *)
-(* Print Assumptions UF_identity. *)
-(* Print Assumptions UF_compatible. *)
-(* Print Assumptions UF_create. *)
-(* Print Assumptions UF_join. *)
-(* Print Assumptions make_spec. *)
-(* Print Assumptions find_spec. *)
-(* Print Assumptions get_spec. *)
-(* Print Assumptions set_spec. *)
-(* Print Assumptions eq_spec. *)
-(* Print Assumptions union_spec. *)
+Definition final_theorems :=
+  (@UF_idempotent,
+   @UF_image,
+   @UF_identity,
+   @UF_compatible,
+   @UF_create,
+   @UF_join,
+   @make_spec,
+   @find_spec,
+   @get_spec,
+   @set_spec,
+   @eq_spec,
+   @union_spec).
+Print Assumptions final_theorems.
