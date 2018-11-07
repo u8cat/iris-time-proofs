@@ -619,7 +619,7 @@ Section ClosureFree.
 
   Fixpoint closure_free (v : val) : bool :=
     match v with
-    | RecV _ _ _ _ => false
+    | RecV _ _ _ => false
     | LitV _ => true
     | PairV v1 v2 => closure_free v1 && closure_free v2
     | InjLV v1 => closure_free v1

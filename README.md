@@ -2,7 +2,8 @@
 
 The project is known to compile with:
  *  Coq 8.7.2
- *  coq-iris dev.2018-04-10.0 (development version of Iris)
+ *  coq-iris dev.2018-10-13.0.7041c043 (development version of Iris)
+ *  coq-tlc 20180316 (for the proof of union-find)
 
 ### Step 1: Install opam
 
@@ -35,12 +36,21 @@ support it.
 
     opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
     opam update
-    opam pin add coq-iris -k version dev.2018-04-10.0
+    opam pin add coq-iris -k version dev.2018-10-13.0.7041c043
 
 (This will also install `coq-stdpp`, another Coq library made available through
 the same repo.)
 
 More info on the Coq development of Iris: [there][coq-iris].
+
+### Step 4: Install TLC
+
+The TLC library is required by the proof of the union-find algorithm. It is
+available through an opam package in the Coq repository (added earlier).
+
+    opam install coq-tlc
+
+TODO: version?
 
 ## Compiling
 

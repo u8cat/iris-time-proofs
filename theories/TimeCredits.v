@@ -201,17 +201,6 @@ Section Tick_lemmas.
     prim_exec  (tick v) (<[ℓ := #(S n)]> σ)  v (<[ℓ := #n]> σ)  [].
   Proof. by apply exec_tick_success. Qed.
 
-(* MERGE: to be merged into Iris: *)
-  Definition head_stuck e σ :=
-  to_val e = None ∧ head_irreducible e σ.
-  Lemma head_stuck_stuck e σ :
-    head_stuck e σ → sub_redexes_are_values e → stuck e σ.
-  Proof.
-    intros [] ?. split; first done.
-    by apply prim_head_irreducible.
-  Qed.
-(* /MERGE *)
-
   (* Semantics in the “failing” case. *)
 
   Lemma not_safe_tick v σ :
