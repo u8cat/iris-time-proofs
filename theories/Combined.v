@@ -5,7 +5,7 @@
  * time credits and time receipts, including proof-mode tactics.
  *)
 
-From iris.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
 
 From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
@@ -283,13 +283,12 @@ Section Definitions.
     iApply "InvClose". auto with iFrame.
   Qed.
 
-  Theorem tick_spec s E e v n :
+  Theorem tick_spec s E (v : val) n :
     ↑tctrN ⊆ E →
-    IntoVal e v →
     TCTR_invariant -∗
-    {{{ ▷ TC 1 ∗ ▷ TRdup n }}} tick e @ s ; E {{{ RET v ; TR 1 ∗ TRdup (n+1) }}}.
+    {{{ ▷ TC 1 ∗ ▷ TRdup n }}} tick v @ s ; E {{{ RET v ; TR 1 ∗ TRdup (n+1) }}}.
   Proof using max_tr.
-    intros ? <-. iIntros "#Inv" (Ψ) "!# [Hγ◯ Hγ2◯] HΨ".
+    intros ?. iIntros "#Inv" (Ψ) "!# [Hγ◯ Hγ2◯] HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value m of location ℓ: *)
@@ -380,9 +379,8 @@ Section Tactics.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types Δ : envs (uPredI (iResUR Σ)).
 
-  Lemma tac_wp_tick `{tctrHeapG Σ} Δ Δ1 Δ2 Δ3 Δ' i j1 j2 j3 max_tc m n p s E K e v Φ :
+  Lemma tac_wp_tick `{tctrHeapG Σ} Δ Δ1 Δ2 Δ3 Δ' i j1 j2 j3 max_tc m n p s E K (v : val) Φ :
     ↑tctrN ⊆ E →
-    IntoVal e v →
     MaybeIntoLaterNEnvs 1 Δ Δ1 →
     envs_lookup i Δ   = Some (true, TCTR_invariant max_tc) →
     envs_lookup j1 Δ1 = Some (false, TC (S m)) →
@@ -392,7 +390,7 @@ Section Tactics.
     envs_simple_replace j3 false (Esnoc Enil j3 (TR (S n))) Δ3 = Some Δ2 →
     envs_simple_replace j2 false (Esnoc Enil j2 (TRdup (S p))) Δ2 = Some Δ' →
     envs_entails Δ' (WP fill K v @ s; E {{ Φ }}) →
-    envs_entails Δ (WP fill K (App tick e) @ s; E {{ Φ }}).
+    envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
   Admitted.
 
 End Tactics.
@@ -402,8 +400,8 @@ Ltac wp_tick :=
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       first
-        [ reshape_expr e ltac:(fun K e' =>
-            eapply (tac_wp_tick _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ K) ; [ | exact _ | ..]
+        [ reshape_expr false e ltac:(fun K e' =>
+            eapply (tac_wp_tick _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ K)
           )
         | fail 1 "wp_tick: cannot find 'tick ?v' in" e ] ;
       [ try solve_ndisj

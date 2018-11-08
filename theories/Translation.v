@@ -581,3 +581,29 @@ Section ClosureFree.
   Qed.
 
 End ClosureFree.
+
+(*
+ *  Proofmode wp_* tactics.
+ *)
+
+(* wp_tick is a stub to be redefined for each particular definition of
+   the tick function. *)
+Ltac wp_tick := idtac.
+
+Ltac wp_tick_closure := wp_closure; wp_tick.
+Ltac wp_tick_pair := wp_tick; wp_pair.
+Ltac wp_tick_inj := wp_tick; wp_inj.
+
+Ltac wp_tick_rec := wp_tick ; wp_rec; simpl_trans.
+Ltac wp_tick_lam := wp_tick_rec.
+Ltac wp_tick_let := wp_tick_closure; wp_tick_lam.
+Ltac wp_tick_seq := wp_tick_let.
+Ltac wp_tick_op := wp_tick ; wp_op.
+Ltac wp_tick_if := wp_tick ; wp_if.
+Ltac wp_tick_match :=
+  wp_tick; wp_match; (wp_let || wp_seq); wp_lam;
+  wp_closure; wp_tick; wp_tick; wp_lam.
+Ltac wp_tick_proj := wp_tick ; wp_proj.
+Ltac wp_tick_alloc loc := wp_tick ; wp_alloc loc.
+Ltac wp_tick_load := wp_tick ; wp_load.
+Ltac wp_tick_store := wp_tick ; wp_store.
