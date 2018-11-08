@@ -22,7 +22,7 @@ Section clock_int.
   Lemma clock_int_add_spec (n1 n2 : mach_int) :
     TR_invariant nmax -∗
     {{{ is_clock_int (`n1) ∗ is_clock_int (`n2) }}}
-    #n1 + #n2
+    «#n1 + #n2»
     {{{ H, RET #(LitMachInt ((`n1+`n2) ↾ H)) ; is_clock_int (`n1+`n2) }}}.
   Proof.
     iIntros "#Htrinv" (Φ) "!# ([% H1] & [% H2]) Post".
@@ -36,9 +36,10 @@ Section clock_int.
     { apply bool_decide_pack. split; [|done].
       (* FIXME : why isn't lia able to do this directly? *)
       trans 0. unfold min_mach_int; lia. lia. }
-    wp_op.
-    { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left. }
-    iApply "Post". iIntros "{$H} /= !%". lia.
+    iDestruct ("Post" with "[H]") as "Post".
+    { iIntros "{$H} !%". lia. }
+    simpl_trans. wp_tick_op=>//.
+    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
   Qed.
 
 End clock_int.
@@ -52,7 +53,7 @@ Section snapclock_int.
 
   Context `{timeReceiptHeapG Σ}.
   Context (nmax : nat).
-  Context `(nmax ≤ max_mach_int).
+  Context `(nmax < max_mach_int).
 
   Definition is_snapclock_int (n : Z) : iProp Σ :=
     (⌜0 ≤ n⌝ ∗ TRdup (Z.to_nat n))%I.
@@ -66,24 +67,22 @@ Section snapclock_int.
   Lemma snapclock_int_incr_spec (n1 : mach_int) :
     TR_invariant nmax -∗
     {{{ is_snapclock_int (`n1) }}}
-    tick #() ;; #n1 + #mach_int_1
+    «#n1 + #mach_int_1»
     {{{ H, RET #(LitMachInt ((`n1+1) ↾ H)) ; is_snapclock_int (`n1+1) }}}.
   Proof.
-    iIntros "#Htrinv" (Φ) "!# [% H1] Post".
-    wp_apply (tick_spec_simple nmax #() with "Htrinv H1"). iIntros "(_ & H)".
+    iIntros "#Htrinv" (Φ) "!# [% H] Post".
     iDestruct (TRdup_lt_nmax with "Htrinv H") as ">(H & Hnmax)" ; first done.
-    iDestruct "Hnmax" as %Hnmax. wp_seq.
+    iDestruct "Hnmax" as %Hnmax.
     assert (`n1 + 1 < max_mach_int).
-    { rewrite -(Nat2Z.id nmax) (_:1%nat = Z.to_nat 1) // -Z2Nat.inj_add // in Hnmax.
-      apply Z2Nat.inj_lt in Hnmax; lia. }
+    { rewrite -(Nat2Z.id nmax) in Hnmax. apply Z2Nat.inj_lt in Hnmax; lia. }
     assert (bool_decide (mach_int_bounded (`n1 + 1))).
     { apply bool_decide_pack. split; [|done].
       (* FIXME : why isn't lia able to do this directly? *)
       trans 0. unfold min_mach_int; lia. lia. }
-    wp_op.
+    simpl_trans. wp_tick_op.
     { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left. }
     iApply "Post". iSplit. auto with lia.
-    by rewrite Z2Nat.inj_add //.
+    rewrite Z2Nat.inj_add // Nat.add_comm //.
   Qed.
 
   (* Snapclock integers also support a limited form of addition: *)
@@ -91,7 +90,7 @@ Section snapclock_int.
     TR_invariant nmax -∗
     {{{ is_snapclock_int (`n1) ∗ is_snapclock_int (`n2)
       ∗ is_snapclock_int m ∗ ⌜`n1+`n2 ≤ m⌝ }}}
-    #n1 + #n2
+    «#n1 + #n2»
     {{{ H, RET #(LitMachInt ((`n1+`n2) ↾ H)) ; is_snapclock_int (`n1+`n2) }}}.
   Proof.
     iIntros "#Htrinv" (Φ) "!# ([% _] & [% _] & [% Hm] & %) Post".
@@ -105,9 +104,10 @@ Section snapclock_int.
     { apply bool_decide_pack. split; [|lia].
       (* FIXME : why isn't lia able to do this directly? *)
       trans 0. unfold min_mach_int; lia. lia. }
-    wp_op.
-    { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left. }
-    iApply "Post". iSplit; [|done]. auto with lia.
+    iDestruct ("Post" with "[H]") as "Post".
+    { iSplit; auto with lia. }
+    simpl_trans. wp_tick_op=>//.
+    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
   Qed.
 
 End snapclock_int.

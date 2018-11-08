@@ -1,6 +1,7 @@
-From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
+From iris.proofmode Require Import coq_tactics.
 
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
 From iris_time Require Export Translation Simulation.
 
@@ -78,8 +79,7 @@ Global Instance receipts_tick `{TickCounter} : Tick :=
 
 Section TickSpec.
 
-  Context `{timeReceiptHeapG Σ}.
-  Context (nmax : nat).
+  Context `{timeReceiptHeapG Σ} (nmax : nat).
 
   Definition TR (n : nat) : iProp Σ :=
     own γ1 (◯nat n).
@@ -137,19 +137,21 @@ Section TickSpec.
   Definition TR_invariant : iProp Σ :=
     inv timeReceiptN (∃ (n:nat), ℓ ↦ #(nmax-n-1) ∗ own γ1 (●nat n) ∗ own γ2 (●mnat n) ∗ ⌜(n < nmax)%nat⌝)%I.
 
-  Lemma zero_TR :
-    TR_invariant ={⊤}=∗ TR 0.
+  Lemma zero_TR E :
+    ↑timeReceiptN ⊆ E →
+    TR_invariant ={E}=∗ TR 0.
   Proof.
-    iIntros "#Htickinv".
+    iIntros (?) "#Htickinv".
     iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & H)" "Hclose".
     iDestruct (own_auth_nat_null with "Hγ1●") as "[Hγ1● $]".
     iApply "Hclose" ; eauto with iFrame.
   Qed.
 
-  Lemma zero_TRdup :
-    TR_invariant ={⊤}=∗ TRdup 0.
+  Lemma zero_TRdup E :
+    ↑timeReceiptN ⊆ E →
+    TR_invariant ={E}=∗ TRdup 0.
   Proof.
-    iIntros "#Htickinv".
+    iIntros (?) "#Htickinv".
     iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & Hγ2● & Im)" "Hclose".
     iDestruct (own_auth_mnat_null with "Hγ2●") as "[Hγ2● $]".
     iApply "Hclose" ; eauto with iFrame.
@@ -380,17 +382,79 @@ Section Soundness.
 
 End Soundness.
 
-
-
 (*
  * Proof-mode tactics for proving WP of translated expressions
  *)
 
-Section Tactics.
+Lemma tac_wp_tick `{timeReceiptHeapG Σ} Δ pe Δ1 Δ2 Δ' i max_tc s E K (v : val) Φ :
+  ↑timeReceiptN ⊆ E →
+  MaybeIntoLaterNEnvs 1 Δ Δ1 →
 
-  (* TODO *)
+  envs_lookup i Δ = Some (pe, TR_invariant max_tc) →
 
-End Tactics.
+  (∃ j pe' p, envs_lookup j Δ1 = Some (pe', TRdup p) ∧
+              envs_simple_replace j pe' (Esnoc Enil j (TRdup (S p))) Δ1 = Some Δ2) ∨
+  Δ1 = Δ2 →
 
-Ltac wp_tock :=
-  idtac.
+  (∃ j n, envs_lookup j Δ2 = Some (false, TR n) ∧
+          envs_simple_replace j false (Esnoc Enil j (TR (S n))) Δ2 = Some Δ') ∨
+  Δ2 = Δ' →
+
+  envs_entails Δ' (WP fill K v @ s; E {{ Φ }}) →
+  envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
+Proof.
+  rewrite envs_entails_eq=>??? HTRdup HTR HWP.
+  iIntros "HΔ".
+  iAssert (TR_invariant max_tc) as "#Hinv".
+  { destruct pe.
+    iDestruct (envs_lookup_sound _ i true with "HΔ") as "[? _]"=>//.
+    iDestruct (envs_lookup_sound _ i false with "HΔ") as "[? _]"=>//. }
+  iDestruct (into_laterN_env_sound with "HΔ") as "HΔ1"=>//.
+  iApply wp_bind.
+  destruct HTR as [(j & n & HTR1 & HTR2)| ->],
+           HTRdup as [(j' & pe'' & p & HTRDup1 & HTRDup2)| ->].
+  - iDestruct (envs_simple_replace_singleton_sound with "HΔ1") as "[HTRdup HΔ2]"=>//.
+    rewrite bi.intuitionistically_if_elim -bi.intuitionistically_intuitionistically_if.
+    iDestruct "HTRdup" as "#>HTRdup".
+    iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [HTR #HTRdup']". iApply HWP.
+    rewrite Nat.add_comm. iSpecialize ("HΔ2" with "[//]").
+    iDestruct (envs_simple_replace_singleton_sound with "HΔ2") as "[HTR' HΔ']"=>//=.
+    iCombine "HTR HTR'" as "HTR". iDestruct ("HΔ'" with "HTR") as "$".
+  - iMod (zero_TRdup with "Hinv") as "HTRdup"=>//.
+    iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [HTR _]". iApply HWP.
+    iDestruct (envs_simple_replace_singleton_sound with "HΔ1") as "[HTR' HΔ']"=>//=.
+    iCombine "HTR HTR'" as "HTR". iDestruct ("HΔ'" with "HTR") as "$".
+  - iDestruct (envs_simple_replace_singleton_sound with "HΔ1") as "[HTRdup HΔ']"=>//.
+    rewrite bi.intuitionistically_if_elim -bi.intuitionistically_intuitionistically_if.
+    iDestruct "HTRdup" as "#>HTRdup".
+    iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [_ #HTRdup']". iApply HWP.
+    rewrite Nat.add_comm. iDestruct ("HΔ'" with "[//]") as "$".
+  - iMod (zero_TRdup with "Hinv") as "HTRdup"=>//.
+    iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [_ #HTRdup']". by iApply HWP.
+Qed.
+
+Ltac wp_tick ::=
+  iStartProof ;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      first
+        [ reshape_expr false e ltac:(fun K e' =>
+            eapply (tac_wp_tick _ _ _ _ _ _ _ _ _ K)
+          )
+        | fail 1 "wp_tick: cannot find 'tick ?v' in" e ] ;
+      [ try solve_ndisj
+      | exact _
+      | (* lookup invariant: *) (iAssumptionCore || fail "wp_tick: cannot find TR_invariant")
+      | (* lookup TRdup: *) (
+        left; eexists _, _, _; split;
+        [iAssumptionCore | proofmode.reduction.pm_reflexivity]
+        || right; reflexivity)
+      | (* lookup TR:    *) (
+        left; eexists _, _; split;
+        [iAssumptionCore | proofmode.reduction.pm_reflexivity]
+        || right; reflexivity)
+      | wp_expr_simpl ]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+      fail "wp_tick is not implemented for twp"
+  | _ => fail "wp_tick: not a 'wp'"
+  end.

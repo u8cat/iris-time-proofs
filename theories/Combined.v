@@ -12,7 +12,6 @@ From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
 From iris_time Require Export Translation Simulation.
 
 From iris.proofmode Require Import coq_tactics.
-Import uPred.
 
 Implicit Type e : expr.
 Implicit Type v : val.
