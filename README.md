@@ -2,7 +2,7 @@
 
 The project is known to compile with:
  *  Coq 8.7.2
- *  coq-iris dev.2018-10-13.0.7041c043 (development version of Iris)
+ *  coq-iris dev.2018-11-01.3.19aae59a (development version of Iris)
  *  coq-tlc 20180316 (for the proof of union-find)
 
 ### Step 1: Install opam
