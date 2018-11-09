@@ -6,7 +6,7 @@ From stdpp Require Import gmap.
 
 From iris.bi Require Import big_op.
 From iris_time.heap_lang Require Import proofmode.
-From iris_time Require Import TimeCredits.
+From iris_time Require Import Combined.
 
 (* Load extra math libraries. *)
 From iris_time.union_find.math Require Import LibNatExtra InverseAckermann.
@@ -21,12 +21,9 @@ From iris_time.union_find.math Require Import UnionFind01Data
 (* Load the heap_lang code *)
 From iris_time.union_find Require Import Code.
 
-(* TODO remove this when we have time receipts. *)
-Parameter nmax : nat.
-
 Section UnionFind.
 
-Context `{!timeCreditHeapG Σ}.
+Context `{!tctrHeapG Σ} (nmax : nat).
 
 (* An object in the Union Find data structure is represented by an
    heap_lang location. *)
@@ -138,7 +135,8 @@ Definition UF D R V : iProp Σ :=
   ⌜ Inv D F K R V ⌝ ∗
   ⌜ Mem D F K V M ⌝ ∗
   mapsto_M M ∗
-  TC (11 * Phi D F K))%I.
+  TC (11 * Phi D F K) ∗
+  TR (card D))%I.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -567,7 +565,7 @@ Qed.
    thin air. This is how the data structure is initialized. *)
 
 Theorem UF_create : forall V,
-  TC_invariant ={⊤}=∗ UF \{} id V.
+  TCTR_invariant nmax ={⊤}=∗ UF \{} id V.
 Proof using.
   unfold UF. iIntros (V) "#?".
   iExists (@LibRelation.empty elem), (λ _, 0%nat), ∅.
@@ -579,6 +577,7 @@ Proof using.
   { iIntros "!%" (??). false. }
   { rewrite /mapsto_M. by auto. }
   { rewrite Phi_empty. by iApply zero_TC. }
+  { rewrite card_empty. by iApply zero_TR. }
 Qed.
 
 (* Two separate instances of the UnionFind data structure can be merged, without
@@ -598,8 +597,8 @@ Theorem UF_join : forall D1 R1 V1 D2 R2 V2,
   ∗ ⌜ D1 \# D2 ⌝.
 Proof using.
   intros.
-  iDestruct 1 as (F1 K1 M1 HI1 HM1) "(HM1 & HTC1)".
-  iDestruct 1 as (F2 K2 M2 HI2 HM2) "(HM2 & HTC2)".
+  iDestruct 1 as (F1 K1 M1 HI1 HM1) "(HM1 & HTC1 & TR1)".
+  iDestruct 1 as (F2 K2 M2 HI2 HM2) "(HM2 & HTC2 & TR2)".
   sets D: (D1 \u D2).
   sets R: (fun x => If x \in D1 then R1 x else R2 x).
   sets V: (fun x => If x \in D1 then V1 x else V2 x).
@@ -663,7 +662,9 @@ Proof using.
   iSplit; last done. iExists F, K, M.
 
   iCombine "HTC1 HTC2" as "HTC".
+  iCombine "TR1 TR2" as "HTR".
   rewrite -mapsto_M_union // -Nat.mul_add_distr_l (@Phi_join 1 _ D F K); eauto.
+  rewrite -card_disjoint_union; eauto using is_rdsf_finite; [].
   iFrame. iPureIntro. split.
 
   (* Preservation of [Inv]. *)
@@ -718,7 +719,7 @@ Qed.
    3. [V'] is [V] extended with a mapping of [x] to [v]. *)
 
 Theorem make_spec : forall D R V v,
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC 26 }}}
     «make v»
   {{{ (x : elem), RET #x;
@@ -729,8 +730,10 @@ Theorem make_spec : forall D R V v,
        R x = x⌝ }}}.
 Proof using.
   iIntros "* #?" (Φ) "!# [HF TC] HΦ".
-  wp_tick_rec. wp_tick_pair. wp_tick_inj. wp_tick. wp_alloc x as "Hx". iApply "HΦ".
-  iDestruct "HF" as (F K M HI HM) "[HM TC']".
+  wp_tick_rec. wp_tick_pair. wp_tick_inj.
+  iMod (zero_TR with "[//]") as "TR"=>//.
+  wp_tick. wp_alloc x as "Hx". iApply "HΦ".
+  iDestruct "HF" as (F K M HI HM) "(HM & TC' & TR')".
 
   iAssert ⌜M !! x = None⌝%I as %Mx.
   { case HMx: (M!!x)=>//.
@@ -742,7 +745,13 @@ Proof using.
 
   iSplit; [|by eauto 10 using R_is_identity_outside_D].
   iExists _, _, (<[x:=Root 0 _]>M).
-  rewrite -Phi_extend 1?Nat.mul_add_distr_l; eauto; []. iCombine "TC' TC" as "$".
+  rewrite -Phi_extend 1?Nat.mul_add_distr_l; eauto; [].
+  iCombine "TC' TC" as "$".
+
+  rewrite card_disjoint_union; eauto using is_rdsf_finite, finite_single; last first.
+  { by rewrite disjoint_single_r_eq. }
+  rewrite card_single. iCombine "TR' TR" as "$".
+
   repeat iSplit; try iPureIntro.
   { applys* Inv_make. } { applys* Mem_make. }
   iApply mapsto_M_insert; [done| |by iFrame].
@@ -767,7 +776,7 @@ Lemma find_spec_inductive: forall d D R F K F' M V x,
   Mem D F K V M ->
   x \in D ->
   bw_ipc F x d F' ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ mapsto_M M ∗ TC (11*d+11) }}}
     «find #x»
   {{{ M', RET #(R x); mapsto_M M' ∗ ⌜ Mem D F' K V M' ⌝ }}}.
@@ -812,13 +821,13 @@ Qed.
    credits. It preserves [UF D R V] and returns the representative of [x]. *)
 
 Theorem find_spec : forall D R V x, x \in D ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC (22 * alpha (card D) + 44) }}}
     «find #x»
   {{{ RET #(R x); UF D R V }}}.
 Proof using.
   introv Dx. iIntros "#?" (Φ) "!# [UF TC1] HΦ".
-  iDestruct "UF" as (F K M HI HM) "[HM TC2]".
+  iDestruct "UF" as (F K M HI HM) "(HM & TC2 & TR)".
   forwards* (d&F'&HC&HP): amortized_cost_of_iterated_path_compression_simplified x.
   iCombine "TC1 TC2" as "TC".
   rewrite [TC (_ + _)](TC_weaken _ (11*Phi D F' K + (11 * d + 11))%nat); [|math].
@@ -837,7 +846,7 @@ Qed.
    credits. It preserves [UF D R V] and returns the data stored at [x]. *)
 
 Theorem get_spec : forall D R V x, x \in D ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC (22 * alpha (card D) + 57) }}}
     «get #x»
   {{{ RET V x; UF D R V }}}.
@@ -869,7 +878,7 @@ Qed.
 
 Theorem set_spec : forall D R V x v,
   x \in D ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC (22 * alpha (card D) + 62) }}}
     «set #x v»
   {{{ RET #(); UF D R (update1 V R x «v»%V) }}}.
@@ -901,7 +910,7 @@ Qed.
 
 Theorem eq_spec : forall D R V x y,
   x \in D -> y \in D ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC (44 * alpha (card D) + 92) }}}
     «eq #x #y»
   {{{ RET #(bool_decide (R x = R y)); UF D R V }}}.
@@ -936,7 +945,7 @@ Lemma link_spec : forall D R V x y,
   y \in D ->
   R x = x ->
   R y = y ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC 61 }}}
     «link #x #y»
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗
@@ -944,7 +953,7 @@ Lemma link_spec : forall D R V x y,
 Proof using.
   introv Hnmax Dx Dy Rx Ry. iIntros "#?" (Φ) "!# [UF TC] HΦ".
   wp_tick_rec. wp_tick_let.
-  iDestruct "UF" as (F K M HI HM) "[HM TC']".
+  iDestruct "UF" as (F K M HI HM) "(HM & TC'TR)".
   wp_tick_op. case_bool_decide as Hxy.
   (* Case: [x == y]. *)
   { inversion Hxy. subst. wp_tick_if. iApply "HΦ".
@@ -976,7 +985,8 @@ Proof using.
     (* V' := *) (update2 V R x y (V y))
                 x y
     (* z  := *) y.
-    iCombine "TC' TC" as "TC". iExists _, _, (<[x:=Link y]>M). iSplit; [done|].
+    iDestruct "TC'TR" as "[TC' TR]". iCombine "TC' TC" as "TC".
+    iExists _, _, (<[x:=Link y]>M). iFrame "% TR".
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x > K y]. *)
@@ -990,7 +1000,8 @@ Proof using.
     (* V' := *) (update2 V R y x (V x))
                 y x
     (* z  := *) x.
-    iCombine "TC' TC" as "TC". iExists _, _, (<[y:=Link x]>M). iSplit; [done|].
+    iDestruct "TC'TR" as "[TC' TR]". iCombine "TC' TC" as "TC".
+    iExists _, _, (<[y:=Link x]>M). iFrame "% TR".
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x = K y]. *)
@@ -1003,9 +1014,9 @@ Proof using.
     (* V' := *) (update2 V R x y (V x))
                 x y
     (* z  := *) x.
+    iAssert ⌜card D ≤ nmax⌝%I%nat as %HDnmax%Nat.log2_le_mono; [admit|]. (* FIXME : Use time receipts. *)
     assert (bool_decide (mach_int_bounded (`k1 + 1))).
-    { skip HDnmax%Nat.log2_le_mono : (card D ≤ nmax)%nat. (* FIXME : Use time receipts. *)
-      assert (log2 nmax < 2 ^ (word_size - 1))%nat.
+    { assert (log2 nmax < 2 ^ (word_size - 1))%nat.
       { destruct (decide (0 < log2 nmax)%nat); [by eapply Nat.log2_lt_pow2|].
         assert (log2 nmax = 0%nat) as -> by lia. apply power_positive. lia. }
       forwards* Hklog: rank_is_logarithmic (fupdate K x (S (K y))) x.
@@ -1023,7 +1034,8 @@ Proof using.
     { rewrite lookup_insert_ne //. congruence. }
     wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
     iApply "HΦ". iSplit; [|by auto].
-    iExists _, _, _. iSplit; [done|].
+    iDestruct "TC'TR" as "[TC' TR]".
+    iExists _, _, _. iFrame "% TR".
     iCombine "TC' TC" as "TC". rewrite TC_weaken; [iFrame "TC"|lia].
     iSplit; last iApply ("HM" with "[%] Hx").
     { iPureIntro. applys* Mem_link_incr HM. congruence. applys update2_sym. }
@@ -1048,7 +1060,7 @@ Theorem union_spec : forall D R V x y,
   (log2 (log2 nmax) < word_size - 1)%nat ->
   x \in D ->
   y \in D ->
-  TC_invariant -∗
+  TCTR_invariant nmax -∗
   {{{ UF D R V ∗ TC (44 * alpha (card D) + 152) }}}
     «union #x #y»
   {{{ z, RET #z; UF D (update2 R R x y z) (update2 V R x y (V z)) ∗

@@ -435,6 +435,7 @@ Qed.
 
 Ltac wp_tick ::=
   iStartProof ;
+  simpl_trans ;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       first

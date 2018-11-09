@@ -38,7 +38,7 @@ Section clock_int.
       trans 0. unfold min_mach_int; lia. lia. }
     iDestruct ("Post" with "[H]") as "Post".
     { iIntros "{$H} !%". lia. }
-    simpl_trans. wp_tick_op=>//.
+    wp_tick_op=>//.
     by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
   Qed.
 
@@ -79,7 +79,7 @@ Section snapclock_int.
     { apply bool_decide_pack. split; [|done].
       (* FIXME : why isn't lia able to do this directly? *)
       trans 0. unfold min_mach_int; lia. lia. }
-    simpl_trans. wp_tick_op.
+    wp_tick_op.
     { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left. }
     iApply "Post". iSplit. auto with lia.
     rewrite Z2Nat.inj_add // Nat.add_comm //.
@@ -106,7 +106,7 @@ Section snapclock_int.
       trans 0. unfold min_mach_int; lia. lia. }
     iDestruct ("Post" with "[H]") as "Post".
     { iSplit; auto with lia. }
-    simpl_trans. wp_tick_op=>//.
+    wp_tick_op=>//.
     by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
   Qed.
 
