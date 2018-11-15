@@ -295,12 +295,12 @@ End TickSpec.
 
 
 (*
- * Simulation
+ * Soundness
  *)
 
 Section Soundness.
 
-  Definition adequate_trtranslation__adequate := adequate_translation__adequate loop.
+  Definition adequate_trtranslation__nadequate := adequate_translation__nadequate loop.
 
   (* derive the adequacy of the translated program from a Hoare triple in Iris. *)
 
@@ -351,7 +351,7 @@ Section Soundness.
     iApply (Hspec with "Hinv") ; auto.
   Qed.
 
-  Theorem spec_trtranslation__adequate {Σ} nmax φ e :
+  Theorem spec_trtranslation__nadequate {Σ} nmax φ e :
     (0 < nmax)%nat →
     (∀ `{timeReceiptHeapG Σ},
       TR_invariant nmax -∗
@@ -361,11 +361,11 @@ Section Soundness.
       nadequate NotStuck (nmax-1) e σ φ.
   Proof.
     intros Inmax Hspec HpreG σ.
-    eapply adequate_trtranslation__adequate.
+    eapply adequate_trtranslation__nadequate.
     intros Hloc. by eapply spec_trtranslation__adequate_translation.
   Qed.
 
-  Theorem abstract_spec_trtranslation__adequate {Σ} nmax φ e :
+  Theorem abstract_spec_trtranslation__nadequate {Σ} nmax φ e :
     (0 < nmax)%nat →
     (∀ `{heapG Σ, Tick} (TR TRdup : nat → iProp Σ),
       TR_interface nmax TR TRdup -∗
@@ -375,7 +375,7 @@ Section Soundness.
       nadequate NotStuck (nmax-1) e σ φ.
   Proof.
     intros Inmax Hspec HpreG σ.
-    eapply spec_trtranslation__adequate; try done.
+    eapply spec_trtranslation__nadequate; try done.
     clear HpreG. iIntros (HtrHeapG) "#Hinv".
     iApply Hspec. by iApply TR_implementation.
   Qed.

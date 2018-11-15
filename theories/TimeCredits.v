@@ -380,7 +380,7 @@ Section Soundness.
     by eapply safe_tctranslation__bounded.
   Qed.
 
-  Definition adequate_tctranslation__adequate := adequate_translation__adequate fail.
+  Definition adequate_tctranslation__nadequate := adequate_translation__nadequate fail.
 
   (* now let’s combine the three results. *)
 
@@ -394,7 +394,7 @@ Section Soundness.
     assert (bounded_time e σ m) as Hbounded
       by (eapply adequate_tctranslation__bounded, Hadq ; lia).
     assert (nadequate NotStuck (m + 1) e σ φ) as Hadqm
-      by (apply adequate_tctranslation__adequate, Hadq ; lia).
+      by (apply adequate_tctranslation__nadequate, Hadq ; lia).
     clear Hadq.
     split ; last done.
     split.
@@ -408,7 +408,7 @@ Section Soundness.
 
   (* finally, derive the adequacy assumption from a Hoare triple in Iris. *)
 
-  Lemma spec_tctranslation__adequate {Σ} m ψ e :
+  Lemma spec_tctranslation__adequate_translation {Σ} m ψ e :
     (∀ `{timeCreditHeapG Σ},
       TC_invariant -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜ψ v⌝ }}}
@@ -464,7 +464,7 @@ Section Soundness.
   Proof.
     intros Hspec HpreG σ.
     apply adequate_tctranslation__adequate_and_bounded.
-    intros k Ik Hloc. by eapply spec_tctranslation__adequate.
+    intros k Ik Hloc. by eapply spec_tctranslation__adequate_translation.
   Qed.
 
   (* The abstract version of the theorem: *)

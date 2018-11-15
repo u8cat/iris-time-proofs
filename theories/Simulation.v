@@ -404,7 +404,7 @@ Section SimulationLemma.
   (* assuming the safety of the translated expression,
    * a proof that the original expression is m-safe. *)
 
-  Lemma safe_translation__safe_here m e σ :
+  Lemma safe_translation__nsafe_here m e σ :
     loc_fresh_in_expr ℓ e →
     (m > 0)%nat →
     safe «e» S«σ, m» →
@@ -468,7 +468,7 @@ Section SimulationLemma.
         (* — or «ki»[«v»] reduces to something: this is precisely what we need. *)
         * exact Hred.
   Qed.
-  Lemma safe_translation__safe m n e σ t2 σ2 e2 :
+  Lemma safe_translation__nsafe m n e σ t2 σ2 e2 :
     loc_fresh_in_expr ℓ e2 →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
@@ -486,7 +486,7 @@ Section SimulationLemma.
       - change [«e»] with T«[e]». apply simulation_exec_success' ; [ assumption | lia | assumption ].
     }
     assert (m - n > 0)%nat by lia.
-    by eapply safe_translation__safe_here.
+    by eapply safe_translation__nsafe_here.
   Qed.
 
   (* assuming the adequacy of the translated expression,
@@ -494,7 +494,7 @@ Section SimulationLemma.
 
   (* FIXME : this is a weaker result than the adequacy result of Iris,
      where the predicate can also speak about the final state. *)
-  Lemma adequate_translation__adequate_result m n φ e σ t2 σ2 v2 :
+  Lemma adequate_translation__nadequate_result m n φ e σ t2 σ2 v2 :
     σ2 !! ℓ = None →
     adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
     nsteps erased_step n ([e], σ) (Val v2 :: t2, σ2) →
@@ -515,7 +515,7 @@ End SimulationLemma. (* we close the section here as we now want to quantify ove
 
 (* now let’s combine the two results. *)
 
-Lemma adequate_translation__adequate m φ e σ :
+Lemma adequate_translation__nadequate m φ e σ :
   (∀ {Hloc : TickCounter}, adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v))) →
   nadequate NotStuck m e σ φ.
 Proof.
@@ -527,7 +527,7 @@ Proof.
     pose (Hloc := Build_TickCounter (fresh (dom (gset loc) σ2)) : TickCounter).
     assert (σ2 !! ℓ = None)
       by (simpl ; eapply not_elem_of_dom, is_fresh).
-    by eapply adequate_translation__adequate_result.
+    by eapply adequate_translation__nadequate_result.
   (* (2) safety: *)
   - intros n t2 σ2 e2 _ Hnsteps Inm He2.
     (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
@@ -541,7 +541,7 @@ Proof.
     assert (σ2 !! ℓ = None)
       by by (simpl ; eapply not_elem_of_dom).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
-    by eapply safe_translation__safe.
+    by eapply safe_translation__nsafe.
 Qed.
 
 End Simulation.

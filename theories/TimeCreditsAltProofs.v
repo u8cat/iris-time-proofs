@@ -35,7 +35,7 @@ Local Notation ℓ := tick_counter.
  *     if the Hoare triple  { TC m } «e» { φ }  holds,
  *     then FOR ALL m' ≥ m,
  *       the translated program with the counter initialized to m' is safe.
- * This is lemma [<spec_tctranslation__adequate_tctranslation>] in `TimeCredits.v`.
+ * This is lemma [spec_tctranslation__adequate_translation] in `TimeCredits.v`.
  *
  * Hence from the Hoare triple we can deduce that the source program
  *   (1)  computes in at most m steps (by taking m' = m), and
