@@ -1014,7 +1014,11 @@ Proof using.
     (* V' := *) (update2 V R x y (V x))
                 x y
     (* z  := *) x.
-    iAssert ⌜card D ≤ nmax⌝%I%nat as %HDnmax%Nat.log2_le_mono; [admit|]. (* FIXME : Use time receipts. *)
+    iDestruct "TC'TR" as "[TC' TR]".
+    iMod (TR_lt_nmax with "[//] TR") as "[TR %]" ; first done.
+    iCombine "TC' TR" as "TC'TR".
+    iAssert (⌜card D ≤ nmax⌝)%I%nat as %HDnmax%Nat.log2_le_mono.
+    { auto with lia. }
     assert (bool_decide (mach_int_bounded (`k1 + 1))).
     { assert (log2 nmax < 2 ^ (word_size - 1))%nat.
       { destruct (decide (0 < log2 nmax)%nat); [by eapply Nat.log2_lt_pow2|].
