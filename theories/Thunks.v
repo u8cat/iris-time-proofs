@@ -41,7 +41,6 @@ Section Thunk.
         ∨ (∃ (v : val),
               t ↦ EVALUATEDV « v »
             ∗ φ v
-            ∗ ⌜(nc ≤ ac)%nat⌝
           )
         )
   )%I.
@@ -123,7 +122,7 @@ Section Thunk.
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
       iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
       [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
-      | iDestruct "Hevaluated" as (v) "(>Ht & Hv & >%)" ].
+      | iDestruct "Hevaluated" as (v) "(>Ht & Hv)" ].
     (* (1) if it is UNEVALUATED, we evaluate it: *)
     {
       wp_tick_load. wp_tick_match.
@@ -157,7 +156,7 @@ Section Thunk.
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
       iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
       [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
-      | iDestruct "Hevaluated" as (v) "(>Ht & Hv & >%)" ].
+      | iDestruct "Hevaluated" as (v) "(>Ht & Hv)" ].
     (* (1) if it is UNEVALUATED, then we add the time credits to the deposit: *)
     {
       iAssert (TC (ac + k)) with "[Htc Htc_k]" as "Htc" ;
@@ -176,7 +175,6 @@ Section Thunk.
     {
       iDestruct (auth_mnat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ; 
         iClear "Hγ◯".
-      assert (nc ≤ ac + k)%nat by lia.
       iMod ("Hclose" with "[-Hγ◯']") as "$". {
         iFrame "Hp".
         iNext. iExists (ac+k)%nat. auto with iFrame.
