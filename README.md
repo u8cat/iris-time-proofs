@@ -48,7 +48,6 @@ More info on the Coq development of Iris: [there][coq-iris].
 The TLC library is required by the proof of the union-find algorithm. It is
 available through an opam package in the Coq repository (added earlier).
 
-    opam install coq-tlc
     opam pin add coq-tlc -k version 20180316
 
 ## Compiling
