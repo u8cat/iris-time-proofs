@@ -42,7 +42,7 @@ Definition mach_int :=
   {n : Z | bool_decide (mach_int_bounded n) }%Z.
 
 Definition to_mach_int (n : Z) : option mach_int :=
-  match decide _ with
+  match decide (bool_decide (mach_int_bounded n)) with
   | left H => Some (n ↾ H)
   | right _ => None
   end.
