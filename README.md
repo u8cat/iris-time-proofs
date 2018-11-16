@@ -5,18 +5,23 @@ The project is known to compile with:
  *  coq-iris dev.2018-11-01.3.19aae59a (development version of Iris)
  *  coq-tlc 20181116 (for the proof of union-find)
 
+As those dependencies (especially Iris) often make breaking changes,
+compatibility with other versions is not guaranteed.
+
 ### Step 1: Install opam
 
 _If opam is not already installed:_ See instructions [there][install-opam] to
 install it; then:
 
     opam init --comp=4.06.1
+    eval $(opam config env)
 
 (This will create a `~/.opam` directory.)
 
 _If opam is already installed:_ Create a new switch for the project:
 
     opam switch -A 4.06.1 iris-time-proofs
+    eval $(opam config env)
 
 ### Step 2: Install Coq
 
@@ -30,9 +35,6 @@ it as well:
     opam install coqide.8.7.2
 
 ### Step 3: Install a development version of Iris
-
-Do _not_ install the latest development version, as this project does not
-support it.
 
     opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
     opam update
@@ -49,6 +51,12 @@ The TLC library is required by the proof of the union-find algorithm. It is
 available through an opam package in the Coq repository (added earlier).
 
     opam pin add coq-tlc -k version 20181116
+
+Alternatively, TLC can be installed from source:
+
+    git clone 'https://gitlab.inria.fr/charguer/tlc'
+    ( cd tlc && git checkout a7c9f61 )
+    opam pin add coq-tlc -k path ./tlc
 
 ## Compiling
 
