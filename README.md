@@ -54,7 +54,7 @@ available through an opam package in the Coq repository (added earlier).
 
 To compile the Coq scripts:
 
-    make
+    make -j4
 
 The first time (and each time `_CoqProject` is updated), it also creates the
 file `Makefile.coq`.
