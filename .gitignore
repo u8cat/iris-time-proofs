@@ -5,6 +5,7 @@ Makefile.coq
 *.glob
 *.vo
 *.vio
+.coqdeps.d
 .lia.cache
 *.tar.gz
 *.sw[po]
