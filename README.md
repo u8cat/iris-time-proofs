@@ -109,7 +109,7 @@ Important modules are highlighted.
  *  __`union_find/` directory: application of the combined system to a
     union-find program__
 
-### From ESOP paper to the Coq code
+### From ESOP paper to Coq proofs
 
 #### Generic translation and “tick”
 
@@ -152,7 +152,7 @@ In `TimeReceipts.v`:
  *  Theorem 2 (“Soundness of Iris^⧗ ”) is
     `abstract_spec_trtranslation__adequate`.
 
-### Marrying time credits and time receipts
+#### Marrying time credits and time receipts
 
 In `Combined.v`:
 
