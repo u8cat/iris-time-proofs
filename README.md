@@ -20,7 +20,8 @@ install it; then:
 
 _If opam is already installed:_ Create a new switch for the project:
 
-    opam switch -A 4.06.1 iris-time-proofs
+    opam switch iris-time-proofs --alias-of 4.06.1 # for opam 1.x
+    opam switch create iris-time-proofs 4.06.1     # for opam 2.x
     eval $(opam config env)
 
 ### Step 2: Install Coq
