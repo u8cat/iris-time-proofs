@@ -1,7 +1,7 @@
 ## Requirements
 
 The project is known to compile with:
- *  Coq 8.8.1
+ *  Coq 8.8.2
  *  coq-iris dev.2018-11-01.3.19aae59a (development version of Iris)
  *  coq-tlc 20181116 (for the proof of union-find)
 
@@ -28,12 +28,12 @@ _If opam is already installed:_ Create a new switch for the project:
 
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
-    opam install -j4 -v coq.8.8.1
+    opam install -j4 -v coq.8.8.2
 
 If you want to use CoqIDE (a graphical, interactive toplevel for Coq), install
 it as well:
 
-    opam install coqide.8.8.1
+    opam install coqide.8.8.2
 
 ### Step 3: Install a development version of Iris
 
