@@ -33,6 +33,7 @@ _If opam is already installed:_ Create a new switch for the project:
 If you want to use CoqIDE (a graphical, interactive toplevel for Coq), install
 it as well:
 
+    # NOTE: this version of CoqIDE is only available if using opam 2.x
     opam install coqide.8.8.2
 
 ### Step 3: Install a development version of Iris
