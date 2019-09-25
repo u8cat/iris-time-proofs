@@ -9,5 +9,11 @@ Makefile.coq
 .lia.cache
 *.tar.gz
 *.sw[po]
-\#*.v#
 _opam
+\#*\#
+.\#*
+*~
+*.bak
+.coq-native/
+build-dep/
+*.crashcoqide

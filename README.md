@@ -36,29 +36,10 @@ it as well:
     # NOTE: this version of CoqIDE is only available if using opam 2.x
     opam install coqide.8.9.1
 
-### Step 3: Install a development version of Iris
+### Step 3: Install Iris and TLC at the required versions
 
     opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
-    opam update
-    opam pin add coq-iris -k version dev.2019-09-20.0.b958d569
-
-(This will also install `coq-stdpp`, another Coq library made available through
-the same repo.)
-
-More info on the Coq development of Iris: [there][coq-iris].
-
-### Step 4: Install TLC
-
-The TLC library is required by the proof of the union-find algorithm. It is
-available through an opam package in the Coq repository (added earlier).
-
-    opam pin add coq-tlc -k version 20181116
-
-Alternatively, TLC can be installed from source:
-
-    git clone 'https://gitlab.inria.fr/charguer/tlc'
-    ( cd tlc && git checkout 4d7f23ce )
-    opam pin add coq-tlc -k path ./tlc
+    make build-dep
 
 ## Compiling
 
@@ -67,7 +48,7 @@ To compile the Coq scripts:
     make -j4
 
 The first time (and each time `_CoqProject` is updated), it also creates the
-file `Makefile.coq`.
+files `Makefile.coq` and `Makefile.coq.conf`.
 
 Other recipes are available, such as `all`, `clean` and `userinstall` (Makefile
 taken from [here][coqproject]).
