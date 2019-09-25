@@ -1,9 +1,9 @@
-From iris Require Export  algebra.auth  base_logic.lib.own  proofmode.tactics.
+From iris Require Export  algebra.auth  algebra.excl  base_logic.lib.own  proofmode.tactics.
 
 
 
-Notation "'●mnat' n" := (Auth (A:=mnat) (Excl' n%nat) ε) (at level 20).
-Notation "'◯mnat' n" := (Auth (A:=mnat) None n%nat) (at level 20).
+Notation "'●mnat' n" := (auth_auth (A:=mnatUR) 1%Qp n%nat) (at level 20).
+Notation "'◯mnat' n" := (auth_frag (A:=mnatUR) n%nat) (at level 20).
 
 Section Auth_mnat.
 
@@ -12,7 +12,9 @@ Section Auth_mnat.
   Lemma auth_mnat_alloc (n : mnat) :
     (|==> ∃ γ, own γ (●mnat n) ∗ own γ (◯mnat n))%I.
   Proof.
-    by iMod (own_alloc (●mnat n ⋅ ◯mnat n)) as (γ) "[? ?]" ; auto with iFrame.
+    iMod (own_alloc (●mnat n ⋅ ◯mnat n)) as (γ) "[? ?]".
+    - by apply auth_both_valid_2.
+    - by auto with iFrame.
   Qed.
   Global Arguments auth_mnat_alloc _%nat.
 
@@ -22,7 +24,7 @@ Section Auth_mnat.
     ⌜(n ≤ m)%nat⌝.
   Proof.
     iIntros "H● H◯".
-    iDestruct (own_valid_2 with "H● H◯") as % [[k ->] _] % auth_valid_discrete_2.
+    iDestruct (own_valid_2 with "H● H◯") as % [[k ->] _] % auth_both_valid.
     iPureIntro. apply Max.le_max_l.
   Qed.
 

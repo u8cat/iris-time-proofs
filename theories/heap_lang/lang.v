@@ -365,8 +365,8 @@ Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
-Canonical Structure valC := leibnizC val.
-Canonical Structure exprC := leibnizC expr.
+Canonical Structure valC := leibnizO val.
+Canonical Structure exprC := leibnizO expr.
 
 (** Evaluation contexts *)
 Inductive ectx_item :=

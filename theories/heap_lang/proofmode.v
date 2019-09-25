@@ -225,7 +225,7 @@ End heap.
 
 Tactic Notation "wp_apply" open_constr(lem) :=
   wp_pures;
-  iPoseProofCore lem as false true (fun H =>
+  iPoseProofCore lem as false (fun H =>
     lazymatch goal with
     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       reshape_expr false e ltac:(fun K e' =>

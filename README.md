@@ -1,8 +1,8 @@
 ## Requirements
 
 The project is known to compile with:
- *  Coq 8.8.2
- *  coq-iris dev.2018-11-01.3.19aae59a (development version of Iris)
+ *  Coq 8.9.1
+ *  coq-iris dev.2019-09-20.0.b958d569 (development version of Iris)
  *  coq-tlc 20181116 (for the proof of union-find)
 
 As those dependencies (especially Iris) often make breaking changes,
@@ -28,19 +28,19 @@ _If opam is already installed:_ Create a new switch for the project:
 
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
-    opam install -j4 -v coq.8.8.2
+    opam install -j4 -v coq.8.9.1
 
 If you want to use CoqIDE (a graphical, interactive toplevel for Coq), install
 it as well:
 
     # NOTE: this version of CoqIDE is only available if using opam 2.x
-    opam install coqide.8.8.2
+    opam install coqide.8.9.1
 
 ### Step 3: Install a development version of Iris
 
     opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
     opam update
-    opam pin add coq-iris -k version dev.2018-11-01.3.19aae59a
+    opam pin add coq-iris -k version dev.2019-09-20.0.b958d569
 
 (This will also install `coq-stdpp`, another Coq library made available through
 the same repo.)
@@ -57,7 +57,7 @@ available through an opam package in the Coq repository (added earlier).
 Alternatively, TLC can be installed from source:
 
     git clone 'https://gitlab.inria.fr/charguer/tlc'
-    ( cd tlc && git checkout a7c9f61 )
+    ( cd tlc && git checkout 4d7f23ce )
     opam pin add coq-tlc -k path ./tlc
 
 ## Compiling

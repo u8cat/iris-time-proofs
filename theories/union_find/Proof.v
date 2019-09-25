@@ -803,7 +803,7 @@ Proof using.
     assert (z' = R y). { symmetry. eapply is_repr_incl_R; eauto. } subst z'.
     forwards IH' : IH HI HM HB'; [math|done|].
     iCombine "TCd TC" as "TC".
-    math_rewrite (11 * S d' + 6 = 11 * d' + 11 + 6)%nat.
+    math_rewrite (11 * S d' + 6 = 11 * d' + 11 + 6)%nat ; first by lia.
     iDestruct "TC" as "[TCd TC]".
     wp_apply (IH' with "[//] [$HM $TCd]").
     iIntros (M') "[HM' hM']". iDestruct "hM'" as %HM'. wp_tick_let.
@@ -830,7 +830,7 @@ Proof using.
   iDestruct "UF" as (F K M HI HM) "(HM & TC2 & TR)".
   forwards* (d&F'&HC&HP): amortized_cost_of_iterated_path_compression_simplified x.
   iCombine "TC1 TC2" as "TC".
-  rewrite [TC (_ + _)](TC_weaken _ (11*Phi D F' K + (11 * d + 11))%nat); [|math].
+  rewrite [TC (_ + _)](TC_weaken _ (11*Phi D F' K + (11 * d + 11))%nat); [|lia].
   iDestruct "TC" as "[TC1 TC2]".
   iApply (find_spec_inductive with "[//] [$TC2 $HM]")=>//.
   iIntros "!>" (M') "[HM' %]". iApply "HΦ".
@@ -852,7 +852,8 @@ Theorem get_spec : forall D R V x, x \in D ->
   {{{ RET V x; UF D R V }}}.
 Proof using.
   introv Dx. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  math_rewrite (22 * alpha (card D) + 57 = 22 * alpha (card D) + 44 + 13)%nat.
+  math_rewrite (22 * alpha (card D) + 57 = 22 * alpha (card D) + 44 + 13)%nat ;
+    first by lia.
   iDestruct "TC" as "[TC1 TC2]".
   wp_tick_rec.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
@@ -884,7 +885,8 @@ Theorem set_spec : forall D R V x v,
   {{{ RET #(); UF D R (update1 V R x «v»%V) }}}.
 Proof using.
   introv Dx. iIntros "#?" (Φ) "!# [UF TC] HΦ".
-  math_rewrite (22 * alpha (card D) + 62 = 22 * alpha (card D) + 44 + 18)%nat.
+  math_rewrite (22 * alpha (card D) + 62 = 22 * alpha (card D) + 44 + 18)%nat ;
+    first by lia.
   iDestruct "TC" as "[TC1 TC2]".
   wp_tick_rec. wp_tick_let. wp_apply (find_spec with "[//] [$TC1 $UF]")=>//.
   iIntros "UF". wp_tick_let. iDestruct "UF" as (F K M HI HM) "[HM TC]".
@@ -917,7 +919,8 @@ Theorem eq_spec : forall D R V x y,
 Proof using.
   introv Dx Dy. iIntros "#?" (Φ) "!# [UF TC] HΦ".
   math_rewrite (44 * alpha (card D) + 92 =
-                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 4)%nat.
+                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 4)%nat ;
+    first by lia.
   iDestruct "TC" as "[[TC1 TC2] TC3]".
   wp_tick_rec. wp_tick_let.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//. iIntros "UF".
@@ -1072,7 +1075,8 @@ Theorem union_spec : forall D R V x y,
 Proof using.
   introv Hnmax Dx Dy.
   math_rewrite (44 * alpha (card D) + 152 =
-                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 61 + 3)%nat.
+                (22 * alpha (card D) + 44) + (22 * alpha (card D) + 44) + 61 + 3)%nat ;
+    first by lia.
   iIntros "#?" (Φ) "!# [UF [[[TC1 TC2] TC3] TC4]] HΦ".
   wp_tick_rec. wp_tick_let.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//. iIntros "UF".

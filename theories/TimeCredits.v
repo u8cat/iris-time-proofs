@@ -425,7 +425,7 @@ Section Soundness.
     iMod (own_alloc (● to_gen_heap (<[ℓ := #k]> σ') ⋅ ◯ to_gen_heap {[ℓ := #k]}))
       as (h) "[Hh● Hℓ◯]".
     {
-      apply auth_valid_discrete_2 ; split.
+      apply auth_both_valid ; split.
       - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
         unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
         exists (to_gen_heap σ'').
@@ -433,10 +433,13 @@ Section Soundness.
         rewrite lookup_fmap ; apply fmap_None, lookup_delete.
       - apply to_gen_heap_valid.
     }
+    (* allocate the meta-heap: *)
+    iMod (own_alloc (● to_gen_meta ∅)) as (γmeta) "H" ;
+      first by apply auth_auth_valid, to_gen_meta_valid.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc k) as (γ) "[Hγ● Hγ◯]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ γ)
+    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ γ)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
@@ -449,9 +452,10 @@ Section Soundness.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_ctx σ). iFrame "Hh●".
-    iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
-    iApply (Hspec with "Hinv Hγ◯") ; auto.
+    iExists (λ σ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●".
+    - iExists ∅. auto with iFrame.
+    - iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
+      iApply (Hspec with "Hinv Hγ◯") ; auto.
   Qed.
 
   Theorem spec_tctranslation__adequate_and_bounded {Σ} m φ e :
@@ -529,7 +533,7 @@ Section Tactics.
     envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
   Proof.
     rewrite envs_entails_eq => HsubsetE ???? Hentails''.
-    rewrite envs_lookup_persistent_sound // intuitionistically_elim. apply wand_elim_r'.
+    rewrite envs_lookup_intuitionistic_sound // intuitionistically_elim. apply wand_elim_r'.
     rewrite -wp_bind.
     eapply wand_apply ; first by (iIntros "HTC1 HΦ #Htick" ; iApply (tick_spec with "Htick HTC1 HΦ")).
     rewrite into_laterN_env_sound -later_sep /=. apply later_mono.

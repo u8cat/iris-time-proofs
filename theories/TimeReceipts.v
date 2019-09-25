@@ -34,7 +34,7 @@ Definition TR_interface `{irisG heap_lang Σ, Tick}
   ∗ (|={⊤}=> TR 0%nat)
 (*   ∗ (|={⊤}=> TRdup 0%nat) *)
   ∗ ⌜∀ m n, TR (m + n)%nat ≡ (TR m ∗ TR n)⌝
-  ∗ ⌜∀ m n, TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)⌝
+  ∗ ⌜∀ m n, TRdup (m `max` n)%nat ≡ (TRdup m ∗ TRdup n)⌝
 (*   ∗ (TR nmax ={⊤}=∗ False) *)
   ∗ (TRdup nmax ={⊤}=∗ False)
   ∗ (∀ v n, {{{ TRdup n }}} tick v {{{ RET v ; TR 1%nat ∗ TRdup (n+1)%nat }}})
@@ -206,7 +206,7 @@ Section TickSpec.
     iDestruct (own_auth_nat_le with "Hγ1● Hγ1◯") as %In.
     iDestruct (auth_mnat_update_read_auth with "Hγ2●") as ">[Hγ2● Hγ2◯]".
     iAssert (TR n ∗ TRdup n)%I with "[$Hγ1◯ Hγ2◯]" as "$". {
-      rewrite (_ : m = m `max` n) ; last lia.
+      rewrite (_ : m = m `max` n)%nat ; last lia.
       iDestruct "Hγ2◯" as "[_ $]".
     }
     iApply "InvClose". auto with iFrame.
@@ -322,7 +322,7 @@ Section Soundness.
     iMod (own_alloc (● to_gen_heap (<[ℓ := #(nmax-1)%nat]> σ') ⋅ ◯ to_gen_heap {[ℓ := #(nmax-1)%nat]}))
       as (h) "[Hh● Hℓ◯]".
     {
-      apply auth_valid_discrete_2 ; split.
+      apply auth_both_valid ; split.
       - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
         unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
         exists (to_gen_heap σ'').
@@ -330,11 +330,14 @@ Section Soundness.
         rewrite lookup_fmap ; apply fmap_None, lookup_delete.
       - apply to_gen_heap_valid.
     }
+    (* allocate the meta-heap: *)
+    iMod (own_alloc (● to_gen_meta ∅)) as (γmeta) "H" ;
+      first by apply auth_auth_valid, to_gen_meta_valid.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_mnat_alloc 0) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time receipts: *)
-    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ _ γ1 γ2)
+    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ _ γ1 γ2)
       as HtrHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TR_invariant nmax)%I with "[Hℓ◯ Hγ1● Hγ2●]" as "> Hinv".
@@ -347,8 +350,9 @@ Section Soundness.
     }
     iModIntro.
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_ctx σ). iFrame "Hh●".
-    iApply (Hspec with "Hinv") ; auto.
+    iExists (λ σ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●".
+    - iExists ∅. auto with iFrame.
+    - iApply (Hspec with "Hinv") ; auto.
   Qed.
 
   Theorem spec_trtranslation__nadequate {Σ} nmax φ e :

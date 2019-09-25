@@ -20,6 +20,6 @@ Proof.
   intros Hwp; eapply (wp_adequacy _ _); iIntros (??) "".
   iMod (gen_heap_init σ) as (?) "Hh".
   iModIntro.
-  iExists (λ σ κs, (gen_heap_ctx σ)%I). iFrame.
+  iExists (λ σ κs, (gen_heap_ctx σ)%I), (λ _, True%I). iFrame.
   iApply (Hwp (HeapG _ _ _)).
 Qed.

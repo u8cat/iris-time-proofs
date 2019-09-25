@@ -2,8 +2,8 @@ From iris Require Export  algebra.auth  base_logic.lib.own  proofmode.tactics.
 
 
 
-Notation "'●nat' n"  := (Auth (A:=nat)  (Excl' n%nat) ε) (at level 20).
-Notation "'◯nat' n"  := (Auth (A:=nat)  None n%nat) (at level 20).
+Notation "'●nat' n"  := (auth_auth (A:=natUR)  1%Qp n%nat) (at level 20).
+Notation "'◯nat' n"  := (auth_frag (A:=natUR)  n%nat) (at level 20).
 
 Section Auth_nat.
 
@@ -12,7 +12,9 @@ Section Auth_nat.
   Lemma auth_nat_alloc (n : nat) :
     (|==> ∃ γ, own γ (●nat n) ∗ own γ (◯nat n))%I.
   Proof.
-    by iMod (own_alloc (●nat n ⋅ ◯nat n)) as (γ) "[? ?]" ; auto with iFrame.
+    iMod (own_alloc (●nat n ⋅ ◯nat n)) as (γ) "[? ?]".
+    - by apply auth_both_valid_2.
+    - by auto with iFrame.
   Qed.
 
   Lemma own_auth_nat_le (γ : gname) (m n : nat) :
@@ -22,7 +24,7 @@ Section Auth_nat.
   Proof.
     iIntros "H● H◯".
     by iDestruct (own_valid_2 with "H● H◯")
-      as % [?%nat_le_sum _] % auth_valid_discrete_2.
+      as % [?%nat_le_sum _] % auth_both_valid.
   Qed.
 
   Lemma own_auth_nat_weaken (γ : gname) (n₁ n₂ : nat) :

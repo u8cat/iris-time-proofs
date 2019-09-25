@@ -1,10 +1,9 @@
-From iris_time.heap_lang Require Import proofmode notation adequacy lang.
+From iris.proofmode Require Import coq_tactics.
 From iris.base_logic Require Import invariants.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 
 From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
 From iris_time Require Export Translation Simulation.
-
-From iris.proofmode Require Import coq_tactics.
 
 Implicit Type e : expr.
 Implicit Type v : val.
@@ -39,7 +38,7 @@ Definition TCTR_interface `{irisG heap_lang Σ, Tick}
   ∗ (|={⊤}=> TR 0%nat)
 (*   ∗ (|={⊤}=> TRdup 0%nat) *)
   ∗ ⌜∀ m n, TR (m + n)%nat ≡ (TR m ∗ TR n)⌝
-  ∗ ⌜∀ m n, TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)⌝
+  ∗ ⌜∀ m n, TRdup (m `max` n)%nat ≡ (TRdup m ∗ TRdup n)⌝
 (*   ∗ (TR max_tr ={⊤}=∗ False) *)
   ∗ (TRdup max_tr ={⊤}=∗ False)
   ∗ (∀ v n, {{{ TC 1%nat ∗ TRdup n }}} tick v {{{ RET v ; TR 1%nat ∗ TRdup (n+1)%nat }}})
@@ -284,7 +283,7 @@ Section Definitions.
     iDestruct (own_auth_nat_le with "Hγ1● Hγ1◯") as %I'.
     iDestruct (auth_mnat_update_read_auth with "Hγ2●") as ">[Hγ2● Hγ2◯]".
     iAssert (TR n ∗ TRdup n)%I with "[$Hγ1◯ Hγ2◯]" as "$". {
-      rewrite (_ : (max_tr-1-m)%nat = (max_tr-1-m)%nat `max` n) ; last lia.
+      rewrite (_ : (max_tr-1-m) = (max_tr-1-m) `max` n)%nat ; last lia.
       iDestruct "Hγ2◯" as "[_ $]".
     }
     iApply "InvClose". auto with iFrame.
@@ -581,7 +580,7 @@ Section Simulation.
   Qed.
 
   Local Lemma simulation_exec_failure_now n t1 σ1 t2 σ2 :
-    nsteps erased_step (S n) (t1, σ1) (t2, σ2) →
+    relations.nsteps erased_step (S n) (t1, σ1) (t2, σ2) →
     ∃ e1, e1 ∈ t1 ∧
     ¬ safe «e1» S«σ1, 0».
   Proof.
@@ -594,7 +593,7 @@ Section Simulation.
 
   Lemma simulation_exec_failure m n e1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    nsteps erased_step (m + S n) ([e1], σ1) (t2, σ2) →
+    relations.nsteps erased_step (m + S n) ([e1], σ1) (t2, σ2) →
     ¬ safe «e1» S«σ1, m».
   Proof.
     intros Hℓ Hnsteps.
@@ -642,7 +641,7 @@ Section Soundness.
     useTC = true →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
-    nsteps erased_step n ([e], σ) (t2, σ2) →
+    relations.nsteps erased_step n ([e], σ) (t2, σ2) →
     (n ≤ m)%nat.
   Proof.
     intros HuseTC Hfresh Hsafe Hnsteps.
@@ -836,7 +835,7 @@ Section Soundness.
     iMod (own_alloc (● to_gen_heap (<[ℓ := #M]> σ') ⋅ ◯ to_gen_heap {[ℓ := #M]}))
       as (h) "[Hh● Hℓ◯]".
     {
-      apply auth_valid_discrete_2 ; split.
+      apply auth_both_valid ; split.
       - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
         unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
         exists (to_gen_heap σ'').
@@ -844,6 +843,9 @@ Section Soundness.
         rewrite lookup_fmap ; apply fmap_None, lookup_delete.
       - apply to_gen_heap_valid.
     }
+    (* allocate the meta-heap: *)
+    iMod (own_alloc (● to_gen_meta ∅)) as (γmeta) "H" ;
+      first by apply auth_auth_valid, to_gen_meta_valid.
     (* allocate the ghost state associated with ℓ: *)
     iAssert (|==> ∃ γ,
         (if useTC then own γ (● M) else True)
@@ -859,7 +861,7 @@ Section Soundness.
     iMod (auth_nat_alloc (max_tr-1-M)) as (γ1) "[Hγ1● _]".
     iMod (auth_mnat_alloc (max_tr-1-M)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_tctrHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ h)) _ _ _ _ γ γ1 γ2 _)
+    pose (Build_tctrHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ _ _ γ γ1 γ2 _)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TCTR_invariant max_tr)%I with "[Hℓ◯ Hγ● Hγ1● Hγ2●]" as "> Hinv".
@@ -872,8 +874,9 @@ Section Soundness.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_ctx σ). iFrame "Hh●".
-    iApply (Hspec $ HtcHeapG with "Hinv Hγ◯") ; auto.
+    iExists (λ σ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●".
+    - iExists ∅. auto with iFrame.
+    - iApply (Hspec $ HtcHeapG with "Hinv Hγ◯") ; auto.
   Qed.
 
   (* the final soundness theorem. *) 
