@@ -8,7 +8,7 @@ dev-repo: "https://gitlab.inria.fr/gmevel/iris-time-proofs.git"
 homepage: "https://gitlab.inria.fr/gmevel/iris-time-proofs"
 build: [make "-j%{jobs}%"]
 install: [make "install"]
-remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/" ]
+remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/iris_time" ]
 depends: [
   "coq-iris" { (= "dev.2019-09-20.0.b958d569") | (= "dev") }
   "coq-tlc" { (= "20181116") | (= "dev") }
