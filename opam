@@ -5,6 +5,7 @@ authors: "Glen Mével, Jacques-Henri Jourdan, François Pottier, Arthur Chargué
 synopsis: "Iris with time credits and time credits"
 bug-reports: "https://gitlab.inria.fr/gmevel/iris-time-proofs/issues"
 dev-repo: "https://gitlab.inria.fr/gmevel/iris-time-proofs.git"
+homepage: "https://gitlab.inria.fr/gmevel/iris-time-proofs"
 build: [make "-j%{jobs}%"]
 install: [make "install"]
 remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/" ]
