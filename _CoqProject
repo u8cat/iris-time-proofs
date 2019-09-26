@@ -11,9 +11,9 @@ theories/heap_lang/lib/assert.v
 
 theories/Auth_mnat.v
 theories/Auth_nat.v
+theories/Base.v
 theories/ClockIntegers.v
 theories/Examples.v
-theories/Misc.v
 theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v

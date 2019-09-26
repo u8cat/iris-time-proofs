@@ -1,9 +1,8 @@
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import coq_tactics.
-
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
-From iris_time Require Import Auth_nat Auth_mnat Misc Reduction Tactics.
-From iris_time Require Export Translation Simulation.
+From iris_time Require Import Auth_nat Auth_mnat Reduction Tactics.
+From iris_time Require Export Simulation.
 
 Implicit Type e : expr.
 Implicit Type v : val.

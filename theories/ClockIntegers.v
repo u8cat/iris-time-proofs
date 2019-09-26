@@ -1,6 +1,6 @@
+From stdpp Require Import numbers.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeReceipts.
-From stdpp Require Import numbers.
 
 Open Scope Z_scope.
 

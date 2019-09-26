@@ -1,7 +1,7 @@
 (* code taken from the Iris tutorial… *)
 
-From iris_time.heap_lang Require Import proofmode notation.
 From iris.program_logic Require Import adequacy.
+From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Reduction.
 
 (** A function that sums all elements of a list, defined as a heap-lang value: *)

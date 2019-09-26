@@ -1,4 +1,5 @@
-From iris Require Export  algebra.auth  algebra.excl  base_logic.lib.own  proofmode.tactics.
+From iris Require Export  algebra.auth.
+From iris Require Import  algebra.excl  base_logic.lib.own  proofmode.tactics.
 
 
 

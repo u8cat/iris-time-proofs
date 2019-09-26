@@ -1,6 +1,5 @@
-From iris_time.heap_lang Require Import notation proofmode.
 From iris.program_logic Require Import adequacy.
-
+From iris_time.heap_lang Require Import notation proofmode.
 From iris_time Require Import Misc Reduction Tactics.
 From iris_time Require Export Translation.
 
@@ -261,7 +260,7 @@ Section SimulationLemma.
 
   Lemma simulation_exec_success m n t1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    nsteps erased_step m (t1, σ1) (t2, σ2) →
+    relations.nsteps erased_step m (t1, σ1) (t2, σ2) →
     rtc erased_step (T«t1», S«σ1, m+n») (T«t2», S«σ2, n»).
   Proof.
     make_eq (t1, σ1) as config1 E1.
@@ -283,7 +282,7 @@ Section SimulationLemma.
   Lemma simulation_exec_success' m n t1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
     (m ≤ n)%nat →
-    nsteps erased_step m (t1, σ1) (t2, σ2) →
+    relations.nsteps erased_step m (t1, σ1) (t2, σ2) →
     rtc erased_step (T«t1», S«σ1, n») (T«t2», S«σ2, n-m»).
   Proof.
     intros Hℓ I.
@@ -472,7 +471,7 @@ Section SimulationLemma.
     loc_fresh_in_expr ℓ e2 →
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
-    nsteps erased_step n ([e], σ) (t2, σ2) →
+    relations.nsteps erased_step n ([e], σ) (t2, σ2) →
     (n < m)%nat →
     e2 ∈ t2 →
     is_Some (to_val e2) ∨ reducible e2 σ2.
@@ -497,7 +496,7 @@ Section SimulationLemma.
   Lemma adequate_translation__nadequate_result m n φ e σ t2 σ2 v2 :
     σ2 !! ℓ = None →
     adequate NotStuck «e» S«σ, m» (λ v σ, φ (invtranslationV v)) →
-    nsteps erased_step n ([e], σ) (Val v2 :: t2, σ2) →
+    relations.nsteps erased_step n ([e], σ) (Val v2 :: t2, σ2) →
     (n ≤ m)%nat →
     φ v2.
   Proof.

@@ -1,6 +1,5 @@
-From iris_time.heap_lang Require Export notation proofmode.
 From stdpp Require Import fin_maps.
-
+From iris_time.heap_lang Require Export notation proofmode.
 From iris_time Require Import Reduction.
 
 Implicit Type e : expr.
@@ -125,7 +124,7 @@ Section Translation.
       [ translationKi Ki ].
 
   Definition translationK (K : ectx heap_ectx_lang) : ectx _ :=
-    concat (translationKi_aux <$> K).
+    List.concat (translationKi_aux <$> K).
 
 (*
  * Lemmas about translation
