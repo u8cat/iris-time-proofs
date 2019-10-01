@@ -1,4 +1,4 @@
-From iris_time.heap_lang Require Export lang tactics.
+From iris_time.heap_lang Require Export tactics.
 
 Ltac prim_step :=
   lazymatch goal with

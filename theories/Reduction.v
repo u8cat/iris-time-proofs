@@ -1,8 +1,8 @@
-From iris_time.heap_lang Require Import lang notation.
-From iris_time.heap_lang Require Import adequacy.
-From stdpp Require Import relations fin_maps gmap.
-
-From iris_time Require Import Misc Tactics.
+From iris_time Require Import Base.
+From stdpp Require Import fin_maps gmap.
+(* FIXME: for obscure reasons, lang must appear after adequacy on this line: *)
+From iris_time.heap_lang Require Import notation adequacy lang.
+From iris_time Require Import Tactics.
 
 Implicit Type e : expr.
 Implicit Type v : val.
@@ -20,7 +20,7 @@ Implicit Type m n : nat.
 Section Reduction.
 
   Definition bounded_time e σ m : Prop :=
-    ∀ t2 σ2 n, nsteps erased_step n ([e], σ) (t2, σ2) → (n ≤ m)%nat.
+    ∀ t2 σ2 n, relations.nsteps erased_step n ([e], σ) (t2, σ2) → (n ≤ m)%nat.
 
   Inductive prim_exec (e1 : expr) (σ1 : state) : expr → state → list expr → Prop :=
   | prim_exec_nil :
@@ -276,7 +276,7 @@ Section FreshLocation.
   Qed.
   Lemma loc_fresh_in_dom_nsteps ℓ m t1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    nsteps erased_step m (t1, σ1) (t2, σ2) →
+    relations.nsteps erased_step m (t1, σ1) (t2, σ2) →
     σ1 !! ℓ = None.
   Proof.
     make_eq (t1, σ1) as config1 E1.
@@ -705,10 +705,10 @@ Section Safety.
   (* n-adequacy: *)
   Record nadequate (s : stuckness) (n : nat) e1 σ1 (φ : val → Prop) : Prop := {
     nadequate_result k t2 σ2 v2 :
-     nsteps erased_step k ([e1], σ1) (Val v2 :: t2, σ2) → (k ≤ n)%nat → φ v2;
+     relations.nsteps erased_step k ([e1], σ1) (Val v2 :: t2, σ2) → (k ≤ n)%nat → φ v2;
     nadequate_not_stuck k t2 σ2 e2 :
      s = NotStuck →
-     nsteps erased_step k ([e1], σ1) (t2, σ2) →
+     relations.nsteps erased_step k ([e1], σ1) (t2, σ2) →
      (k < n)%nat →
      e2 ∈ t2 → (is_Some (to_val e2) ∨ reducible e2 σ2)
   }.

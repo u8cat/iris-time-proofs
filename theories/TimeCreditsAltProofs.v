@@ -1,7 +1,7 @@
-From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris.base_logic Require Import invariants.
-
-From iris_time Require Import Auth_nat Reduction TimeCredits.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time Require Import Auth_nat Reduction.
+From iris_time Require Export TimeCredits.
 
 Implicit Type e : expr.
 Implicit Type v : val.
@@ -313,7 +313,7 @@ Qed.
 (* The simulation lemma with no assumption that m ≤ n. *)
 Axiom simulation_exec_alt : ∀ {Hloc : TickCounter} m n t1 σ1 t2 σ2,
   σ2 !! ℓ = None →
-  nsteps erased_step m (t1, σ1) (t2, σ2) →
+  relations.nsteps erased_step m (t1, σ1) (t2, σ2) →
   rtc erased_step (T«t1», S«σ1, n») (T«t2», S«σ2, (n-m)%Z»).
 
 Lemma spec_tctranslation__bounded' {Σ} m ψ e :

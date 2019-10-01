@@ -1,10 +1,9 @@
-From iris_time.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time Require Import Base.
 From iris.base_logic Require Import invariants.
-
-From iris_time Require Import Auth_nat Misc Reduction Tactics.
-From iris_time Require Export Simulation.
-
 From iris.proofmode Require Import coq_tactics.
+From iris_time.heap_lang Require Import proofmode notation adequacy lang.
+From iris_time Require Import Auth_nat Reduction Tactics.
+From iris_time Require Export Simulation.
 Import uPred.
 
 Implicit Type e : expr.
@@ -302,7 +301,7 @@ Section Simulation.
   Qed.
 
   Local Lemma simulation_exec_failure_now n t1 σ1 t2 σ2 :
-    nsteps erased_step (S n) (t1, σ1) (t2, σ2) →
+    relations.nsteps erased_step (S n) (t1, σ1) (t2, σ2) →
     ∃ e1, e1 ∈ t1 ∧
     ¬ safe «e1» S«σ1, 0».
   Proof.
@@ -315,7 +314,7 @@ Section Simulation.
 
   Lemma simulation_exec_failure m n e1 σ1 t2 σ2 :
     σ2 !! ℓ = None →
-    nsteps erased_step (m + S n) ([e1], σ1) (t2, σ2) →
+    relations.nsteps erased_step (m + S n) ([e1], σ1) (t2, σ2) →
     ¬ safe «e1» S«σ1, m».
   Proof.
     intros Hℓ Hnsteps.
@@ -356,7 +355,7 @@ Section Soundness.
   Lemma safe_tctranslation__bounded {Hloc : TickCounter} m e σ t2 σ2 n :
     σ2 !! ℓ = None →
     safe «e» S«σ, m» →
-    nsteps erased_step n ([e], σ) (t2, σ2) →
+    relations.nsteps erased_step n ([e], σ) (t2, σ2) →
     (n ≤ m)%nat.
   Proof.
     intros Hfresh Hsafe Hnsteps.
