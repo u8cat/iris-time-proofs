@@ -1,6 +1,6 @@
 From iris.program_logic Require Import adequacy.
 From iris_time.heap_lang Require Import notation proofmode.
-From iris_time Require Import Misc Reduction Tactics.
+From iris_time Require Import Base Reduction Tactics.
 From iris_time Require Export Translation.
 
 Implicit Type e : expr.
