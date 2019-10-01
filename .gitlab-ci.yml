@@ -1,0 +1,43 @@
+# This file is used for MPI GitLab CI. Inria GitLab CI should be
+# deactivated.
+
+image: ralfjung/opam-ci:opam2
+
+stages:
+  - build
+
+variables:
+  CPU_CORES: "10"
+
+.template: &template
+  stage: build
+  tags:
+  - fp
+  script:
+  - git clone https://gitlab.mpi-sws.org/iris/ci.git ci -b opam2
+  - ci/buildjob
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+    - opamroot/
+  only:
+  - master
+  - /^ci/
+  except:
+  - triggers
+  - schedules
+
+## Build jobs
+build-coq.8.9.1:
+  <<: *template
+  variables:
+    OPAM_PINS: "coq version 8.9.1"
+
+build-iris.dev:
+  <<: *template
+  variables:
+    OPAM_PINS: "coq version 8.9.0   coq-stdpp.dev git git+https://gitlab.mpi-sws.org/iris/stdpp.git#$STDPP_REV   coq-iris.dev git git+https://gitlab.mpi-sws.org/iris/iris.git#$IRIS_REV"
+  except:
+  only:
+  - triggers
+  - schedules
