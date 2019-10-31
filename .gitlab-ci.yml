@@ -26,6 +26,7 @@ variables:
   except:
   - triggers
   - schedules
+  - api
 
 ## Build jobs
 build-coq.8.9.1:
