@@ -677,7 +677,7 @@ Section Safety.
       specialize (Hsafe _ _ _ eq_refl Hsteps (elem_of_list_here _ _)). clear Hsteps.
       destruct Hsafe as [ Hval | Hred ].
       + left. by eapply fill_val.
-      + destruct (to_val e') eqn:Hnotval ; first by eauto. right.
+      + destruct (to_val e') eqn:Hnotval; [by left; eauto|]. right.
         destruct Hred as (κ & _ & σ'' & efs & [ K2 e'2 e''2 Efill _ Hstep ]) ; simpl in *.
         eapply step_by_val in Efill as Efill' ; try eassumption ; destruct Efill' as [K' ->].
         rewrite fill_app in Efill ; apply fill_inj in Efill as ->.

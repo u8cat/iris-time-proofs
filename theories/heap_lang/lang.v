@@ -186,8 +186,6 @@ Proof. destruct e=>//=. by intros [= <-]. Qed.
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
-Global Instance mach_int_eq_dec : EqDecision base_lit.
-
 Global Instance base_lit_eq_dec : EqDecision base_lit.
 Proof. solve_decision. Defined.
 Global Instance un_op_eq_dec : EqDecision un_op.
