@@ -42,3 +42,4 @@ build-iris.dev:
   only:
   - triggers
   - schedules
+  - api
