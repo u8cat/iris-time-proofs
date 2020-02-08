@@ -1,5 +1,7 @@
 -Q theories iris_time
 -arg -w -arg -notation-overridden,-redundant-canonical-projection
+# change_no_check does not exist yet in 8.9.
+-arg -w -arg -convert_concl_no_check
 
 theories/heap_lang/lang.v
 theories/heap_lang/adequacy.v

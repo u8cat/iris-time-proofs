@@ -29,15 +29,15 @@ variables:
   - api
 
 ## Build jobs
-build-coq.8.9.1:
+build-coq.8.10.2:
   <<: *template
   variables:
-    OPAM_PINS: "coq version 8.9.1"
+    OPAM_PINS: "coq version 8.10.2"
 
 build-iris.dev:
   <<: *template
   variables:
-    OPAM_PINS: "coq version 8.9.1   coq-stdpp.dev git git+https://gitlab.mpi-sws.org/iris/stdpp.git#$STDPP_REV   coq-iris.dev git git+https://gitlab.mpi-sws.org/iris/iris.git#$IRIS_REV"
+    OPAM_PINS: "coq version 8.10.2   coq-stdpp.dev git git+https://gitlab.mpi-sws.org/iris/stdpp.git#$STDPP_REV   coq-iris.dev git git+https://gitlab.mpi-sws.org/iris/iris.git#$IRIS_REV"
   except:
   only:
   - triggers
