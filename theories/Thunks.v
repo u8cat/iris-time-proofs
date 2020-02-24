@@ -117,7 +117,7 @@ Section Thunk.
     iApply wp_fupd.
     wp_tick_lam.
     (* reading the thunk… *)
-    iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
+    iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
       iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
       [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
@@ -151,7 +151,7 @@ Section Thunk.
     iIntros (?) "Hp #Hthunk Htc_k".
     iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
     (* reading the thunk… *)
-    iDestruct (na_inv_open p ⊤ F (thunkN t) with "Hthunkinv Hp")
+    iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
       as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
       iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
       [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
