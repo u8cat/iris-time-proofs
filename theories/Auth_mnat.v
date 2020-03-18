@@ -11,7 +11,7 @@ Section Auth_mnat.
   Context `{inG Σ (authR mnatUR)}.
 
   Lemma auth_mnat_alloc (n : mnat) :
-    (|==> ∃ γ, own γ (●mnat n) ∗ own γ (◯mnat n))%I.
+    ⊢ |==> ∃ γ, own γ (●mnat n) ∗ own γ (◯mnat n).
   Proof.
     iMod (own_alloc (●mnat n ⋅ ◯mnat n)) as (γ) "[? ?]".
     - by apply auth_both_valid_2.

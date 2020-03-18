@@ -290,7 +290,7 @@ Section Definitions.
   Qed.
 
   Theorem loop_spec s E (Φ : val → iProp Σ) :
-    WP loop #() @ s ; E {{ Φ }}%I.
+    ⊢ WP loop #() @ s ; E {{ Φ }}.
   Proof.
     iLöb as "IH". wp_rec. iExact "IH".
   Qed.

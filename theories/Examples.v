@@ -31,7 +31,7 @@ Fixpoint is_list_tr `{timeCreditHeapG Σ} (l : list Z) (v : val) : iProp Σ :=
   end%I.
 (* some proofs: *)
 Lemma is_list_translation `{!timeCreditHeapG Σ} l v :
-  (is_list l v -∗ is_list l v ∗ ⌜v = «v»%V⌝)%I.
+  is_list l v -∗ is_list l v ∗ ⌜v = «v»%V⌝.
 Proof.
   iIntros "Hl".
   destruct l as [|x l] ; simpl.
@@ -42,7 +42,7 @@ Proof.
     + done.
 Qed.
 Lemma is_list_tr_translation `{!timeCreditHeapG Σ} l v :
-  (is_list_tr l v -∗ is_list_tr l v ∗ ⌜v = «v»%V⌝)%I.
+  is_list_tr l v -∗ is_list_tr l v ∗ ⌜v = «v»%V⌝.
 Proof.
   iIntros "Hl".
   destruct l as [|x l] ; simpl.
@@ -53,7 +53,7 @@ Proof.
     + done.
 Qed.
 Lemma is_list_tr_is_list_translation `{!timeCreditHeapG Σ} l v :
-  (is_list_tr l v ⊣⊢ is_list l «v»%V)%I.
+  is_list_tr l v ⊣⊢ is_list l «v»%V.
 Proof.
   iSplit ; iIntros "Hl".
 {
