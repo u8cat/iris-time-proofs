@@ -10,6 +10,6 @@ build: [make "-j%{jobs}%"]
 install: [make "install"]
 remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/iris_time" ]
 depends: [
-  "coq-iris" { (= "dev.2020-03-18.1.ad3a71bf") | (= "dev") }
+  "coq-iris" { (= "dev.2020-03-23.0.3a0d7152") | (= "dev") }
   "coq-tlc" { (= "20181116") | (= "dev") }
 ]
