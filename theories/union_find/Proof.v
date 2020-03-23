@@ -109,8 +109,8 @@ Record Inv D F K R V : Prop := {
   Inv_data  : forall x, V x = V (R x)
 }.
 
-Hint Resolve is_rdsf_is_dsf.
-Hint Resolve Inv_rdsf Inv_incl Inv_data.
+Hint Resolve is_rdsf_is_dsf : core.
+Hint Resolve Inv_rdsf Inv_incl Inv_data : core.
 
 (* Throughout, we instantiate the parameter [r] of Alstrup et al.'s proof
    with the value 1. Thus, we write just [Phi] for [Phi 1]. *)

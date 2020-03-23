@@ -178,7 +178,7 @@ Lemma compress_preserves_is_repr_direct':
   is_repr F x r ->
   is_repr compress x r.
 Proof using x_edge_y is_dsf_F y_path_z.
-  Hint Unfold is_repr.
+  Hint Unfold is_repr : core.
   intros x' r' Rz [Pr' Rr']. split.
   { induction Pr' as [r'|y' x' z'] using rtclosure_ind_l.
     { now constructor. }

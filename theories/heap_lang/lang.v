@@ -81,6 +81,7 @@ Inductive bin_op : Set :=
   | LeOp | LtOp | EqOp. (* Relations *)
 
 Inductive binder := BAnon | BNamed : string → binder.
+Declare Scope binder_scope.
 Delimit Scope binder_scope with bind.
 Bind Scope binder_scope with binder.
 Definition cons_binder (mx : binder) (X : list string) : list string :=

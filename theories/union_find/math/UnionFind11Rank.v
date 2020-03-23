@@ -68,7 +68,7 @@ Definition is_rdsf_numerous_family := proj53 is_rdsf_F.
 Definition is_rdsf_finite := proj54 is_rdsf_F.
 Definition is_rdsf_zero_rank_outside_domain := proj55 is_rdsf_F.
 
-Hint Resolve is_rdsf_is_dsf.
+Hint Resolve is_rdsf_is_dsf : core.
 
 Hint Resolve is_rdsf_finite : finite.
 

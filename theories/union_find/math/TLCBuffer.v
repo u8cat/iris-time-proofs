@@ -112,7 +112,7 @@ Lemma tclosure_intro_right:
   forall (A : Type) (R : binary A) y x z,
   rtclosure R x y -> R y z -> tclosure R x z.
 Proof using.
-  Hint Constructors tclosure.
+  Hint Constructors tclosure : core.
   introv M N. induction M using rtclosure_ind_l; autos*.
 Qed.
 
@@ -281,7 +281,7 @@ Qed.
 
 Lemma le_refl : refl Peano.le.
 Proof using. intros_all; omega. Qed.
-Hint Resolve le_refl.
+Hint Resolve le_refl : core.
 
 
 
