@@ -1,65 +1,50 @@
-## Requirements
+## Building
 
-The project is known to compile with:
- *  Coq 8.9.1
- *  coq-iris dev.2019-09-20.0.b958d569 (development version of Iris)
- *  coq-tlc 20181116 (for the proof of union-find)
-
-As those dependencies (especially Iris) often make breaking changes,
-compatibility with other versions is not guaranteed.
-
-### Step 1: Install opam
+### Step 1: Creating an opam switch
 
 _If opam is not already installed:_ See instructions [there][install-opam] to
 install it; then:
 
-    opam init --comp=4.06.1
+    opam init --comp=4.09.1
     eval $(opam config env)
 
 (This will create a `~/.opam` directory.)
 
 _If opam is already installed:_ Create a new switch for the project:
 
-    opam switch iris-time-proofs --alias-of 4.06.1 # for opam 1.x
-    opam switch create iris-time-proofs 4.06.1     # for opam 2.x
+    opam switch iris-time-proofs --alias-of 4.09.1                  # for opam 1.x
+    opam switch create iris-time-proofs ocaml-base-compiler.4.09.1  # for opam 2.x
     eval $(opam config env)
 
-### Step 2: Install Coq
+### Step 2: Installing the dependencies
+
+In an opam switch as created above, the commands
 
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
-    opam install -j4 -v coq.8.9.1
-
-If you want to use CoqIDE (a graphical, interactive toplevel for Coq), install
-it as well:
-
-    # NOTE: this version of CoqIDE is only available if using opam 2.x
-    opam install coqide.8.9.1
-
-### Step 3: Install Iris and TLC at the required versions
-
-    opam repo add iris-dev https://gitlab.mpi-sws.org/FP/opam-dev.git
     make build-dep
 
-## Compiling
+will pin and install the dependencies at the correct version.
 
-To compile the Coq scripts:
+If you want to browse the Coq development using CoqIDE (a graphical, interactive
+toplevel for Coq), install it as well:
+
+    opam install coqide
+
+### Step 3: Compiling the proof scripts
+
+When all required libraries can be found (e.g. in an opam switch as configured
+above), compile the proof scripts with:
 
     make -j4
 
-The first time (and each time `_CoqProject` is updated), it also creates the
-files `Makefile.coq` and `Makefile.coq.conf`.
-
-Other recipes are available, such as `all`, `clean` and `userinstall` (Makefile
-taken from [here][coqproject]).
+Other recipes are available, such as `all`, `clean` and `userinstall`.
 
 To create an archive of the project:
 
     ./make_archive.sh
 
 [install-opam]: https://opam.ocaml.org/doc/Install.html
-[coq-iris]: https://gitlab.mpi-sws.org/FP/iris-coq
-[coqproject]: https://blog.zhenzhang.me/2016/09/19/coq-dev.html
 
 ## Index of modules
 
