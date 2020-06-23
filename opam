@@ -11,6 +11,6 @@ install: [make "install"]
 remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/iris_time" ]
 depends: [
   "coq" { (>= "8.9.1" & < "8.11~") | (= "dev") }
-  "coq-iris" { (= "dev.2020-05-24.1.76bec8b7") | (= "dev") }
+  "coq-iris" { (= "dev.2020-06-19.1.3091e4d4") | (= "dev") }
   "coq-tlc" { (= "20181116") | (= "dev") }
 ]

@@ -1,7 +1,7 @@
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import coq_tactics.
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
-From iris_time Require Import Auth_nat Auth_mnat Reduction Tactics.
+From iris_time Require Import Auth_nat Auth_max_nat Reduction Tactics.
 From iris_time Require Export Simulation.
 
 Implicit Type e : expr.
@@ -48,13 +48,13 @@ Definition TR_interface `{irisG heap_lang Σ, Tick}
 Class timeReceiptHeapPreG Σ := {
   timeReceiptHeapPreG_heapPreG :> heapPreG Σ ;
   timeReceiptHeapPreG_inG1 :> inG Σ (authR natUR) ;
-  timeReceiptHeapPreG_inG2 :> inG Σ (authR mnatUR) ;
+  timeReceiptHeapPreG_inG2 :> inG Σ (authR max_natUR) ;
 }.
 
 Class timeReceiptHeapG Σ := {
   timeReceiptHeapG_heapG :> heapG Σ ;
   timeReceiptHeapG_inG1 :> inG Σ (authR natUR) ;
-  timeReceiptHeapG_inG2 :> inG Σ (authR mnatUR) ;
+  timeReceiptHeapG_inG2 :> inG Σ (authR max_natUR) ;
   timeReceiptHeapG_loc :> TickCounter ;
   timeReceiptHeapG_name1 : gname ;
   timeReceiptHeapG_name2 : gname ;
@@ -83,8 +83,8 @@ Section TickSpec.
   Definition TR (n : nat) : iProp Σ :=
     own γ1 (◯nat n).
 
-  Definition TRdup (n : mnat) : iProp Σ :=
-    own γ2 (◯mnat n).
+  Definition TRdup (n : nat) : iProp Σ :=
+    own γ2 (◯max_nat (MaxNat n)).
   Arguments TRdup _%nat_scope.
 
   Lemma TR_plus m n :
@@ -113,11 +113,11 @@ Section TickSpec.
 
   Lemma TRdup_max m n :
     TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)%I.
-  Proof. by rewrite /TRdup auth_frag_op own_op. Qed.
+  Proof. by rewrite /TRdup -own_op -auth_frag_op. Qed.
   Lemma TRdup_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
     TRdup n₁ -∗ TRdup n₂.
-  Proof. apply own_auth_mnat_weaken. Qed.
+  Proof. apply (own_auth_max_nat_weaken _ (MaxNat _) (MaxNat _)). Qed.
 
   Lemma TRdup_timeless n :
     Timeless (TRdup n).
@@ -134,7 +134,7 @@ Section TickSpec.
   Definition timeReceiptN := nroot .@ "timeReceipt".
 
   Definition TR_invariant : iProp Σ :=
-    inv timeReceiptN (∃ (n:nat), ℓ ↦ #(nmax-n-1) ∗ own γ1 (●nat n) ∗ own γ2 (●mnat n) ∗ ⌜(n < nmax)%nat⌝)%I.
+    inv timeReceiptN (∃ (n:nat), ℓ ↦ #(nmax-n-1) ∗ own γ1 (●nat n) ∗ own γ2 (●max_nat (MaxNat n)) ∗ ⌜(n < nmax)%nat⌝)%I.
 
   Lemma zero_TR E :
     ↑timeReceiptN ⊆ E →
@@ -152,7 +152,7 @@ Section TickSpec.
   Proof.
     iIntros (?) "#Htickinv".
     iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & Hγ2● & Im)" "Hclose".
-    iDestruct (own_auth_mnat_null with "Hγ2●") as "[Hγ2● $]".
+    iDestruct (own_auth_max_nat_null with "Hγ2●") as "[Hγ2● $]".
     iApply "Hclose" ; eauto with iFrame.
   Qed.
 
@@ -182,8 +182,8 @@ Section TickSpec.
   Proof.
     iIntros (?) "#Inv Hγ2◯".
     iInv timeReceiptN as (n) ">(Hℓ & Hγ1● & Hγ2● & In)" "InvClose" ; iDestruct "In" as %In.
-    iDestruct (own_auth_mnat_le with "Hγ2● Hγ2◯") as %In'.
-    exfalso ; lia.
+    iDestruct (own_auth_max_nat_le with "Hγ2● Hγ2◯") as %In'.
+    simpl in In'. exfalso ; lia.
   Qed.
   Lemma TRdup_lt_nmax n (E : coPset) :
     ↑timeReceiptN ⊆ E →
@@ -203,7 +203,7 @@ Section TickSpec.
     iIntros (?) "#Inv Hγ1◯".
     iInv timeReceiptN as (m) ">(Hℓ & Hγ1● & Hγ2● & Im)" "InvClose".
     iDestruct (own_auth_nat_le with "Hγ1● Hγ1◯") as %In.
-    iDestruct (auth_mnat_update_read_auth with "Hγ2●") as ">[Hγ2● Hγ2◯]".
+    iDestruct (auth_max_nat_update_read_auth with "Hγ2●") as ">[Hγ2● Hγ2◯]".
     iAssert (TR n ∗ TRdup n)%I with "[$Hγ1◯ Hγ2◯]" as "$". {
       rewrite (_ : m = m `max` n)%nat ; last lia.
       iDestruct "Hγ2◯" as "[_ $]".
@@ -251,8 +251,8 @@ Section TickSpec.
            receipt produced: *)
         replace (nmax - n - 1 - 1) with (nmax - (n+1)%nat - 1) by lia.
         iMod (auth_nat_update_incr _ _ 1 with "Hγ1●") as "[Hγ1● Hγ1◯]" ; simpl.
-(*         iMod (auth_mnat_update_incr _ _ 1 with "Hγ2●") as "Hγ2●" ; simpl. *)
-        iMod (auth_mnat_update_incr' _ _ _ 1 with "Hγ2● Hγ2◯") as "[Hγ2● Hγ2◯]" ; simpl.
+(*         iMod (auth_max_nat_update_incr _ _ 1 with "Hγ2●") as "Hγ2●" ; simpl. *)
+        iMod (auth_max_nat_update_incr' _ _ _ (MaxNat 1) with "Hγ2● Hγ2◯") as "[Hγ2● Hγ2◯]" ; simpl.
         assert ((n+1) < nmax)%nat by lia.
         (* close the invariant: *)
         iMod ("InvClose" with "[ Hℓ Hγ1● Hγ2● ]") as "_" ; [ by auto with iFrame | iModIntro ].
@@ -334,7 +334,7 @@ Section Soundness.
       first by apply auth_auth_valid, to_gen_meta_valid.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
-    iMod (auth_mnat_alloc 0) as (γ2) "[Hγ2● _]".
+    iMod (auth_max_nat_alloc (MaxNat 0)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time receipts: *)
     pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ _ γ1 γ2)
       as HtrHeapG.

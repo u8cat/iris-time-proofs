@@ -14,7 +14,7 @@ theories/heap_lang/proofmode.v
 theories/heap_lang/tactics.v
 theories/heap_lang/lib/assert.v
 
-theories/Auth_mnat.v
+theories/Auth_max_nat.v
 theories/Auth_nat.v
 theories/Base.v
 theories/ClockIntegers.v

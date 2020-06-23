@@ -51,7 +51,7 @@ To create an archive of the project:
 Important modules are highlighted.
 
  *  `Misc`: some basic things
- *  `Auth_nat`, `Auth_mnat`: simple lemmas about the authoritative resources on
+ *  `Auth_nat`, `Auth_max_nat`: simple lemmas about the authoritative resources on
     (ℕ, +) and (ℕ, max)
  *  `heap_lang/` directory: the toy language under study
  *  `Reduction`: generic lemmas about reduction, safety, closedness, fresh

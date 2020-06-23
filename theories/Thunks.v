@@ -1,12 +1,12 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits Auth_mnat.
+From iris_time Require Import TimeCredits Auth_max_nat.
 
 Section Thunk.
 
   Context `{timeCreditHeapG Σ}.
-  Context `{inG Σ (authR mnatUR)}.
+  Context `{inG Σ (authR max_natUR)}.
   Context `{na_invG Σ}.
 
   Implicit Type t : loc.
@@ -30,7 +30,7 @@ Section Thunk.
 
   Definition ThunkInv t γ nc φ : iProp Σ := (
     ∃ (ac : nat),
-        own γ (●mnat ac)
+        own γ (●max_nat (MaxNat ac))
       ∗ (
           (∃ (f : val),
               t ↦ UNEVALUATEDV « f »
@@ -46,7 +46,7 @@ Section Thunk.
   Definition Thunk p t n φ : iProp Σ := (
     ∃ (γ : gname) (nc : nat),
         na_inv p (thunkN t) (ThunkInv t γ nc φ)
-      ∗ own γ (◯mnat (nc-n))
+      ∗ own γ (◯max_nat (MaxNat (nc-n)))
   )%I.
 
   Lemma thunk_persistent p t n φ :
@@ -66,7 +66,8 @@ Section Thunk.
   Proof.
     iIntros (I) "H". iDestruct "H" as (γ nc) "[Hinv Hγ◯]".
     iExists γ, nc. iFrame "Hinv".
-    iDestruct (own_auth_mnat_weaken _ (nc-n₁)%nat (nc-n₂)%nat with "Hγ◯") as "$" ; lia.
+    iDestruct (own_auth_max_nat_weaken _ (MaxNat (nc-n₁))%nat (MaxNat (nc-n₂))%nat with "Hγ◯") as "$".
+    simpl. lia.
   Qed.
 
   Definition create : val :=
@@ -92,7 +93,7 @@ Section Thunk.
   Proof.
     iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
     iDestruct (zero_TC with "Htickinv") as ">Htc0".
-    iMod (auth_mnat_alloc 0) as (γ) "[Hγ● Hγ◯]".
+    iMod (auth_max_nat_alloc (MaxNat 0)) as (γ) "[Hγ● Hγ◯]".
     iApply wp_fupd.
     wp_tick_lam. wp_tick_inj. wp_tick_alloc t.
     iApply "Post".
@@ -125,7 +126,7 @@ Section Thunk.
     (* (1) if it is UNEVALUATED, we evaluate it: *)
     {
       wp_tick_load. wp_tick_match.
-      iDestruct (own_auth_mnat_le with "Hγ● Hγ◯") as %I.
+      iDestruct (own_auth_max_nat_le with "Hγ● Hγ◯") as %I.
       iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
       wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
       wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
@@ -160,7 +161,7 @@ Section Thunk.
     {
       iAssert (TC (ac + k)) with "[Htc Htc_k]" as "Htc" ;
         first by iSplitL "Htc".
-      iDestruct (auth_mnat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
+      iDestruct (auth_max_nat_update_incr' _ _ _ (MaxNat k) with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
         iClear "Hγ◯".
       iMod ("Hclose" with "[-Hγ◯']") as "$". {
         iFrame "Hp".
@@ -168,11 +169,11 @@ Section Thunk.
       }
       iModIntro.
       iExists γ, nc. iFrame "Hthunkinv".
-      iDestruct (own_auth_mnat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
+      iDestruct (own_auth_max_nat_weaken _ (MaxNat ((nc-n)+k)) (MaxNat (nc-(n-k))) with "Hγ◯'") as "$" ; simpl; lia.
     }
     (* (2) if it is EVALUATED, then we do nothing: *)
     {
-      iDestruct (auth_mnat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ; 
+      iDestruct (auth_max_nat_update_incr' _ _ _ (MaxNat k) with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ; 
         iClear "Hγ◯".
       iMod ("Hclose" with "[-Hγ◯']") as "$". {
         iFrame "Hp".
@@ -180,7 +181,7 @@ Section Thunk.
       }
       iModIntro.
       iExists γ, nc. iFrame "Hthunkinv".
-      iDestruct (own_auth_mnat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
+      iDestruct (own_auth_max_nat_weaken _ (MaxNat ((nc-n)+k)) (MaxNat (nc-(n-k))) with "Hγ◯'") as "$" ; simpl; lia.
     }
   Qed.
 
