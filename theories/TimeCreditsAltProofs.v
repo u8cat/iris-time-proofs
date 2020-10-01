@@ -239,7 +239,7 @@ Proof.
   iDestruct (own_valid_2 with "Hheap Hl") as %H.
   iPureIntro.
   assert (CmraDiscrete (gen_heapUR loc val)) as Hdiscrete by apply _.
-  apply auth_both_valid in H as [H _].
+  apply auth_both_valid_discrete in H as [H _].
   apply gen_heap_singleton_included in H.
   pose proof (eq_stepl Hσ H) as E. by injection E.
 Qed.

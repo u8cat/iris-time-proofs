@@ -27,7 +27,7 @@ Section Auth_max_nat.
     ⌜(n ≤ m)%nat⌝.
   Proof.
     iIntros "H● H◯".
-    iDestruct (own_valid_2 with "H● H◯") as % [[k ->] _] % auth_both_valid.
+    iDestruct (own_valid_2 with "H● H◯") as % [[k ->] _] % auth_both_valid_discrete.
     iPureIntro. apply Max.le_max_l.
   Qed.
 
