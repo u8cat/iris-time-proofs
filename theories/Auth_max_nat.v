@@ -38,7 +38,7 @@ Section Auth_max_nat.
   Proof.
     iIntros (I) "H".
     rewrite (_ : n₁ = n₁ ⋅ n₂)%nat.
-    - iDestruct "H" as "[_$]".
+    - rewrite auth_frag_op. iDestruct "H" as "[_$]".
     - destruct n₁, n₂. rewrite max_nat_op_max. f_equal. simpl in I. lia.
   Qed.
   Global Arguments own_auth_max_nat_weaken _ (_ _ _)%nat_scope.
