@@ -1,4 +1,5 @@
 From iris.base_logic Require Import invariants.
+From iris.algebra Require Import lib.gmap_view.
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris_time Require Import Auth_nat Reduction.
 From iris_time Require Export TimeCredits.
@@ -236,12 +237,9 @@ Lemma gen_heap_ctx_mapsto {Σ : gFunctors} {Hgen : gen_heapG loc val Σ} (σ : s
 Proof.
   iIntros (Hσ) "Hheap Hl". iDestruct "Hheap" as (hmeta) "(_ & Hheap & _)".
   unfold mapsto ; destruct mapsto_aux as [_->] ; rewrite /mapsto_def /=.
-  iDestruct (own_valid_2 with "Hheap Hl") as %H.
-  iPureIntro.
-  assert (CmraDiscrete (gen_heapUR loc val)) as Hdiscrete by apply _.
-  apply auth_both_valid_discrete in H as [H _].
-  apply gen_heap_singleton_included in H.
-  pose proof (eq_stepl Hσ H) as E. by injection E.
+  iDestruct (own_valid_2 with "Hheap Hl") as %H%gmap_view_both_valid_L.
+  iPureIntro. rewrite Hσ in H.
+  destruct H as [_ [= ->]]. done.
 Qed.
 
 Lemma spec_tctranslation__bounded {Σ} m ψ e :
@@ -261,20 +259,14 @@ Proof.
    * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
   (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-  iMod (own_alloc (● to_gen_heap (<[ℓ := #m]> σ') ⋅ ◯ to_gen_heap {[ℓ := #m]}))
+  iMod (own_alloc (gmap_view_auth (<[ℓ := #m]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #m))
     as (h) "[Hh● Hℓ◯]".
-  {
-    apply auth_both_valid ; split.
-    - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
-      unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
-      exists (to_gen_heap σ'').
-      rewrite (@gmap.insert_singleton_op _ _ _ _ (to_gen_heap σ'')) //.
-      rewrite lookup_fmap ; apply fmap_None, lookup_delete.
-    - apply to_gen_heap_valid.
+  { apply gmap_view_both_valid_L. split; first done.
+    rewrite lookup_insert. done.
   }
   (* allocate the meta-heap: *)
-  iMod (own_alloc (● to_gen_meta ∅)) as (γmeta) "H" ;
-    first by apply auth_auth_valid, to_gen_meta_valid.
+    iMod (own_alloc (gmap_view_auth (V:=gnameO) ∅)) as (γmeta) "H" ;
+      first by apply gmap_view_auth_valid.
   (* allocate the ghost state associated with ℓ: *)
   iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
   (* packing all those bits, build the heap instance necessary to use time credits: *)
@@ -286,9 +278,7 @@ Proof.
   {
     iApply inv_alloc.
     iExists m.
-    unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl.
-    unfold to_gen_heap ; rewrite fmap_insert fmap_empty insert_empty.
-    by iFrame.
+    unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
   }
   (* finally, use the user-given specification: *)
   iModIntro.

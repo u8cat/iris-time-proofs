@@ -1,5 +1,6 @@
 From iris_time Require Import Base.
 From iris.base_logic Require Import invariants.
+From iris.algebra Require Import lib.gmap_view.
 From iris.proofmode Require Import coq_tactics.
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris_time Require Import Auth_nat Auth_max_nat Reduction Tactics.
@@ -832,20 +833,14 @@ Section Soundness.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (● to_gen_heap (<[ℓ := #M]> σ') ⋅ ◯ to_gen_heap {[ℓ := #M]}))
+    iMod (own_alloc (gmap_view_auth (<[ℓ := #M]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #M))
       as (h) "[Hh● Hℓ◯]".
-    {
-      apply auth_both_valid ; split.
-      - rewrite - insert_delete ; set σ'' := delete ℓ σ'.
-        unfold to_gen_heap ; rewrite 2! fmap_insert fmap_empty insert_empty.
-        exists (to_gen_heap σ'').
-        rewrite (@gmap.insert_singleton_op _ _ _ _ (to_gen_heap σ'')) //.
-        rewrite lookup_fmap ; apply fmap_None, lookup_delete.
-      - apply to_gen_heap_valid.
+    { apply gmap_view_both_valid_L. split; first done.
+      rewrite lookup_insert. done.
     }
     (* allocate the meta-heap: *)
-    iMod (own_alloc (● to_gen_meta ∅)) as (γmeta) "H" ;
-      first by apply auth_auth_valid, to_gen_meta_valid.
+    iMod (own_alloc (gmap_view_auth (V:=gnameO) ∅)) as (γmeta) "H" ;
+      first by apply gmap_view_auth_valid.
     (* allocate the ghost state associated with ℓ: *)
     iAssert (|==> ∃ γ,
         (if useTC then own γ (● M) else True)
@@ -868,9 +863,7 @@ Section Soundness.
     {
       iApply inv_alloc.
       iExists M.
-      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl.
-      unfold to_gen_heap ; rewrite fmap_insert fmap_empty insert_empty.
-      by iFrame.
+      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
