@@ -229,19 +229,6 @@ Qed.
  * said, n ≤ m.
  *)
 
-Lemma gen_heap_interp_mapsto {Σ : gFunctors} {Hgen : gen_heapG loc val Σ} (σ : state) (l : loc) (v v' : val) :
-  σ !! l = Some v →
-  gen_heap_interp σ -∗
-  l ↦ v' -∗
-  ⌜v = v'⌝.
-Proof.
-  iIntros (Hσ) "Hheap Hl". iDestruct "Hheap" as (hmeta) "(_ & Hheap & _)".
-  unfold mapsto ; destruct mapsto_aux as [_->] ; rewrite /mapsto_def /=.
-  iDestruct (own_valid_2 with "Hheap Hl") as %H%gmap_view_both_valid_L.
-  iPureIntro. rewrite Hσ in H.
-  destruct H as [_ [= ->]]. done.
-Qed.
-
 Lemma spec_tctranslation__bounded {Σ} m ψ e :
   (∀ `{timeCreditHeapG Σ},
     TC_invariant -∗
@@ -291,7 +278,8 @@ Proof.
   (* open the invariant: *)
   iInv timeCreditN as (m') ">[Hc Hγ●]" "InvClose".
   (* derive that z = m' (that is, the relative integer is in fact a natural integer): *)
-  iDestruct (gen_heap_interp_mapsto with "Hheap2 Hc") as %Eq ; first (by apply lookup_insert) ;
+  iDestruct (gen_heap_valid with "Hheap2 Hc") as %Eq.
+  rewrite lookup_insert in Eq.
   injection Eq as ->.
   (* close the invariant (in fact, this is not required): *)
   iMod ("InvClose" with "[-]") as "_" ; first by auto with iFrame.
