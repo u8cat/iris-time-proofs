@@ -342,7 +342,7 @@ Section Soundness.
     }
     iModIntro.
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●".
+    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●".
     - iExists ∅. auto with iFrame.
     - iApply (Hspec with "Hinv") ; auto.
   Qed.

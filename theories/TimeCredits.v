@@ -444,7 +444,7 @@ Section Soundness.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●".
+    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●".
     - iExists ∅. auto with iFrame.
     - iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
       iApply (Hspec with "Hinv Hγ◯") ; auto.

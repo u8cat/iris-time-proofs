@@ -229,9 +229,9 @@ Qed.
  * said, n ≤ m.
  *)
 
-Lemma gen_heap_ctx_mapsto {Σ : gFunctors} {Hgen : gen_heapG loc val Σ} (σ : state) (l : loc) (v v' : val) :
+Lemma gen_heap_interp_mapsto {Σ : gFunctors} {Hgen : gen_heapG loc val Σ} (σ : state) (l : loc) (v v' : val) :
   σ !! l = Some v →
-  gen_heap_ctx σ -∗
+  gen_heap_interp σ -∗
   l ↦ v' -∗
   ⌜v = v'⌝.
 Proof.
@@ -282,7 +282,7 @@ Proof.
   }
   (* finally, use the user-given specification: *)
   iModIntro.
-    iExists (λ σ _ _, gen_heap_ctx σ), (λ _, True%I). iSplitL "H Hh●" ;
+    iExists (λ σ _ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●" ;
      first by (iExists ∅ ; auto with iFrame).
   iSplitL ; first (iApply (Hspec with "Hinv Hγ◯") ; auto).
   (* it remains to prove that the interpretation of the final state, along
@@ -291,7 +291,7 @@ Proof.
   (* open the invariant: *)
   iInv timeCreditN as (m') ">[Hc Hγ●]" "InvClose".
   (* derive that z = m' (that is, the relative integer is in fact a natural integer): *)
-  iDestruct (gen_heap_ctx_mapsto with "Hheap2 Hc") as %Eq ; first (by apply lookup_insert) ;
+  iDestruct (gen_heap_interp_mapsto with "Hheap2 Hc") as %Eq ; first (by apply lookup_insert) ;
   injection Eq as ->.
   (* close the invariant (in fact, this is not required): *)
   iMod ("InvClose" with "[-]") as "_" ; first by auto with iFrame.

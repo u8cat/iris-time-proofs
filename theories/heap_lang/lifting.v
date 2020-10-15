@@ -15,7 +15,7 @@ Class heapG Σ := HeapG {
 
 Instance heapG_irisG `{heapG Σ} : irisG heap_lang Σ := {
   iris_invG := heapG_invG;
-  state_interp σ κs _ := gen_heap_ctx σ;
+  state_interp σ κs _ := gen_heap_interp σ;
   fork_post _ := True%I
 }.
 
