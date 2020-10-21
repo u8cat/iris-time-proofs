@@ -21,7 +21,7 @@ Proof.
   introv [ m ? ]. exists m. eauto.
   (* Closure by intersection and subset. *)
   introv [ m1 ? ] [ m2 ? ] ?. exists (max m1 m2). intros.
-  max_case; eauto with omega.
+  max_case; eauto with lia.
 Qed.
 
 (* Every subset of the form [le m] is a member of this filter. *)

@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Omega.
+Require Import Coq.micromega.Lia.
 From iris_time.union_find.math Require Import LibFunOrd.
 
 Section Iter.
@@ -29,7 +29,7 @@ Lemma iter_iter_1p:
   iter (1 + n) f x = iter n f (f x).
 Proof using.
   intros.
-  replace (1 + n) with (n + 1) by omega.
+  replace (1 + n) with (n + 1) by lia.
   rewrite iter_iter.
   reflexivity.
 Qed.
@@ -130,7 +130,7 @@ Lemma iter_monotonic_in_n:
 Proof using leA_reflexive leA_transitive.
   unfold monotonic, inflationary, pointwise.
   intros f ? ? n1 n2 ? a ?.
-  replace n2 with ((n2 - n1) + n1) by omega.
+  replace n2 with ((n2 - n1) + n1) by lia.
   rewrite iter_iter.
   assert (okA (iter n1 f a)).
     { eapply iter_preserves; eauto. }
@@ -188,10 +188,9 @@ Lemma iter_at_least_once:
   okA a ->
   leA (f a) (iter n f a).
 Proof.
-  intros. destruct n; [ omega | ].
+  intros. destruct n; [ lia | ].
   rewrite iter_iter_1p.
   eapply iter_inflationary; eauto.
 Qed.
 
 End Iter.
-

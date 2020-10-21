@@ -81,7 +81,7 @@ Lemma parent_has_nonzero_rank:
   F x y ->
   0 < K y.
 Proof using is_rdsf_F.
-  intros. assert (K x < K y). { eapply is_rdsf_F. eauto. } omega.
+  intros. assert (K x < K y). { eapply is_rdsf_F. eauto. } lia.
 Qed.
 
 (* Because rank increases along edges, if there is a path of length [k] from
@@ -93,8 +93,8 @@ Lemma rank_bounds_height_precise:
   K x + k <= K y.
 Proof using is_rdsf_F.
   induction 1 as [| y x z ].
-  omega.
-  assert (K x < K y). { eapply is_rdsf_F. eauto. } omega.
+  lia.
+  assert (K x < K y). { eapply is_rdsf_F. eauto. } lia.
 Qed.
 
 (* The rank of a vertex is an upper bound on its height in the forest. That is,
@@ -106,7 +106,7 @@ Lemma rank_bounds_height:
   kpath F k x y ->
   k <= K y.
 Proof using D is_rdsf_F.
-  intros. forwards: rank_bounds_height_precise; eauto. omega.
+  intros. forwards: rank_bounds_height_precise; eauto. lia.
 Qed.
 
 (* Rank increases along a path. *)
@@ -119,7 +119,7 @@ Proof using D is_rdsf_F.
   intros.
   forwards (?&?): rtclosure_kpath. eauto.
   forwards: rank_bounds_height_precise; eauto.
-  omega.
+  lia.
 Qed.
 
 Lemma ancestor_has_greater_rank:
@@ -140,7 +140,7 @@ Proof using D is_rdsf_F.
   intros.
   forwards: tclosure_kpath. eauto. unpack.
   forwards: rank_bounds_height_precise. eauto.
-  omega.
+  lia.
 Qed.
 
 (* Rank is logarithmic. *)
@@ -154,7 +154,7 @@ Proof using is_rdsf_F.
   (* First, we prove that this holds for every root. *)
   assert (f: forall x, is_root F x -> x \in D -> K x <= log2 (card D)).
   { intros. eapply prove_le_log2.
-    eapply le_trans. eapply is_rdsf_numerous_family; eauto.
+    eapply Nat.le_trans. eapply is_rdsf_numerous_family; eauto.
     (* card (descendants F x) <= card D *)
     eapply card_le_of_incl. eauto with finite.
     (* descendants F x \c D *)
@@ -174,11 +174,11 @@ Lemma height_is_logarithmic:
 Proof using is_rdsf_F.
   introv h.
   tests: (y \in D).
-  { eapply le_trans.
+  { eapply Nat.le_trans.
     eapply rank_bounds_height; eauto.
     eapply rank_is_logarithmic; eauto. }
   { forwards: only_trivial_paths_outside_D; eauto.
-    omega. }
+    lia. }
 Qed.
 
 (* Every rank is less than [card D]. This is not a precise bound, but it
@@ -190,7 +190,7 @@ Lemma rank_is_linear:
   K x < card D.
 Proof using is_rdsf_F.
   intros.
-  eapply le_lt_trans.
+  eapply Nat.le_lt_trans.
     { eapply rank_is_logarithmic. eauto. }
     { applys log2_lt_n. forwards~: card_ge_one D x. eauto with finite. }
 Qed.
@@ -204,4 +204,3 @@ Hint Unfold is_rdsf : is_rdsf.
 Hint Resolve is_rdsf_finite : finite.
 
 Hint Resolve is_rdsf_zero_rank_outside_domain : zero_rank.
-

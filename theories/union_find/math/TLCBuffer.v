@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 From TLC Require Import LibTactics LibLogic LibEpsilon LibFun.
-Require Import Omega.
+Require Import Coq.micromega.Lia.
 Generalizable Variables A.
 
 (* This file contains a bunch of stuff that needs to be (possibly cleaned up
@@ -64,8 +64,8 @@ Ltac unpack := jauto_set_hyps; intros.
 
 Ltac three_ways r1 r2 :=
   destruct (classicT (r1 = r2)); [ | destruct (classicT (r1 < r2)) ];
-  repeat rewrite If_l in * by omega;
-  repeat rewrite If_r in * by omega.
+  repeat rewrite If_l in * by lia;
+  repeat rewrite If_r in * by lia.
 
 Ltac by_cases_on_fupdate :=
   rewrite fupdate_eq; case_if.
@@ -169,7 +169,7 @@ Proof using.
   introv M. induction M using tclosure_ind_l.
   { exists 1. eauto with kpath. }
   { destruct IHM as (k&?&?). exists (S k). split.
-    constructors*. omega. }
+    constructors*. lia. }
 Qed.
 
 End Closures.
@@ -280,7 +280,7 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 
 Lemma le_refl : refl Peano.le.
-Proof using. intros_all; omega. Qed.
+Proof using. intros_all; lia. Qed.
 Hint Resolve le_refl : core.
 
 
@@ -460,14 +460,14 @@ Tactic Notation "set_in" :=
 Global  Instance monoid_plus_zero:
   Monoid (monoid_make plus 0).
 Proof using.
-  constructor; repeat intro; omega.
+  constructor; repeat intro; lia.
 Qed.
 
 
 Global Instance monoid_commutative_plus_zero:
   Comm_monoid (monoid_make plus 0).
 Proof using.
-  constructor. typeclass. intros_all; omega.
+  constructor. typeclass. intros_all; lia.
 Qed.
 
 (* ------------------------------------------------------------------------- *)
@@ -735,5 +735,3 @@ Qed.
 (* ------------------------------------------------------------------------- *)
 
 Hint Resolve tclosure_of_rtclosure_r : tclosure.
-
-

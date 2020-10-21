@@ -85,13 +85,13 @@ Proof using is_rdsf_F x_non_root x_has_nonzero_rank.
   k betaf_spec_direct_contrapositive.
   (* Because [K x] is greater than zero, it suffices to consider the worst
      case where [K x] is 1. *)
-  eapply lt_le_trans with (m := A (alpha n) 1); [ |
-    eauto with monotonic omega ].
+  eapply Nat.lt_le_trans with (m := A (alpha n) 1); [ |
+    eauto with monotonic lia ].
   (* By definition of [alpha], [A (alpha n) 1] is at most [n]. *)
-  eapply lt_le_trans with (m := n); [ |
+  eapply Nat.lt_le_trans with (m := n); [ |
     alpha f_alphaf ].
   (* There remains to argue that every rank is less than [n]. *)
-  eapply lt_le_trans; [ | eassumption ].
+  eapply Nat.lt_le_trans; [ | eassumption ].
   eapply rank_is_linear; eauto using parent_in_D.
 Qed.
 
@@ -112,7 +112,7 @@ Proof using is_rdsf_F x_non_root.
   clear x_has_nonzero_rank.
   simpl.
   forwards: parent_has_greater_rank; eauto.
-  omega.
+  lia.
 Qed.
 
 Ltac i th :=
@@ -194,7 +194,7 @@ Lemma phi_case_1b:
 Proof using.
   clear is_rdsf_F.
   introv h. unfold phi. cases_if.
-  rewrite h. omega.
+  rewrite h. lia.
   { false. tauto. }
 Qed.
 
@@ -206,7 +206,7 @@ Lemma phi_case_2:
 Proof using.
   clear is_rdsf_F.
   intros. unfold phi. cases_if.
-  { false. branches. tauto. omega. }
+  { false. branches. tauto. lia. }
   eauto.
 Qed.
 
@@ -219,8 +219,8 @@ Proof using.
   clear is_rdsf_F.
   intros. unfold phi. cases_if.
   eauto.
-  omega_rewrite (alpha N - k x <= alpha N).
-  omega_rewrite (forall a b, a - b <= a).
+  lia_rewrite (alpha N - k x <= alpha N).
+  lia_rewrite (forall a b, a - b <= a).
   eauto.
 Qed.
 
@@ -254,7 +254,7 @@ Proof using.
   rewrite fold_single; eauto with typeclass_instances.
   simpl.
   rewrite phi_case_1b by eauto with zero_rank.
-  omega.
+  lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -275,4 +275,3 @@ Ltac i th :=
   match goal with |- context[i ?F ?K ?x] =>
     eapply th with (f := fun i => iter i (A (k F K x)) (K x)); eauto with i
   end.
-

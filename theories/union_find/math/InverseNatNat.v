@@ -59,8 +59,8 @@ Proof using f_tends_to_infinity.
   unfold lower_bound, inverse.
   eexists x0.
   intros x ?.
-  destruct (le_gt_dec x x0); [ assumption | ].
-  forwards: hx0 x. omega. omega.
+  destruct (Compare_dec.le_gt_dec x x0); [ assumption | ].
+  forwards: hx0 x. lia. lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -149,14 +149,14 @@ Proof using f_tends_to_infinity f_monotonic f_strictly_monotonic.
   intros.
   (* If this equality does not hold, then, by the previous lemma,
      [alphaf (f x)] must be less than [x]. *)
-  destruct (eq_nat_dec (alphaf (f x)) x); [ assumption | false ].
+  destruct (Nat.eq_decidable (alphaf (f x)) x); [ assumption | false ].
   assert (h1: alphaf (f x) < x).
-    { forwards: alphaf_f x. omega. }
+    { forwards: alphaf_f x. lia. }
   (* By exploiting the fact that [f] is strictly monotonic and
      the lemma [f_alphaf], we find [f x < f x]. Contradiction. *)
   forwards h2: f_strictly_monotonic h1.
   forwards h3: f_alphaf (f x).
-  omega.
+  lia.
 Qed.
 
 (* [alphaf] is monotonic. *)
@@ -213,7 +213,7 @@ Lemma betaf_spec_direct_contrapositive_le:
   betaf y <= x.
 Proof using f_tends_to_infinity f_monotonic.
   intros.
-  cut (betaf y < 1 + x). omega.
+  cut (betaf y < 1 + x). lia.
   eauto using betaf_spec_direct_contrapositive.
 Qed.
 
@@ -269,15 +269,15 @@ Proof using f_tends_to_infinity f_strictly_monotonic f_monotonic.
   intros.
   (* If this equality does not hold, then, by the previous lemma,
      [x] must be less than [betaf (f x)]. *)
-  destruct (eq_nat_dec x (betaf (f x))); [ assumption | false ].
+  destruct (Nat.eq_decidable x (betaf (f x))); [ assumption | false ].
   assert (h1: x < betaf (f x)).
-    { forwards: betaf_f x. omega. }
+    { forwards: betaf_f x. lia. }
   (* By exploiting the fact that [f] is strictly monotonic and
      the lemma [f_betaf], we find [f x < f x]. Contradiction. *)
   forwards h2: f_strictly_monotonic h1.
   forwards h3: f_betaf (f x).
-    eauto with monotonic omega.
-  omega.
+    eauto with monotonic lia.
+  lia.
 Qed.
 
 (* [betaf] is monotonic. *)
@@ -309,7 +309,7 @@ Proof using f_tends_to_infinity f_strictly_monotonic f_monotonic.
      [f (betaf y)] is less than or equal to [f (alphaf y)]. *)
   eapply monotonic_lt_lt_implies_inverse_monotonic_le_le; [ eapply f_strictly_monotonic | ].
   (* The proof is now easy: [y] is between these numbers. *)
-  eauto 3 using le_trans, f_betaf, f_alphaf.
+  eauto 3 using Nat.le_trans, f_betaf, f_alphaf.
 Qed.
 
 (* In the above lemma, if [y] is of the form [f x], then we have equality
@@ -324,8 +324,8 @@ Proof using f_tends_to_infinity f_strictly_monotonic f_monotonic.
   forwards: alphaf_f x.
   forwards: betaf_f x.
   forwards: betaf_le_alphaf (f x).
-    { eauto with monotonic omega. }
-  split; omega.
+    { eauto with monotonic lia. }
+  split; lia.
 Qed.
 
 (* The converse of the above property holds. That is, we have equality
@@ -343,7 +343,7 @@ Proof using f_tends_to_infinity f_monotonic.
   forwards h4: f_betaf y. assumption.
   rewrite h1 in h4. clear h1.
   rewrite h2 in h3, h4. clear h2.
-  omega.
+  lia.
 Qed.
 
 (* [betaf y] and [alphaf y] differ by at most one. *)
@@ -355,14 +355,14 @@ Proof using f_tends_to_infinity.
   intros.
   (* If the goal does not hold, then there exists [z] which is
      greater than [betaf y] and less than [alphaf y]. *)
-  destruct (le_gt_dec (alphaf y) (1 + betaf y)); [ assumption | false ].
+  destruct (Compare_dec.le_gt_dec (alphaf y) (1 + betaf y)); [ assumption | false ].
   assert (zz: exists z, betaf y < z < alphaf y).
-    { exists (betaf y + 1). omega. }
+    { exists (betaf y + 1). lia. }
   destruct zz as [ z [ hz1 hz2 ]].
   (* This [z] has the properties [y < f z] and [f z < y]. Contradiction. *)
   forwards: betaf_spec_reciprocal_contrapositive. eexact hz1.
   forwards: alphaf_spec_reciprocal_contrapositive. eexact hz2.
-  omega.
+  lia.
 Qed.
 
 (* Because [f] is monotonic, [y < z] implies [betaf y < alphaf z]. *)
@@ -379,7 +379,7 @@ Proof using f_tends_to_infinity f_monotonic.
   eapply monotonic_le_le_implies_inverse_monotonic_lt_lt.
     eexact f_monotonic.
   (* The proof is now easy: [y < z] are between these numbers. *)
-  eauto 4 using le_lt_trans, lt_le_trans, f_betaf, f_alphaf.
+  eauto 4 using Nat.le_lt_trans, Nat.lt_le_trans, f_betaf, f_alphaf.
 Qed.
 
 (* [betaf] tends to infinity. *)
@@ -399,5 +399,3 @@ Qed.
 End Inverse.
 
 Hint Resolve alphaf_monotonic betaf_monotonic : monotonic typeclass_instances.
-
-

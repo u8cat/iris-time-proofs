@@ -88,15 +88,15 @@ Lemma phiv_cannot_increase_and_decreases_if:
 Proof using is_rdsf_F ev v_has_a_parent v_has_nonzero_rank.
   intros.
   assert (hK: K v = K' v). { eauto using non_root_has_constant_rank. }
-  rewrite phi_case_2 by eauto using non_root_forever with omega.
+  rewrite phi_case_2 by eauto using non_root_forever with lia.
   rewrite phi_case_2 by eauto.
   rewrite <- hK.
   eapply lexpo_cannot_increase_and_decreases_if.
     { eauto using i_le_rank. }
-    { eauto using i_ge_1, is_rdsf_evolution, non_root_forever with omega. }
-    { rewrite hK. eauto using i_le_rank, is_rdsf_evolution, non_root_forever with omega. }
+    { eauto using i_ge_1, is_rdsf_evolution, non_root_forever with lia. }
+    { rewrite hK. eauto using i_le_rank, is_rdsf_evolution, non_root_forever with lia. }
     { eauto using kv_grows. }
-    { eauto using k_lt_alpha, is_rdsf_evolution, non_root_forever with omega. }
+    { eauto using k_lt_alpha, is_rdsf_evolution, non_root_forever with lia. }
     { eauto using iv_grows_if_kv_constant. }
 Qed.
 
@@ -119,7 +119,7 @@ Proof using is_rdsf_F ev v_has_a_parent.
   eapply phiv_cannot_increase_and_decreases_if; eauto. }
   (* If [v] has zero rank, then its initial and final potential are zero. *)
   forwards: non_root_has_constant_rank; eauto.
-  do 2 (rewrite phi_case_1b by omega).
+  do 2 (rewrite phi_case_1b by lia).
   reflexivity.
 Qed.
 
@@ -185,13 +185,13 @@ Proof using.
   simpl.
   (* Treat [y] on the one hand, and the other vertices on the other hand. *)
   match goal with |- ?p + ?q <= ?p' + ?q' + ?a =>
-    cut (p <= p' + a /\ q <= q'); [ omega | split ]
+    cut (p <= p' + a /\ q <= q'); [ lia | split ]
   end.
   (* Case: [y]. This vertex is a root, both before and after the link.
      There remains to argue that the rank of [y] increases by at most 1. *)
   { do 2 rewrite phi_case_1a by eauto using is_root_link.
     assert (f: K' y <= K y + 1).
-    { branches; unpack; subst; try rewrite fupdate_eq by eauto; try case_if; omega. }
+    { branches; unpack; subst; try rewrite fupdate_eq by eauto; try case_if; lia. }
     rewrite f.
     ring_simplify. eauto. }
   { (* Case: some vertex [v] other than [y]. Because [v] is not [y], the rank of [v]
@@ -228,7 +228,7 @@ Proof using.
   unfold link_by_rank_F, link_by_rank_K in *.
   three_ways (K x) (K y);
   eapply potential_increase_during_link_preliminary;
-    eauto with omega.
+    eauto with lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -256,12 +256,12 @@ Proof using.
   { intros y z ? ?.
     assert (K y < K z). { eapply h. eauto. }
     unfold non_zero_rank.
-    omega. }
+    lia. }
   { intros. eapply k_lt_alpha; eauto. }
   { intros y z ? ? ?.
     assert (K y < K z). { eapply h. eauto. }
     unfold non_zero_rank.
-    omega. }
+    lia. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -316,7 +316,7 @@ Proof using.
   simpl.
   (* Treat [x] on the one hand, and the other vertices on the other hand. *)
   match goal with |- ?p + ?q < ?p' + ?q' =>
-    cut (p < p' /\ q <= q'); [ omega | split ]
+    cut (p < p' /\ q <= q'); [ lia | split ]
   end.
   { eauto using pleasant_phi. }
   { eapply fold_pointwise; eauto with finite typeclass_instances.
@@ -361,7 +361,7 @@ Proof using.
   unfold displeasure.
   induction 1; intros.
   (* FWIPCBase *)
-  { omega. }
+  { lia. }
   (* FWIPCStep *)
   { forwards: compress_preserves_displeasure_of_y (@non_zero_rank V) x y z;
     eauto using is_repr_path, compress_preserves_k_above_y.
@@ -371,12 +371,12 @@ Proof using.
          the rest. *)
       erewrite displeasure_parent_if_pleasant by eauto.
       forwards: pleasant_Phi; eauto 8 with is_dsf is_repr is_equiv.
-      forwards: IHfw_ipc; eauto using is_rdsf_compress, is_repr_path with omega. }
+      forwards: IHfw_ipc; eauto using is_rdsf_compress, is_repr_path with lia. }
     { (* Case: [x] is unpleasant. Then, we pay for this path compression step
          out of the [k] credits that we explicitly request from the client. *)
       erewrite displeasure_parent_if_unpleasant by eauto.
       forwards: unpleasant_Phi; eauto using is_repr_path.
-      forwards: IHfw_ipc; eauto using is_rdsf_compress, is_repr_path with omega. }
+      forwards: IHfw_ipc; eauto using is_rdsf_compress, is_repr_path with lia. }
   }
 Qed.
 
@@ -400,7 +400,7 @@ Proof using.
   rewrite amortized_cost_fw_ipc_preliminary by eauto.
   rewrite bounded_displeasure_tarjan by eauto.
   rewrite hN.
-  omega.
+  lia.
 Qed.
 
 (* This corollary combines [ipc_defined], [amortized_cost_fw_ipc],

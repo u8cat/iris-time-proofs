@@ -93,7 +93,7 @@ Lemma iv_grows_if_kv_constant:
 Proof using is_rdsf_F ev v_has_a_parent.
   clear r_geq_1.
   introv h. unfold i.
-  assert (h': prek F K v = prek F' K' v). { unfold k in h. omega. }
+  assert (h': prek F K v = prek F' K' v). { unfold k in h. lia. }
   rewrite <- h'.
   forwards f: non_root_has_constant_rankr; eauto.
   rewrite <- f.
@@ -130,7 +130,7 @@ Proof using is_rdsf_F ev v_has_a_parent r_geq_1.
     (* Case 3. Immediate, since the new potential (i.e., the left-hand side of
        the inequality) is zero. *)
     { forwards hphi: phi_case_3 F'; eauto. rewrite hphi. clear hphi.
-      omega. }
+      lia. }
   }
   (* Case 3. *)
   { forwards hphi: phi_case_3 F; eauto. rewrite hphi. clear hphi.
@@ -138,9 +138,9 @@ Proof using is_rdsf_F ev v_has_a_parent r_geq_1.
     (* For [phi F' K' v], we must be in case 3 too. *)
     assert (alphar (rankr K' v) < alphar (rankr K' (p F' v))).
     { rewrite <- hK.
-      eapply lt_le_trans. eauto.
+      eapply Nat.lt_le_trans. eauto.
       eapply alphar_monotonic. eauto. eauto using rankrpv_grows. }
-    rewrite phi_case_3 by solve [ eauto | omega ].
+    rewrite phi_case_3 by solve [ eauto | lia ].
     (* Thus, the potential was zero and remains zero. *)
     eauto.
   }
@@ -205,7 +205,7 @@ Proof using r_geq_1.
   (* Case: the rank of [y] is unchanged. In fact, every rank is unchanged. *)
   { subst K'.
     (* We do not even need the two-credit slack. *)
-    match goal with |- ?a <= ?a' + _ => cut (a <= a'); [ omega | ] end.
+    match goal with |- ?a <= ?a' + _ => cut (a <= a'); [ lia | ] end.
     (* Every rank is unchanged, so no potential can increase. Easy. *)
     eapply fold_pointwise; eauto with finite typeclass_instances.
     eauto using phiv_cannot_increase.
@@ -217,9 +217,9 @@ Proof using r_geq_1.
      increase in the potential of [y]. *)
 
   assert (hKx: rankr K x = rankr K y).
-  { unfold rankr. omega. }
+  { unfold rankr. lia. }
   assert (hK'y: rankr K' y = rankr K y + 1).
-  { unfold rankr. subst K'. rewrite fupdate_eq by eauto. case_if; omega. }
+  { unfold rankr. subst K'. rewrite fupdate_eq by eauto. case_if; lia. }
 
   (* [is_rdsf] is preserved. Proving this is a bit painful, due to the way
      things are set up. We must do some house-keeping before we can apply
@@ -227,7 +227,7 @@ Proof using r_geq_1.
   assert (is_rdsf D (link F x y) K').
   { assert (hF: link F x y = link_by_rank_F F K y x).
     { unfold link_by_rank_F. cases_if.
-      false. unfold rankr in *. omega.
+      false. unfold rankr in *. lia.
       reflexivity. }
     assert (hK: K' = link_by_rank_K K y x).
     { unfold link_by_rank_K. cases_if. eauto. }
@@ -245,7 +245,7 @@ Proof using r_geq_1.
      vertices other than [x] and [y] cannot increase. Second, the total
      potential of [x] and [y] increases by at most two. *)
   match goal with |- ?p + (?q + ?r) <= ?p' + (?q' + ?r') + ?a =>
-    cut (r <= r' /\ p + q <= p' + q' + a); [ omega | split ]
+    cut (r <= r' /\ p + q <= p' + q' + a); [ lia | split ]
   end.
 
   (* Subgoal 1: the vertices other than [x] and [y]. Again, their rank is
@@ -268,7 +268,7 @@ Proof using r_geq_1.
 
   (* The (new) level and index of [x] are at least 1. *)
   assert (hkx: 1 <= k (link F x y) K' x).
-  { unfold k. omega. }
+  { unfold k. lia. }
   assert (hix: 1 <= i (link F x y) K' x).
   { eauto using i_ge_1, x_no_longer_a_root. }
 
@@ -338,7 +338,7 @@ Proof using r_geq_1.
   unfold link_by_rank_F, link_by_rank_K in *.
   three_ways (K x) (K y);
   eapply potential_increase_during_link_preliminary;
-    eauto with omega.
+    eauto with lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -380,7 +380,7 @@ Proof using r_geq_1.
   { eauto using alphar_rankr_grows_along_a_path with rtclosure. }
   assert (alphar (rankr K y) <= alphar (rankr K z)).
   { eauto using alphar_rankr_grows_along_a_path. }
-  omega.
+  lia.
 Qed.
 
 (* One step of path compression at [x] does not affect the ``top part
@@ -454,7 +454,7 @@ Proof using r_geq_1.
   simpl.
   (* Treat [x] on the one hand, and the other vertices on the other hand. *)
   match goal with |- ?p + ?q < ?p' + ?q' =>
-    cut (p < p' /\ q <= q'); [ omega | split ]
+    cut (p < p' /\ q <= q'); [ lia | split ]
   end.
   { assumption. }
   { eapply fold_pointwise; eauto with finite typeclass_instances.
@@ -489,24 +489,24 @@ Proof using r_geq_1.
   assert (alphar (rankr K (p F x)) <= alphar (rankr K z)).
   { eauto using alphar_rankr_grows_along_a_path. }
   assert (alphar (rankr K x) = alphar (rankr K (p F x))).
-  { omega. }
+  { lia. }
   (* Hence, before compression, the potential of [x] is given by case 2. *)
   forwards h: phi_case_2 r F K x; eauto. rewrite h. clear h.
   (* No rank changes during compression. Hence, after compression, the
      potential of [x] is also given by case 2. *)
   assert (hxpx: alphar (rankr K x) = alphar (rankr K (p (compress F x z) x))).
-  { erewrite compress_changes_parent_of_x_to_z by eauto. omega. }
+  { erewrite compress_changes_parent_of_x_to_z by eauto. lia. }
   rewrite phi_case_2 by eauto using compress_preserves_roots_converse.
   (* Simplify, and apply a low-level arithmetic lemma. *)
   eapply plus_lt_plus.
   forwards: compress_evolution x; eauto.
   eapply lexpo_cannot_increase_and_decreases_if. (* yay! *)
   { eauto using i_le_rank. }
-  { eauto using i_ge_1, is_rdsf_evolution, non_root_forever with omega. }
-  { eauto using i_le_rank, is_rdsf_evolution, non_root_forever with omega. }
+  { eauto using i_ge_1, is_rdsf_evolution, non_root_forever with lia. }
+  { eauto using i_le_rank, is_rdsf_evolution, non_root_forever with lia. }
   { eauto using kv_grows. }
   { rewrite hxpx.
-    eauto using k_lt_alphar, is_rdsf_evolution, non_root_forever with omega. }
+    eauto using k_lt_alphar, is_rdsf_evolution, non_root_forever with lia. }
   { eauto using iv_grows_if_kv_constant. }
   { eauto using prove_lexpo_decreases, kv_grows, kx_ky_compress. }
 Qed.
@@ -544,7 +544,7 @@ Proof using r_geq_1.
   induction 1; intros.
 
   (* FWIPCBase *)
-  { omega. }
+  { lia. }
 
   (* FWIPCStep *)
   (* At this point, we unfortunately have two names for [z], so we must
@@ -577,13 +577,13 @@ Proof using r_geq_1.
     forwards: from_phi_to_Phi x;
       eauto 8 using pleasant_phi, a_root_has_no_parent_contrapositive
                with is_dsf is_repr is_equiv.
-    omega. }
+    lia. }
 
   { (* Case: [x] is unpleasant. Then, we pay for this path compression step
        out of the [k] credits that we explicitly request from the client. *)
     erewrite displeasure_parent_if_unpleasant by eauto.
     forwards: arbitrary_Phi; eauto using is_repr_path.
-    omega. }
+    lia. }
 
 Qed.
 
@@ -631,10 +631,10 @@ Proof using r_geq_1.
   (* After compression, the parent of [x] is [z], so the potential of [x]
      is given by case 3. Hence, it is zero. *)
   assert (alphar (rankr K x) <> alphar (rankr K (p (compress F x z) x))).
-  { erewrite compress_changes_parent_of_x_to_z by eauto. omega. }
+  { erewrite compress_changes_parent_of_x_to_z by eauto. lia. }
   rewrite phi_case_3 by eauto using compress_preserves_roots_converse.
   (* The result follows. *)
-  omega.
+  lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -661,7 +661,7 @@ Proof using r_geq_1.
     { eauto using a_path_out_of_a_root_is_trivial, is_repr_path. }
     subst z.
     (* The result follows, quite trivially. *)
-    omega.
+    lia.
   }
 
   (* FWIPCStep *)
@@ -693,7 +693,7 @@ Proof using r_geq_1.
     (* The previous analysis applies. *)
     forwards: amortized_cost_fw_ipc_top_part x; eauto with fw_ipc.
     (* The result follows. *)
-    omega.
+    lia.
   }
 
   (* Case: no, [x] and [z] are at different heights. *)
@@ -711,9 +711,9 @@ Proof using r_geq_1.
     (* Path compression at [x] frees up one unit of potential, which
        pays for this step. *)
     forwards: from_phi_to_Phi x;
-      eauto 8 using easy_phi, a_root_has_no_parent_contrapositive with omega.
+      eauto 8 using easy_phi, a_root_has_no_parent_contrapositive with lia.
     rewrite hpx in *.
-    omega.
+    lia.
   }
 
   (* Case: [x] is not easy. *)
@@ -724,7 +724,7 @@ Proof using r_geq_1.
        which pays for this step. *)
     assert (alphar (rankr K x) <= alphar (rankr K y)).
     { eauto using alphar_rankr_grows_along_a_path with rtclosure. }
-    omega.
+    lia.
   }
 
 Qed.
@@ -744,7 +744,7 @@ Proof using r_geq_1.
   forwards: amortized_cost_fw_ipc_bottom_part; eauto.
   assert (alphar (rankr K x) > 0). { eauto using alphar_positive. }
   assert (alphar (rankr K z) > 0). { eauto using alphar_positive. }
-  omega.
+  lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -792,12 +792,12 @@ Proof using r_geq_1.
   assert (1 <= card D).
   { eapply card_ge_one; eauto with finite. }
   assert (K z < card D).
-  { forwards: log2_lt_n (card D); eauto. omega. }
+  { forwards: log2_lt_n (card D); eauto. lia. }
   assert (rankr K z <= card D + (r - 1)).
-  { unfold rankr. omega. }
+  { unfold rankr. lia. }
   assert (alphar (rankr K z) <= alphar (card D + (r - 1))).
   { eapply alphar_monotonic; eauto. }
-  omega.
+  lia.
 Qed.
 
 End R.
@@ -816,10 +816,9 @@ Proof using.
   intros.
   forwards (l&F'&?&hb): amortized_cost_of_iterated_path_compression_global; eauto.
   exists l F'. splits; eauto.
-  replace (card D + (1 - 1)) with (card D) in hb by omega.
+  replace (card D + (1 - 1)) with (card D) in hb by lia.
   unfold alphar, prealphar, defalphar in hb.
   assert (f: alpha (card D + 1) <= alpha (card D) + 1).
   { eauto using alpha_grows_one_by_one. }
-  omega.
+  lia.
 Qed.
-

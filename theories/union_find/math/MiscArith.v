@@ -14,10 +14,10 @@ Lemma lexpo_is_well_defined:
   i <= (a - k) * r.
 Proof using.
   intros.
-  replace (a - k) with (1 + (a - k - 1)) by omega.
-  rewrite mult_plus_distr_r.
+  replace (a - k) with (1 + (a - k - 1)) by lia.
+  rewrite Mult.mult_plus_distr_r.
   generalize ((a - k - 1) * r); intro n.
-  omega.
+  lia.
 Qed.
 
 Lemma lexpo_cannot_increase_if_ak_decreases:
@@ -27,10 +27,10 @@ Lemma lexpo_cannot_increase_if_ak_decreases:
   ak' * r - i' <= ak * r - i.
 Proof using.
   intros.
-  assert (h: ak' <= ak - 1). omega.
+  assert (h: ak' <= ak - 1). lia.
   rewrite h.
-  rewrite mult_minus_distr_r.
-  omega.
+  rewrite Mult.mult_minus_distr_r.
+  lia.
 Qed.
 
 Lemma lexpo_decreases_if_ak_decreases:
@@ -44,11 +44,11 @@ Lemma lexpo_decreases_if_ak_decreases:
 Proof using.
   intros.
   (* Use extreme bounds for [i] and [i']. *)
-  cut (ak' * r - 1 < ak * r - r). { omega. }
+  cut (ak' * r - 1 < ak * r - r). { lia. }
   (* Prove that the left-hand subtraction is well-defined. *)
   assert (0 < ak' * r). { eauto using mult_positive. }
   (* Turn the goal into a large inequality. *)
-  cut (ak' * r - 0 <= ak * r - r). { omega. }
+  cut (ak' * r - 0 <= ak * r - r). { lia. }
   (* Apply the previous lemma. *)
   eauto using lexpo_cannot_increase_if_ak_decreases.
 Qed.
@@ -62,11 +62,11 @@ Lemma lexpo_cannot_increase:
   (a - k) * r - i >= (a - k') * r - i'.
 Proof using.
   intros.
-  destruct (eq_nat_dec k k'); [ subst k' | ].
+  destruct (Nat.eq_decidable k k'); [ subst k' | ].
   (* Case: [k = k']. *)
-  { omega. }
+  { lia. }
   (* Case: [k < k']. *)
-  { eauto using lexpo_cannot_increase_if_ak_decreases with omega. }
+  { eauto using lexpo_cannot_increase_if_ak_decreases with lia. }
 Qed.
 
 Lemma lexpo_cannot_increase_and_decreases_if:
@@ -81,7 +81,7 @@ Lemma lexpo_cannot_increase_and_decreases_if:
   ( (k < k' \/ i < i') -> (a - k') * r - i' <  (a - k) * r - i ).
 Proof using.
   intros.
-  destruct (eq_nat_dec k k'); [ subst k' | ].
+  destruct (Nat.eq_decidable k k'); [ subst k' | ].
   { (* Case: [k = k']. *)
     split; intros.
     { eapply lexpo_cannot_increase; eauto. }
@@ -89,12 +89,12 @@ Proof using.
       generalize dependent ((a - k) * r); intros n ?.
       (* The upper bound [i' <= n] is useful: since we have [i < i'],
          it gives us [i < n], which is required here. *)
-      omega. }
+      lia. }
   }
   { (* Case: [k < k']. *)
     split; [ | intros _ ].
     eapply lexpo_cannot_increase; eauto.
-    eauto using lexpo_decreases_if_ak_decreases with omega.
+    eauto using lexpo_decreases_if_ak_decreases with lia.
   }
 Qed.
 
@@ -104,7 +104,7 @@ Lemma prove_lexpo_decreases:
   (k = k' -> 1 + i <= i') ->
   k < k' \/ i < i'.
 Proof.
-  intros. omega.
+  intros. lia.
 Qed.
 
 (* Now, some seemingly random (in fact very ad hoc) arithmetic lemmas. *)
@@ -115,7 +115,7 @@ Lemma random_arithmetic_lemma_00:
   a + b + d <= e + c ->
   a + (b - c + d) <= e.
 Proof.
-  intros. omega.
+  intros. lia.
 Qed.
 
 Lemma random_arithmetic_lemma_01:
@@ -129,19 +129,19 @@ Lemma random_arithmetic_lemma_01:
 Proof.
   introv hkx hix ? ?.
   (* Eliminate the pesky subtraction [ary - kx]. *)
-  assert (ary = (ary - kx) + kx). { omega. }
+  assert (ary = (ary - kx) + kx). { lia. }
   generalize dependent (ary - kx); intro arykx; intros. subst ary.
   (* Move [ix] to the right-hand side. *)
   eapply random_arithmetic_lemma_00; [ eauto | ].
   (* Use the known bound on [ix]. *)
   rewrite <- hix.
   (* Simplify. *)
-  ring_simplify. repeat rewrite <- mult_assoc.
+  ring_simplify. repeat rewrite <- Mult.mult_assoc.
   generalize dependent (kx * ry); intro krxy.
   (* Conclude. *)
-  omega.
+  lia.
 Qed.
-     
+
 Lemma random_arithmetic_lemma_02:
   forall ary ry,
   1 <= ary ->
@@ -149,12 +149,11 @@ Lemma random_arithmetic_lemma_02:
 Proof.
   intros.
   (* Simplify. *)
-  ring_simplify. repeat rewrite <- mult_assoc.
+  ring_simplify. repeat rewrite <- Mult.mult_assoc.
   (* Get rid of the product [ary * ry], while recording that it is at
      least [ry]. *)
-  assert (ry <= ary * ry). { eapply mult_magnifies_left. omega. }
+  assert (ry <= ary * ry). { eapply mult_magnifies_left. lia. }
   generalize dependent (ary * ry); intros aryry; intros.
   (* Conclude. *)
-  omega.
+  lia.
 Qed.
-

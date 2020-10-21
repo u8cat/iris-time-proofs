@@ -53,10 +53,10 @@ Lemma beta_x_succ_x:
   betaf (fun k => A k x) (x + 1) = 0.
 Proof using.
   intros.
-  cut (betaf (fun k => A k x) (x + 1) < 1). { omega. }
+  cut (betaf (fun k => A k x) (x + 1) < 1). { lia. }
   eapply betaf_spec_direct_contrapositive; eauto with monotonic.
-    { rewrite Abase_eq. omega. }
-    { rewrite A_1_eq. omega. }
+    { rewrite Abase_eq. lia. }
+    { rewrite A_1_eq. lia. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -77,7 +77,7 @@ Proof.
   (* By definition of [alphaf]: *)
   rewrite alphaf_spec by eauto with monotonic.
   (* By definition of [A]: *)
-  rewrite (@plus_comm (alphaf (fun k : nat => A k r) n)).
+  rewrite (@Nat.add_comm (alphaf (fun k : nat => A k r) n)).
   rewrite Astep_eq. simpl.
   (* Because [r] is at least 1, this iteration is taken at least once.
      Because [A _] is inflationary, we have the following fact. *)
@@ -87,7 +87,7 @@ Proof.
   ).
   { simpl.
     eapply iter_at_least_once with (okA := fun _ => True);
-    unfold preserves, within; eauto using le_trans, Ak_inflationary. }
+    unfold preserves, within; eauto using Nat.le_trans, Ak_inflationary. }
   (* Thus, we simplify: *)
   rewrite <- fact. clear fact.
   (* Furthermore, we have [n <= A (alphaf (fun k : nat => A k r) n) r]. *)
@@ -95,9 +95,9 @@ Proof.
   (* Thus, we simplify: *)
   rewrite <- fact. clear fact.
   (* Because [n + 1] is [A 0 n], we can transform the goal to: *)
-  replace (n + 1) with (A 0 n) by (rewrite Abase_eq; omega).
+  replace (n + 1) with (A 0 n) by (rewrite Abase_eq; lia).
   (* The goal follows from the fact that [A] is monotonic. *)
-  eapply Akx_monotonic_in_k. omega.
+  eapply Akx_monotonic_in_k. lia.
   (* Phew! *)
 Qed.
 
@@ -154,4 +154,3 @@ Proof using.
      [A 2] is an exponential. *)
   eapply A_2_log2_lower_bound.
 Qed.
-

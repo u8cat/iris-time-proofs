@@ -71,7 +71,7 @@ Lemma kx_ky:
 Proof using is_rdsf_F r_geq_1.
   intros.
   assert (pp: prek x = prek y).
-  { unfold k in *. omega. }
+  { unfold k in *. lia. }
   (* Because there is a path from the parent of [x] to [y], the rank of [y]
      is at least the rank of the parent of [x]. *)
   assert (hxy: rankr (p x) <= rankr y).
@@ -130,7 +130,7 @@ Proof using is_rdsf_F r_geq_1.
   rewrite <- w in f by eauto. clear w.
   (* Massage. *)
   assert (prehkk: prek F K x = prek (compress F x z) K x).
-  { unfold k in hkk. omega. }
+  { unfold k in hkk. lia. }
   rewrite prehkk in f. clear prehkk.
   (* The assertion [f] guarantees that [i x] in the new state is
      at least [1 + i x] in the old state. *)
@@ -138,4 +138,3 @@ Proof using is_rdsf_F r_geq_1.
 Qed.
 
 End BasicEvolution.
-

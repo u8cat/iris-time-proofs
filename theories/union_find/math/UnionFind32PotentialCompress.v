@@ -56,7 +56,7 @@ Proof using is_rdsf_F.
   (* Because there is a path from the parent of [x] to [y], the rank of [y]
      is at least the rank of the parent of [x]. *)
   assert (hxy: K (p F x) <= K y). { eauto using rank_increases_along_a_path. }
-  assert (0 < K y). { forwards: parent_has_greater_rank x; eauto. omega. }
+  assert (0 < K y). { forwards: parent_has_greater_rank x; eauto. lia. }
   (* By definition of [i], iterating [i x] times [A kk], starting
      from [K x], takes us at most to [K (p x)]. *)
   assert (hx: iter (i F K x) (A kk) (K x) <= K (p F x)).

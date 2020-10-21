@@ -525,7 +525,7 @@ Proof.
     (* build a location ℓ which is not in the domain of σ2: *)
     pose (Hloc := Build_TickCounter (fresh (dom (gset loc) σ2)) : TickCounter).
     assert (σ2 !! ℓ = None)
-      by (simpl ; eapply not_elem_of_dom, is_fresh).
+      by (simpl ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
     by eapply adequate_translation__nadequate_result.
   (* (2) safety: *)
   - intros n t2 σ2 e2 _ Hnsteps Inm He2.
@@ -538,9 +538,10 @@ Proof.
     assert (loc_fresh_in_expr ℓ e2)
       by by apply loc_not_in_set_is_fresh_in_expr.
     assert (σ2 !! ℓ = None)
-      by by (simpl ; eapply not_elem_of_dom).
+      by by (simpl ; eapply (not_elem_of_dom (D:=gset loc))).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
     by eapply safe_translation__nsafe.
 Qed.
 
 End Simulation.
+

@@ -24,7 +24,7 @@ Proof using.
   (* Numerous family. *)
   { repeat intro.
     rewrite descendants_empty.
-    rewrite card_single. simpl. omega. }
+    rewrite card_single. simpl. lia. }
   (* Finite domain. *)
   { eauto with finite. }
   (* Rank is zero outside of the domain. *)

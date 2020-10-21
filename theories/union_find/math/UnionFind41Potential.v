@@ -58,7 +58,7 @@ Lemma alphar_positive:
   alphar n > 0.
 Proof using.
   clear r_geq_1.
-  intros. unfold alphar. omega.
+  intros. unfold alphar. lia.
 Qed.
 
 (* [alphar] is monotonic. *)
@@ -102,10 +102,10 @@ Lemma alphar_r:
   alphar r = 1.
 Proof using r_geq_1.
   intros. unfold alphar.
-  cut (prealphar r <= 0). { omega. }
+  cut (prealphar r <= 0). { lia. }
   unfold prealphar, defalphar.
   eapply alphaf_spec_reciprocal; eauto with monotonic.
-  rewrite (@Abase_eq r). omega.
+  rewrite (@Abase_eq r). lia.
 Qed.
 
 (* If [r] is less than [n], then [alphar n] is at least two (page 17). *)
@@ -119,7 +119,7 @@ Proof using r_geq_1.
   change 1 with (0 + 1). eapply plus_lt_plus.
   unfold prealphar, defalphar.
   eapply alphaf_spec_direct_contrapositive; eauto with monotonic.
-  rewrite Abase_eq. omega.
+  rewrite Abase_eq. lia.
 Qed.
 
 (* [A (prealphar n) r] is greater than [n] (page 17). *)
@@ -129,7 +129,7 @@ Lemma A_prealphar_gt:
   n < A (prealphar n) r.
 Proof using r_geq_1.
   intros.
-  cut (n + 1 <= A (prealphar n) r). { omega. }
+  cut (n + 1 <= A (prealphar n) r). { lia. }
   change (A (prealphar n) r) with ((fun k => A k r) (prealphar n)).
   eapply f_alphaf; eauto with monotonic.
 Qed.
@@ -149,7 +149,7 @@ Lemma r_leq_rankr:
   r <= rankr x.
 Proof using.
   clear r_geq_1.
-  intros. unfold rankr. omega.
+  intros. unfold rankr. lia.
 Qed.
 
 (* Hence, [rankr x] is positive. *)
@@ -158,7 +158,7 @@ Lemma rankr_positive:
   forall x,
   rankr x > 0.
 Proof using r_geq_1.
-  intros. unfold rankr. omega.
+  intros. unfold rankr. lia.
 Qed.
 
 Hint Resolve rankr_positive : monotonic.
@@ -202,7 +202,7 @@ Proof using is_rdsf_F x_non_root.
   clear r_geq_1.
   unfold rankr.
   forwards: parent_has_greater_rank; eauto.
-  omega.
+  lia.
 Qed.
 
 (* The function [alphar . rankr] grows along edges. *)
@@ -212,14 +212,14 @@ Lemma alphar_rankr_grows_along_edges:
 Proof using is_rdsf_F x_non_root r_geq_1.
   eapply alphar_monotonic.
   forwards: parent_has_greater_rankr.
-  omega.
+  lia.
 Qed.
 
 Lemma alphar_rankr_grows_along_edges_corollary:
   alphar (rankr x) <> alphar (rankr (p x)) ->
   alphar (rankr x) <  alphar (rankr (p x)).
 Proof using is_rdsf_F x_non_root r_geq_1.
-  forwards: alphar_rankr_grows_along_edges. omega.
+  forwards: alphar_rankr_grows_along_edges. lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -258,7 +258,7 @@ Lemma k_is_one:
   k = 1.
 Proof using r_geq_1.
   introv h. unfold k, prek.
-  assert (f: rankr (p x) = rankr x + 1). { unfold rankr. omega. }
+  assert (f: rankr (p x) = rankr x + 1). { unfold rankr. lia. }
   rewrite f.
   unfold defk.
   rewrite beta_x_succ_x; eauto using rankr_positive.
@@ -280,7 +280,7 @@ Proof using is_rdsf_F x_non_root r_geq_1.
   unfold defk.
   (* The lemma [A_prealphar_gt] yields [rankr (p x) < A (prealphar (rankr (p x)))],
      so the goal simplifies as follows. *)
-  eapply lt_le_trans; [ eapply A_prealphar_gt | ].
+  eapply Nat.lt_le_trans; [ eapply A_prealphar_gt | ].
   (* The result now follows from the fact that [A] is monotonic and [r] is less
      than or equal to [rankr x]. *)
   eapply Akx_monotonic_in_x. eapply r_leq_rankr.
@@ -293,7 +293,7 @@ Lemma rankr_p_x_lt:
 Proof using is_rdsf_F x_non_root r_geq_1.
   (* This holds by definition of [k]. *)
   k betaf_spec_reciprocal_contrapositive. (* tchac! *)
-  { unfold k, prek. omega. }
+  { unfold k, prek. lia. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -311,7 +311,7 @@ Lemma i_exists:
   iter 0 (A prek) (rankr x) <= rankr (p x).
 Proof using is_rdsf_F x_non_root.
   clear r_geq_1.
-  simpl. generalize parent_has_greater_rankr. omega.
+  simpl. generalize parent_has_greater_rankr. lia.
 Qed.
 
 Ltac i th :=
@@ -341,9 +341,9 @@ Proof using is_rdsf_F x_non_root r_geq_1.
   i betaf_spec_direct_contrapositive_le.
   (* Since [rankr (p x)] is less than [A k (rankr x)], the goal simplifies
      as follows. *)
-  eapply lt_le_trans. eapply rankr_p_x_lt.
+  eapply Nat.lt_le_trans. eapply rankr_p_x_lt.
   (* Now, by definition of [A], this is in fact an equality. *)
-  unfold k. rewrite plus_comm. rewrite Astep_eq. reflexivity.
+  unfold k. rewrite Nat.add_comm. rewrite Astep_eq. reflexivity.
 Qed.
 
 End NonRoot.
@@ -407,7 +407,7 @@ Proof using.
   intros.
   tests : (alphar (rankr x) = alphar (rankr (p x))).
   { rewrite phi_case_2 by assumption. reflexivity. }
-  { rewrite phi_case_3 by assumption. omega. }
+  { rewrite phi_case_3 by assumption. lia. }
 Qed.
 
 (* In case 2 above, the subtractions are safe: they cannot produce a
@@ -422,7 +422,7 @@ Lemma phi_case_2_safe_k:
 Proof using is_rdsf_F r_geq_1.
   introv ? hrank.
   forwards hk: k_lt_alphar; eauto.
-  omega.
+  lia.
   (* We note that the equality hypothesis on the ranks is required.
      Indeed, in case 3, we could have [k x = alphar (rankr x)]. *)
 Qed.
@@ -437,7 +437,7 @@ Proof using is_rdsf_F r_geq_1.
   rewrite i_le_rank by eauto.
   eapply mult_magnifies_left.
   forwards: phi_case_2_safe_k; eauto.
-  omega.
+  lia.
 Qed.
 
 (* In case 1 above, [phi x] is at least 1. (Page 18.) *)
@@ -455,7 +455,7 @@ Proof using.
   (* [alphar] is positive. *)
   { eapply alphar_positive. }
   (* [rankr x + 1] is not zero. *)
-  { omega. }
+  { lia. }
 Qed.
 
 (* In case 2 above, [phi x] is at least 1. (Page 18.) *)
@@ -468,7 +468,7 @@ Lemma phi_case_2_lower_bound:
 Proof using is_rdsf_F r_geq_1.
   introv h1 h2. rewrite phi_case_2 by assumption.
   forwards: phi_case_2_safe_i; eauto.
-  omega.
+  lia.
 Qed.
 
 (* Alstrup et al. write, on page, 18, "if x is a nonroot leaf, then rankr (x) = r".
@@ -490,14 +490,14 @@ Proof using.
   (* Case 1. *)
   { eauto. }
   (* Case 2. *)
-  { omega_rewrite (alphar (rankr x) - k x <= alphar (rankr x)).
+  { lia_rewrite (alphar (rankr x) - k x <= alphar (rankr x)).
     assert (0 < alphar (rankr x)). { eapply alphar_positive. }
     generalize dependent (alphar (rankr x)). intros a ? ?.
     rewrite Nat.mul_add_distr_l.
     generalize (a * rankr x). intro ar.
-    omega. }
+    lia. }
   (* Case 3. *)
-  { assert (forall x, 0 <= x). { intros. omega. }
+  { assert (forall x, 0 <= x). { intros. lia. }
     eauto. }
 Qed.
 
@@ -531,7 +531,7 @@ Goal
   i x = mmax le (fun i => rankr (p x) >= iter i (A (k x - 1)) (rankr x)).
 Proof.
   intros.
-  replace (k x - 1) with (prek x) by (unfold k; omega).
+  replace (k x - 1) with (prek x) by (unfold k; lia).
   reflexivity.
 Qed.
 
@@ -578,10 +578,10 @@ Lemma phi_root_zero_rank:
 Proof using r_geq_1.
   intros.
   rewrite phi_case_1 by assumption.
-  assert (f: rankr K x = r). { unfold rankr. omega. }
+  assert (f: rankr K x = r). { unfold rankr. lia. }
   rewrite f.
   rewrite alphar_r by assumption.
-  omega.
+  lia.
 Qed.
 
 (* Extending [D] with a new vertex augments [Phi] by [r + 1]. This relies on

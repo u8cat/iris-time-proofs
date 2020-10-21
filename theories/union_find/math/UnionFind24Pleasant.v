@@ -132,8 +132,8 @@ Lemma displeasure_parent:
 Proof using is_rdsf_F.
   intros.
   tests : (pleasant x).
-  { erewrite displeasure_parent_if_pleasant by eauto. omega. }
-  { erewrite displeasure_parent_if_unpleasant by eauto. omega. }
+  { erewrite displeasure_parent_if_pleasant by eauto. lia. }
+  { erewrite displeasure_parent_if_unpleasant by eauto. lia. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -169,11 +169,11 @@ Proof using is_rdsf_F ok_hereditary k_bounded.
   transitivity (card (interval_as_set 0 bound)).
   { eapply card_le_of_incl; [ eauto using finite_interval_as_set | ].
     unfold image, interval_as_set.
-    eapply incl_prove. intros. do 2 (rew_set in *; unpack). subst. split; [ omega | ].
+    eapply incl_prove. intros. do 2 (rew_set in *; unpack). subst. split; [ lia | ].
     eapply k_bounded; eauto.
     eapply hereditary_property; eauto.
   }
-  { rewrite card_interval_as_set; omega. }
+  { rewrite card_interval_as_set; lia. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -238,7 +238,7 @@ Lemma bounded_displeasure_preliminary_1:
 Proof using is_rdsf_F ok_hereditary.
   induction 1 using rtclosure_ind_l; intros.
   (* Base. *)
-  { erewrite displeasure_of_root. omega. eauto. }
+  { erewrite displeasure_of_root. lia. eauto. }
   (* Step. *)
   { tests : (pleasant x).
     { (* Case: [x] is pleasant. The displeasure of [x] is equal to the
@@ -293,13 +293,13 @@ Lemma bounded_displeasure:
 Proof using is_rdsf_F ok_hereditary k_bounded.
   intros.
   tests : (ok F K x).
-  { rewrite bounded_displeasure_preliminary_2 by eauto. omega. }
+  { rewrite bounded_displeasure_preliminary_2 by eauto. lia. }
   { tests : (is_root F x).
-    { erewrite displeasure_of_root by eauto. omega. }
+    { erewrite displeasure_of_root by eauto. lia. }
     { unfold is_root in *. rewrite not_forall_not_eq in *. unpack.
       rewrite displeasure_parent by eauto.
       rewrite bounded_displeasure_preliminary_2 by eauto.
-      omega. }}
+      lia. }}
 Qed.
 
 End FK.

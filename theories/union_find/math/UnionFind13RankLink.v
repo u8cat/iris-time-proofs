@@ -48,8 +48,8 @@ Lemma link_cannot_decrease_rank:
   K v <= link_by_rank_K x y v.
 Proof using.
   unfold link_by_rank_K. intros. cases_if.
-    { by_cases_on_fupdate; omega. }
-    { omega. }
+    { by_cases_on_fupdate; lia. }
+    { lia. }
 Qed.
 
 (* Linking preserves the ranks of non-roots. *)
@@ -94,16 +94,16 @@ Proof using.
       (* Subcase: a pre-existing edge of [v] to [w]. The goal holds when [w]
          is [x] because the rank of [x] has increased (which is harmless).
          The goal holds when [w] is not [x] because nothing has changed. *)
-      { case_if; subst; omega. }
+      { case_if; subst; lia. }
       (* Subcase: the new edge of [y] to [x]. The goal holds because the
          rank of [x] has increased (which was necessary in this case). *)
-      { case_if; subst; omega. }
+      { case_if; subst; lia. }
     }
     (* Case [K x < K y]. No rank has changed, and the new link, from [x] to
        [y], respects the existing ranks. *)
     { by_cases_on_link; eauto. }
     (* Case [K x > K y]. Symmetric. *)
-    { by_cases_on_link; eauto with omega. }
+    { by_cases_on_link; eauto with lia. }
   }
 
   (* Numerous family. *)
@@ -121,7 +121,7 @@ Proof using.
         forwards hdx: hNF x. eauto.
         forwards hdy: hNF y. eauto.
         match goal with h: K x = K y |- _ => rewrite h in * end.
-        omega. }
+        lia. }
       (* Subcase: [r <> x]. The rank of [r] is unchanged, and its
          descendants are unchanged as well. *)
       { erewrite descendants_link_2 by eauto.

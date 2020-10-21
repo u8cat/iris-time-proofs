@@ -781,8 +781,8 @@ Lemma find_spec_inductive: forall d D R F K F' M V x,
     «find #x»
   {{{ M', RET #(R x); mapsto_M M' ∗ ⌜ Mem D F' K V M' ⌝ }}}.
 Proof using.
-  intros d. induction_wf IH: Wf_nat.lt_wf d.
-  introv HI HM Dx HC. iIntros "#?" (Φ) "!# [HM TC] HΦ /=".
+  intros d. induction_wf IH: Wf_nat.lt_wf d. intros d.
+  introv IH HI HM Dx HC. iIntros "#?" (Φ) "!# [HM TC] HΦ /=".
   iDestruct "TC" as "[TCd TC]". wp_tick_rec.
   assert (HV := HM _ Dx). destruct (M !! x) as [c|] eqn:? =>//.
   iDestruct (mapsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.

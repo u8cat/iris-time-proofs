@@ -10,15 +10,15 @@ Obligation Tactic := idtac.
 (* A tactic that helps assert a trivial arithmetic property, prove this
    property, and immediately rewrite using this property. *)
 
-Ltac omega_rewrite P :=
+Ltac lia_rewrite P :=
   let h := fresh in
-  assert (h: P); [ intros; omega | rewrite h; clear h ].
+  assert (h: P); [ intros; lia | rewrite h; clear h ].
 
 (* Addition is covariant in both arguments. *)
 
 Program Instance proper_plus: Proper (le ++> le ++> le) plus.
 Next Obligation.
-  intros x1 y1 h1 x2 y2 h2. omega.
+  intros x1 y1 h1 x2 y2 h2. lia.
 Qed.
 
 (* Subtraction is covariant in its first argument and contravariant in
@@ -26,7 +26,7 @@ Qed.
 
 Program Instance proper_minus: Proper (le ++> le --> le) minus.
 Next Obligation.
-  unfold flip. intros x1 y1 h1 x2 y2 h2. omega.
+  unfold flip. intros x1 y1 h1 x2 y2 h2. lia.
 Qed.
 
 (* Multiplication is covariant in both arguments. *)
@@ -34,7 +34,7 @@ Qed.
 Program Instance proper_mult: Proper (le ++> le ++> le) mult.
 Next Obligation.
   intros x1 y1 h1 x2 y2 h2.
-  rewrite mult_le_compat_l, mult_le_compat_r by eauto.
+  rewrite Mult.mult_le_compat_l, Mult.mult_le_compat_r by eauto.
   reflexivity.
 Qed.
 
@@ -42,14 +42,14 @@ Qed.
 
 Program Instance proper_max: Proper (le ++> le ++> le) max.
 Next Obligation.
-  intros x1 y1 h1 x2 y2 h2. do 2 max_case; omega.
+  intros x1 y1 h1 x2 y2 h2. do 2 max_case; lia.
 Qed.
 
 (* Strict ordering implies lax ordering. *)
 
 Program Instance subrelation_lt_le: subrelation lt le.
 Next Obligation.
-  intros x y h. omega.
+  intros x y h. lia.
 Qed.
 
 (* A quick test. *)
@@ -114,7 +114,7 @@ Goal
   (fun n : nat => 1 + n * x + n) %<= (fun n : nat => 2 + n * y + n).
 Proof using.
   intros x y h.
-  assert (f: 1 <= 2). omega.
+  assert (f: 1 <= 2). lia.
   setoid_rewrite f at 1. (* Note: [at 1] is necessary because 2 contains 1 as a subterm! *)
   setoid_rewrite h.
   reflexivity.

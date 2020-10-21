@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Export Omega.
+Require Export Lia.
 Require Export ArithRing.
 Require Export Coq.Numbers.Natural.Peano.NPeano.
   (* [Nat] is a sub-module of [NPeano], which seems to contain many things.
@@ -22,7 +22,7 @@ Lemma plus_lt_plus:
   x < y ->
   x + a < y + a.
 Proof using.
-  intros. omega.
+  intros. lia.
 Qed.
 
 Lemma plus_le_plus:
@@ -30,7 +30,7 @@ Lemma plus_le_plus:
   x <= y ->
   x + a <= y + a.
 Proof using.
-  intros. omega.
+  intros. lia.
 Qed.
 
 (* ---------------------------------------------------------------------------- *)
@@ -43,14 +43,14 @@ Lemma leq_to_eq_plus:
   exists n,
   b = a + n.
 Proof.
-  intros. exists (b - a). omega.
+  intros. exists (b - a). lia.
 Qed.
 
 (* ---------------------------------------------------------------------------- *)
 
-(* Make [omega] a hint. *)
+(* Make [lia] a hint. *)
 
-Hint Extern 1 => omega : omega.
+Hint Extern 1 => lia : lia.
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -60,9 +60,7 @@ Lemma max_case:
   forall m1 m2,
   m2 <= m1 /\ max m1 m2 = m1 \/ 
   m1 <= m2 /\ max m1 m2 = m2.
-Proof using.
-  intros. destruct (@le_gt_dec m1 m2); eauto using max_r, max_l with omega.
-Qed.
+Proof using. lia. Qed.
 
 (* This tactic looks for a [max] expression in the hypotheses or in the goal
    and applies the above lemma. *)
@@ -122,12 +120,7 @@ Lemma mult_positive:
   0 < m ->
   0 < n ->
   0 < m * n.
-Proof using.
-  intros.
-  destruct (eq_nat_dec (m * n) 0).
-  forwards [ ? | ? ]: mult_is_O. eauto. omega. omega.
-  generalize dependent (m * n). intros. omega.
-Qed.
+Proof using. lia. Qed.
 
 Hint Resolve mult_positive : positive.
 
@@ -137,30 +130,23 @@ Lemma mult_magnifies_left:
   m <= n * m.
 Proof using.
   intros.
-  destruct n; [ omega | simpl ].
+  destruct n; [ lia | simpl ].
   generalize (n * m); intro.
-  omega.
+  lia.
 Qed.
 
 Lemma mult_magnifies_right:
   forall m n,
   0 < n ->
   m <= m * n.
-Proof using.
-  intros. rewrite mult_comm. eauto using mult_magnifies_left.
-Qed.
+Proof using. nia. Qed.
 
 Lemma mult_magnifies_right_strict:
   forall m n,
   0 < m ->
   1 < n ->
   m < m * n.
-Proof using.
-  intros.
-  do 2 (destruct n; [ omega | ]).
-  rewrite mult_comm. simpl.
-  generalize (n * m). intros. omega.
-Qed.
+Proof using. nia. Qed.
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -176,10 +162,10 @@ Lemma div_spec:
   k * (n / k) + r = n /\ 0 <= r < k.
 Proof using.
   intros. unfold Nat.div.
-  destruct k; [ false; omega | simpl ].
+  destruct k; [ false; lia | simpl ].
   forwards: Nat.divmod_spec n k 0 k. eauto.
   destruct (Nat.divmod n k 0 k) as [ q r ]. unpack. simpl.
-  exists (k - r). omega.
+  exists (k - r). lia.
 Qed.
 
 (* Avoid undesired simplifications. *)
@@ -191,7 +177,7 @@ Global Opaque mult Nat.div max.
 Ltac div2 :=
   match goal with |- context[?n/2] =>
     let h := fresh in
-    forwards h: div_spec n 2; [ omega |
+    forwards h: div_spec n 2; [ lia |
       gen h; generalize (n/2); intros; unpack
     ]
   end.
@@ -203,14 +189,14 @@ Lemma div2_monotonic:
   m <= n ->
   m / 2 <= n / 2.
 Proof using.
-  intros. repeat div2. omega.
+  intros. repeat div2. lia.
 Qed.
 
 Lemma div2_step:
   forall n,
   (n + 2) / 2 = n/2 + 1.
 Proof using.
-  intros. repeat div2. omega.
+  intros. repeat div2. lia.
 Qed.
 
 Lemma div2_monotonic_strict:
@@ -218,7 +204,7 @@ Lemma div2_monotonic_strict:
   m + 2 <= n ->
   m / 2 < n / 2.
 Proof using.
-  intros. cut (m/2 + 1 <= n/2). omega.
+  intros. cut (m/2 + 1 <= n/2). lia.
   rewrite <- div2_step.
   eauto using div2_monotonic.
 Qed.
@@ -227,14 +213,14 @@ Lemma mult_div_2:
   forall n,
   2 * (n / 2) <= n.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma div_mult_2:
   forall n,
   (2 * n) / 2 = n.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 (* A collection of lemmas about division by two and ordering. *)
@@ -244,7 +230,7 @@ Lemma prove_div2_le:
   m <= 2 * n + 1 -> (* tight *)
   m / 2 <= n.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma use_div2_plus1_le:
@@ -252,7 +238,7 @@ Lemma use_div2_plus1_le:
   (n + 1) / 2 <= m -> (* tight *)
   n <= 2 * m.
 Proof using.
-  intros m n. div2. omega.
+  intros m n. div2. lia.
 Qed.
 
 Lemma use_div2_le:
@@ -260,7 +246,7 @@ Lemma use_div2_le:
   n / 2 <= m -> (* tight *)
   n <= 2 * m + 1.
 Proof using.
-  intros m n. div2. omega.
+  intros m n. div2. lia.
 Qed.
 
 Lemma prove_le_div2:
@@ -268,7 +254,7 @@ Lemma prove_le_div2:
   2 * m <= n -> (* tight *)
   m <= n / 2.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma use_le_div2:
@@ -276,7 +262,7 @@ Lemma use_le_div2:
   n <= m / 2 -> (* tight *)
   2 * n <= m.
 Proof using.
-  intros m n. div2. omega.
+  intros m n. div2. lia.
 Qed.
 
 Lemma prove_div2_lt:
@@ -284,7 +270,7 @@ Lemma prove_div2_lt:
   m < 2 * n -> (* tight *)
   m / 2 < n.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma use_div2_lt:
@@ -292,7 +278,7 @@ Lemma use_div2_lt:
   m / 2 < n -> (* tight *)
   m < 2 * n.
 Proof using.
-  intros m n. div2. omega.
+  intros m n. div2. lia.
 Qed.
 
 Lemma prove_lt_div2:
@@ -300,7 +286,7 @@ Lemma prove_lt_div2:
   2 * m < n - 1 -> (* tight *)
   m < n / 2.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma prove_lt_div2_zero:
@@ -308,7 +294,7 @@ Lemma prove_lt_div2_zero:
   1 < n -> (* tight *)
   0 < n / 2.
 Proof using.
-  intros. div2. omega.
+  intros. div2. lia.
 Qed.
 
 Lemma use_lt_div2:
@@ -316,7 +302,7 @@ Lemma use_lt_div2:
   m < (n + 1) / 2 -> (* tight *)
   2 * m < n.
 Proof using.
-  intros m n. div2. omega.
+  intros m n. div2. lia.
 Qed.
 
 Hint Resolve prove_lt_div2_zero : positive.
@@ -342,7 +328,7 @@ Lemma power_positive:
   0 < n^k.
 Proof using.
   induction k; simpl; intros.
-  omega.
+  lia.
   eauto using mult_positive.
 Qed.
 
@@ -353,7 +339,7 @@ Lemma power_plus:
   n^(k1 + k2) = n^k1 * n^k2.
 Proof using.
   induction k1; simpl; intros.
-  omega.
+  lia.
   rewrite IHk1. ring.
 Qed.
 
@@ -362,7 +348,7 @@ Lemma power_of_zero:
   0 < k ->
   0^k = 0.
 Proof using.
-  induction k; simpl; intros; omega.
+  induction k; simpl; intros; lia.
 Qed.
 
 Lemma power_monotonic_in_k:
@@ -372,7 +358,7 @@ Lemma power_monotonic_in_k:
   monotonic le le (fun k => n^k).
 Proof using.
   intros. intros k1 k2 ?.
-  assert (f: k2 = k1 + (k2 - k1)). omega.
+  assert (f: k2 = k1 + (k2 - k1)). lia.
   rewrite f. rewrite power_plus.
   eapply mult_magnifies_right.
   eapply power_positive.
@@ -385,14 +371,14 @@ Lemma power_strictly_monotonic_in_k:
   monotonic lt lt (fun k => n^k).
 Proof using.
   intros. intros k1 k2 ?.
-  assert (f: k2 = k1 + S (k2 - k1 - 1)). omega.
+  assert (f: k2 = k1 + S (k2 - k1 - 1)). lia.
   rewrite f. rewrite power_plus.
   eapply mult_magnifies_right_strict.
-    { eauto with positive omega. }
+    { eauto with positive lia. }
     { simpl.
-      eapply lt_le_trans with (m := n). omega.
+      eapply Nat.lt_le_trans with (m := n). lia.
       eapply mult_magnifies_right.
-      eauto with positive omega. }
+      eauto with positive lia. }
 Qed.
 
 Lemma power_strictly_monotonic_in_n:
@@ -409,19 +395,19 @@ Proof using.
     n1^(S k) < n2^(S k)
   ).
   { induction k; simpl; intros.
-    omega.
-    eapply lt_le_trans; [ eapply mult_lt_compat_r | eapply mult_le_compat_l ]. (* wow *)
-      omega.
-      eapply power_positive with (k := S k). omega.
-      forwards: IHk. eauto. simpl in *. omega. }
+    lia.
+    eapply Nat.lt_le_trans; [ eapply Mult.mult_lt_compat_r | eapply Mult.mult_le_compat_l ]. (* wow *)
+      lia.
+      eapply power_positive with (k := S k). lia.
+      forwards: IHk. eauto. simpl in *. lia. }
   (* There remains to treat separately the case where [n1] is 0. *)
   intros. intros n1 n2 ?.
-  destruct (le_gt_dec n1 0).
-    { assert (n1 = 0). omega. subst.
+  destruct (Compare_dec.le_gt_dec n1 0).
+    { assert (n1 = 0). lia. subst.
       rewrite power_of_zero by assumption.
-      eapply power_positive. omega. }
-    { destruct k; [ omega | ].
-      eapply f. omega. } (* ouf *)
+      eapply power_positive. lia. }
+    { destruct k; [ lia | ].
+      eapply f. lia. } (* ouf *)
 Qed.
 
 Hint Resolve power_monotonic_in_k power_strictly_monotonic_in_k
@@ -431,10 +417,9 @@ Lemma power_monotonic_in_n:
   forall k,
   monotonic le le (fun n => n^k).
 Proof using.
-  intros.
-  destruct (eq_nat_dec k 0).
-  { subst. simpl. repeat intro. omega. }
-  { eauto with monotonic omega. }
+  intros. destruct k.
+  { subst. simpl. repeat intro. lia. }
+  { eauto with monotonic lia. }
 Qed.
 
 Hint Resolve power_monotonic_in_n : monotonic typeclass_instances.
@@ -470,7 +455,7 @@ Lemma power_strictly_inverse_monotonic_in_k_variant:
   n^k1 < n^(1 + k2) ->
   k1 <= k2.
 Proof using.
-  intros. cut (k1 < 1 + k2). { omega. }
+  intros. cut (k1 < 1 + k2). { lia. }
   eauto using power_strictly_inverse_monotonic_in_k.
 Qed.
 
@@ -482,10 +467,10 @@ Lemma power_strictly_inverse_monotonic_in_k_frame:
 Proof using.
   intros.
   assert (k2 <= k1).
-    { eapply power_inverse_monotonic_in_k with (n := n); eauto with omega. }
+    { eapply power_inverse_monotonic_in_k with (n := n); eauto with lia. }
   assert (k1 < 1 + k2).
-    { eapply power_strictly_inverse_monotonic_in_k with (n := n); eauto with omega. }
-  omega.
+    { eapply power_strictly_inverse_monotonic_in_k with (n := n); eauto with lia. }
+  lia.
 Qed.
 
 Lemma power_inverse_monotonic_in_n:
@@ -506,7 +491,7 @@ Lemma n_lt_power:
   forall n,
   n < 2^n.
 Proof using.
-  induction n; simpl; omega.
+  induction n; simpl; lia.
 Qed.
 
 (* ---------------------------------------------------------------------------- *)
@@ -521,7 +506,7 @@ Qed.
 Ltac log2_spec :=
   match goal with |- context[log2 ?n] =>
     let h := fresh in
-    forwards h: Nat.log2_spec n; [ eauto with positive omega |
+    forwards h: Nat.log2_spec n; [ eauto with positive lia |
       gen h; generalize (log2 n); intros; unpack
     ]
   end.
@@ -536,8 +521,8 @@ Lemma log2_uniqueness_half:
   k1 <= k2.
 Proof using.
   simpl. intros. unpack.
-  eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2). omega.
-  eauto using le_lt_trans.
+  eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2). lia.
+  eauto using Nat.le_lt_trans.
 Qed.
 
 Lemma log2_uniqueness:
@@ -549,7 +534,7 @@ Proof using.
   intros.
   forwards: log2_uniqueness_half n k1 k2; eauto.
   forwards: log2_uniqueness_half n k2 k1; eauto.
-  omega.
+  lia.
 Qed.
 
 (* When applied to a power of two, [log2] yields the exponent. *)
@@ -559,7 +544,7 @@ Lemma log2_pow:
   log2 (2^k) = k.
 Proof using.
   intros k. log2_spec.
-  symmetry. eapply power_strictly_inverse_monotonic_in_k_frame with (n := 2). omega.
+  symmetry. eapply power_strictly_inverse_monotonic_in_k_frame with (n := 2). lia.
   eauto.
 Qed.
 
@@ -577,10 +562,9 @@ Lemma pow_succ_log2:
   forall n,
   n < 2^(1 + log2 n).
 Proof using.
-  intros.
-  destruct (eq_nat_dec n 0).
-  { subst. simpl. omega. }
-  { eapply Nat.log2_spec. omega. }
+  intros. destruct n.
+  { subst. simpl. lia. }
+  { eapply Nat.log2_spec. lia. }
 Qed.
 
 (* The inductive step of many arguments that involve divide-and-conquer. *)
@@ -602,11 +586,11 @@ Lemma log2_monotonic:
 Proof using.
   intros m n ?.
   (* A special case for [m = 0]. *)
-  destruct (eq_nat_dec m 0).
-  { subst. unfold log2. simpl. omega. }
+  destruct m.
+  { subst. unfold log2. simpl. lia. }
   (* Case [m > 0]. *)
   do 2 log2_spec.
-  eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2); simpl; omega.
+  eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2); simpl; lia.
 Qed.
 
 Hint Resolve log2_monotonic : monotonic typeclass_instances.
@@ -644,7 +628,7 @@ Proof using.
   intros.
   eapply monotonic_le_le_implies_inverse_monotonic_lt_lt with (f := fun n => 2^n).
     { eauto with monotonic. }
-  eauto using le_lt_trans, pow_log2.
+  eauto using Nat.le_lt_trans, pow_log2.
 Qed.
 
 Hint Resolve prove_le_log2 prove_log2_le prove_log2_lt : log2.
@@ -674,17 +658,17 @@ Proof using.
   introv hbase hstep.
   assert (f: forall k n, log2 n < k -> P n).
   { induction k; intros.
-    false. omega.
+    false. lia.
     (* Special cases for [n = 0] and [n = 1]. *)
-    destruct (eq_nat_dec n 0); [ subst n | ]. { eauto. }
-    destruct (eq_nat_dec n 1); [ subst n | ]. { eauto. }
+    destruct n as [|n']. { eauto. }
+    destruct n' as [|n'']. eauto.
     (* In the general case, [2 <= n], we use [log2_step]. *)
     eapply hstep. eapply IHk.
-    cut (1 + log2 (n / 2) <= k). { omega. }
-    rewrite log2_step by omega.
-    omega.
+    cut (1 + log2 ((S (S n'')) / 2) <= k). { lia. }
+    rewrite log2_step by lia.
+    lia.
   }
-  intros. eapply f with (k := log2 n + 1). omega.
+  intros. eapply f with (k := log2 n + 1). lia.
 Qed.
 
 (* The following variant of the above induction principle allows
@@ -703,20 +687,19 @@ Proof using.
   assert (forall n, 1 <= n -> P (log2 n) n).
   { eapply (@div2_induction (fun n => 1 <= n -> P (log2 n) n)).
     (* The base case cannot arise. *)
-    { intro. false. omega. }
+    { intro. false. lia. }
     (* Step. *)
     { intros n IH ?.
       (* Special case for [n = 1]. *)
-      destruct (eq_nat_dec n 1); [ subst n; exact h01 | ].
+      destruct (Nat.eq_decidable n 1); [ subst n; exact h01 | ].
       (* In the general case, [2 <= n], we use [log2_step]. *)
-      assert (2 <= n). { omega. }
+      assert (2 <= n). { lia. }
       rewrite <- log2_step by assumption.
       eauto with div2. }
   }
   intro n.
   (* Special case for [n = 0]. *)
-  destruct (eq_nat_dec n 0); [ subst n; exact h00 | ].
+  destruct n; [ exact h00 | ].
   (* General case. *)
-  eauto with omega.
+  eauto with lia.
 Qed.
-

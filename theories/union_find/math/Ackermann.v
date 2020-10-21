@@ -50,7 +50,7 @@ Proof using.
   intro x.
   rewrite Astep_eq.
   rewrite fact.
-  omega.
+  lia.
 Qed.
 
 Lemma iter_A_1_eq:
@@ -60,17 +60,17 @@ Lemma iter_A_1_eq:
 Proof using.
   Opaque plus. (* TEMPORARY ugly *)
   induction i; simpl; intros.
-  omega.
+  lia.
   rewrite A_1_eq. rewrite IHi.
   (* Now for some pain... *)
   assert (0 < 2^i). { eauto using power_positive. }
-  assert (0 < 1+x). { omega. }
+  assert (0 < 1+x). { lia. }
   generalize dependent (2^i); intro n; intros.
   generalize dependent (1+x); intro y; intros.
   assert (0 < n * y). { eauto using mult_positive. }
-  rewrite <- mult_assoc.
+  rewrite <- Mult.mult_assoc.
   generalize dependent (n * y); intros ny; intros.
-  omega. (* phew! *)
+  lia. (* phew! *)
   Transparent plus.
 Qed.
 
@@ -94,7 +94,7 @@ Local Notation inflationary_ :=
 Lemma inflationary_Abase:
   inflationary_ Abase.
 Proof using.
-  unfold inflationary, Abase. intros. omega.
+  unfold inflationary, Abase. intros. lia.
 Qed.
 
 Lemma preserves_inflationary_Astep:
@@ -103,7 +103,7 @@ Proof using.
   unfold preserves, within, inflationary, Astep. intros.
   eapply iter_inflationary with (okA := everywhere);
     unfold preserves, within;
-    eauto using le_trans.
+    eauto using Nat.le_trans.
 Qed.
 
 Lemma Ak_inflationary:
@@ -124,7 +124,7 @@ Proof using.
   (* Kind of reproving the same thing again... *)
   eapply iter_inflationary with (okA := everywhere);
     unfold preserves, within;
-    eauto using le_trans, Ak_inflationary.
+    eauto using Nat.le_trans, Ak_inflationary.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -138,7 +138,7 @@ Proof using.
   unfold inflationary, pointwise, Astep. intros.
   simpl. rewrite iter_iter_1.
   eapply iter_inflationary with (okA := everywhere);
-    unfold preserves, within; eauto using le_trans.
+    unfold preserves, within; eauto using Nat.le_trans.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -156,7 +156,7 @@ Proof using.
      must carry the information that [A k] is inflationary. This is done by
     picking an appropriate [okA]. *)
   eapply iter_monotonic_in_n_specialized with (okA := inflationary_);
-    unfold pointwise; eauto using le_trans, inflationary_Abase,
+    unfold pointwise; eauto using Nat.le_trans, inflationary_Abase,
     preserves_inflationary_Astep, inflationary_Astep.
 Qed.
 
@@ -191,7 +191,7 @@ Qed.
 Lemma monotonic_Abase:
   monotonic le le Abase.
 Proof using.
-  unfold monotonic, Abase. intros. omega.
+  unfold monotonic, Abase. intros. lia.
 Qed.
 
 Lemma preserves_monotonic_Astep:
@@ -201,10 +201,10 @@ Lemma preserves_monotonic_Astep:
   monotonic le le (Astep f).
 Proof using.
   intros. intros x1 x2 ?. unfold Astep.
-  eapply le_trans; [ | eapply iter_monotonic_in_x; eauto ].
+  eapply Nat.le_trans; [ | eapply iter_monotonic_in_x; eauto ].
   eapply iter_monotonic_in_n with (okA := everywhere);
-    unfold preserves, within; eauto using le_trans.
-  omega.
+    unfold preserves, within; eauto using Nat.le_trans.
+  lia.
 Qed.
 
 Lemma Akx_monotonic_in_x:
@@ -258,16 +258,16 @@ Proof using.
   rewrite A_1_eq.
   (* We are now comparing two applications of [iter]. It suffices to
      exploit the fact that [iter n f x] is monotonic in [f] and [x]. *)
-  eapply le_trans; [ eapply iter_monotonic_in_f | eapply iter_monotonic_in_x ].
+  eapply Nat.le_trans; [ eapply iter_monotonic_in_f | eapply iter_monotonic_in_x ].
     (* from [iter_monotonic_in_f] *)
     eauto.
-    eauto using le_trans.
+    eauto using Nat.le_trans.
     split.
       eauto with monotonic.
-      unfold pointwise. intros. rewrite A_1_eq. omega.
+      unfold pointwise. intros. rewrite A_1_eq. lia.
     (* from [iter_monotonic_in_x] *)
     eauto with monotonic.
-    omega.
+    lia.
 Qed.
 
 (* A slightly more powerful version of the previous lemma. It is not a
@@ -280,7 +280,7 @@ Lemma A_2_log2_lower_bound:
 Proof using.
   (* It is somewhat miraculous that this auxiliary assertion holds. *)
   assert (forall b n, n <= 2 * iter (log2 n) (A 1) b + 1).
-  { intros. eapply (log2_induction (fun k n => n <= 2 * iter k (A 1) b + 1)). omega. omega.
+  { intros. eapply (log2_induction (fun k n => n <= 2 * iter k (A 1) b + 1)). lia. lia.
     intros. simpl. rewrite A_1_eq. eauto with div2. }
   intros. rewrite Astep_eq. simpl. rewrite A_1_eq. eauto.
   (* An alternative proof would consist in using [A_2_eq] together
@@ -297,16 +297,16 @@ Proof using.
   rewrite Astep_eq.
   (* We are now comparing two applications of [iter]. It suffices to
      exploit the fact that [iter n f x] is monotonic in [f] and [x]. *)
-  eapply le_trans; [ eapply iter_monotonic_in_f | eapply iter_monotonic_in_x ].
+  eapply Nat.le_trans; [ eapply iter_monotonic_in_f | eapply iter_monotonic_in_x ].
     (* from [iter_monotonic_in_f] *)
     eauto.
-    eauto using le_trans.
+    eauto using Nat.le_trans.
     split.
       eauto with monotonic.
       unfold pointwise. eauto using A_2_lower_bound.
     (* from [iter_monotonic_in_x] *)
     eauto with monotonic.
-    omega.
+    lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -341,15 +341,15 @@ Proof using.
   intros x ? k _.
   induction k; intros; simpl.
   (* Base. *)
-  omega.
+  lia.
   (* Step. *)
   rewrite Astep_eq.
   (* [1 + x] is at least 2, and [iter] is monotonic in [n]. *)
   transitivity (iter 2 (A k) x).
     2: eapply iter_monotonic_in_n_specialized with (okA := everywhere);
          unfold preserves, within;
-         eauto using le_trans, Ak_inflationary
-                with omega.
+         eauto using Nat.le_trans, Ak_inflationary
+                with lia.
   (* Unfold [iter], and exploit the induction hypothesis (which is
      possible because [A k] is monotonic). *)
   simpl.
@@ -357,10 +357,10 @@ Proof using.
     2: eauto with monotonic.
   (* Now, [A k k] is at least [A 0 k]. *)
   transitivity (A 0 k).
-    2: eauto with monotonic omega.
+    2: eauto with monotonic lia.
   (* And [A 0 k] is precisely [1 + k]. *)
   rewrite Abase_eq at 1.
-  omega.
+  lia.
 Qed.
 
 Lemma Akx_tends_to_infinity_along_k:
@@ -390,10 +390,10 @@ Proof using.
      [A 0]. The result follows by transitivity. *)
   intros.
   assert (x < A 0 x).
-    { rewrite Abase_eq. omega. }
+    { rewrite Abase_eq. lia. }
   assert (A 0 x <= A k x).
-    { eauto with monotonic omega. }
-  omega.
+    { eauto with monotonic lia. }
+  lia.
 Qed.
 
 (* For every [n] other than zero, [iter n (A k)] is strictly inflationary. *)
@@ -403,12 +403,12 @@ Lemma iter_Ak_strictly_inflationary:
   n > 0 ->
   x < iter n (A k) x.
 Proof using.
-  intros. destruct n; [ omega | ]. simpl.
+  intros. destruct n; [ lia | ]. simpl.
   assert (x < A k x).
     { eapply Ak_strictly_inflationary. }
   assert (A k x <= A k (iter n (A k) x)).
     { eauto using iter_Ak_inflationary with monotonic. }
-  omega.
+  lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -433,8 +433,8 @@ Proof using.
   assert (A k1 x < A (1 + k1) x).
     { eauto using Akx_strictly_monotonic_in_k_step. }
   assert (A (1 + k1) x <= A k2 x).
-    { eauto with monotonic omega. }
-  omega.
+    { eauto with monotonic lia. }
+  lia.
 Qed.
 
 Hint Resolve Akx_strictly_monotonic_in_k : monotonic typeclass_instances.
@@ -455,12 +455,12 @@ Proof using.
      implies that iterating over and over takes us to infinity. *)
   intros f x hinfl.
   assert (bound: forall i, x + i <= iter i f x).
-  { intro. eapply iter_indexed_invariant; [ | omega ]. intros j y ?.
-    generalize (hinfl y). omega. }
+  { intro. eapply iter_indexed_invariant; [ | lia ]. intros j y ?.
+    generalize (hinfl y). lia. }
   (* Manual proof. *)
   eapply prove_tends_towards_infinity.
   intro y. exists y. intros z ?.
-  generalize (bound z). omega.
+  generalize (bound z). lia.
 Qed.
 
 (* The orbit of [A k] out of [x] goes to infinity. *)
@@ -481,11 +481,11 @@ Lemma iter_inflationary_monotonic:
   monotonic le le (fun i => iter i f x).
 Proof using.
   intros f x hinfl i j ?.
-  replace j with ((j - i) + i) by omega.
+  replace j with ((j - i) + i) by lia.
   rewrite iter_iter.
   generalize (iter i f x). intro y.
   eapply iter_inflationary with (okA := everywhere);
-    unfold preserves, within, inflationary; eauto using le_trans.
+    unfold preserves, within, inflationary; eauto using Nat.le_trans.
 Qed.
 
 (* [fun i => iter i (A k) x] is monotonic. *)
@@ -498,4 +498,3 @@ Proof using.
   eapply iter_inflationary_monotonic.
   intro. eapply Ak_inflationary. tauto.
 Qed.
-

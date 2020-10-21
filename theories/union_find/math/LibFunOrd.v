@@ -2,9 +2,8 @@
    such as the property of being monotonic. *)
 
 Set Implicit Arguments.
-Require Import Coq.Classes.Morphisms.
+Require Import Coq.Classes.Morphisms Coq.micromega.Lia.
 From TLC Require Import LibTactics.
-Require Import Omega.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -104,7 +103,7 @@ Qed.
    specific instance of the ordering relation that appears in the
    conclusion. Furthermore, picking a specific instance of the
    ordering relation that appears in the premise can help apply
-   [omega] to the premise. *)
+   [lia] to the premise. *)
 
 Hint Resolve (@use_monotonic nat le nat le) (@use_monotonic nat lt nat lt)
 : monotonic typeclass_instances.
@@ -148,13 +147,13 @@ Require Import Coq.Arith.Arith.
 Ltac prove_le_le_by_contraposition :=
   match goal with h: ?a <= ?b |- ?x <= ?y =>
     (destruct (le_gt_dec x y); [ assumption | ]);
-    assert (b < a); [ clear h | omega ]
+    assert (b < a); [ clear h | lia ]
   end.
 
 Ltac prove_lt_lt_by_contraposition :=
   match goal with h: ?a < ?b |- ?x < ?y =>
-    (destruct (le_gt_dec y x); [ false | omega ]);
-    assert (b <= a); [ clear h | omega ]
+    (destruct (le_gt_dec y x); [ false | lia ]);
+    assert (b <= a); [ clear h | lia ]
   end.
 
 (* If a function of type [nat -> nat] is strictly monotonic, then
@@ -177,8 +176,8 @@ Lemma monotonic_lt_lt_implies_monotonic_le_le:
 Proof using.
   introv h. intros x1 x2 ?.
   destruct (eq_nat_dec x1 x2).
-    { assert (f x1 = f x2). congruence. omega. }
-    { assert (f x1 < f x2). eapply h; omega. omega. }
+    { assert (f x1 = f x2). congruence. lia. }
+    { assert (f x1 < f x2). eapply h; lia. lia. }
 Qed.
 
 Hint Resolve monotonic_lt_lt_implies_inverse_monotonic_le_le
@@ -207,4 +206,3 @@ Qed.
 
 Hint Resolve monotonic_le_le_implies_inverse_monotonic_lt_lt :
 monotonic typeclass_instances.
-
