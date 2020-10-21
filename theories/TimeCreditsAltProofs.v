@@ -246,13 +246,13 @@ Proof.
    * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
   (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-  iMod (own_alloc (gmap_view_auth (<[ℓ := #m]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #m))
+  iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #m]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #m))
     as (h) "[Hh● Hℓ◯]".
   { apply gmap_view_both_valid_L. split; first done.
     rewrite lookup_insert. done.
   }
   (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth (V:=gnameO) ∅)) as (γmeta) "H" ;
+    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
       first by apply gmap_view_auth_valid.
   (* allocate the ghost state associated with ℓ: *)
   iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".

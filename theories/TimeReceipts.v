@@ -319,13 +319,13 @@ Section Soundness.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (gmap_view_auth (<[ℓ := #(nmax-1)%nat]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #(nmax-1)%nat))
+    iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #(nmax-1)%nat]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #(nmax-1)%nat))
       as (h) "[Hh● Hℓ◯]".
     { apply gmap_view_both_valid_L. split; first done.
       rewrite lookup_insert. done.
     }
     (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth (V:=gnameO) ∅)) as (γmeta) "H" ;
+    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
       first by apply gmap_view_auth_valid.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
