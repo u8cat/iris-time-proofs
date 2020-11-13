@@ -18,7 +18,7 @@ Definition heap_adequacy Σ `{heapPreG Σ} s e σ φ :
   adequate s e σ (λ v _, φ v).
 Proof.
   intros Hwp; eapply (wp_adequacy _ _); iIntros (??) "".
-  iMod (gen_heap_init σ) as (?) "Hh".
+  iMod (gen_heap_init σ) as (?) "[Hh _]".
   iModIntro.
   iExists (λ σ κs, (gen_heap_interp σ)%I), (λ _, True%I). iFrame.
   iApply (Hwp (HeapG _ _ _)).
