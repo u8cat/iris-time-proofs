@@ -22,14 +22,16 @@ Tactic Notation "wp_expr_eval" tactic(t) :=
 
 Ltac wp_expr_simpl := wp_expr_eval simpl.
 
-Lemma tac_wp_pure `{heapG Σ} Δ Δ' s E e1 e2 φ n Φ :
+Lemma tac_wp_pure `{heapG Σ} Δ Δ' s E K e1 e2 φ n Φ :
   PureExec φ n e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
-  envs_entails Δ' (WP e2 @ s; E {{ Φ }}) →
-  envs_entails Δ (WP e1 @ s; E {{ Φ }}).
+  envs_entails Δ' (WP (fill K e2) @ s; E {{ Φ }}) →
+  envs_entails Δ (WP (fill K e1) @ s; E {{ Φ }}).
 Proof.
   rewrite envs_entails_eq=> ??? HΔ'. rewrite into_laterN_env_sound /=.
+  (* We want [pure_exec_fill] to be available to TC search locally. *)
+  pose proof @pure_exec_fill.
   rewrite HΔ' -lifting.wp_pure_step_later //.
 Qed.
 
@@ -47,7 +49,7 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     let e := eval simpl in e in
     reshape_expr false e ltac:(fun K e' =>
       unify e' efoc;
-      eapply (tac_wp_pure _ _ _ _ (fill K e'));
+      eapply (tac_wp_pure _ _ _ _ K e');
       [iSolveTC                       (* PureExec *)
       |try fast_done                  (* The pure condition for PureExec *)
       |iSolveTC                       (* IntoLaters *)
