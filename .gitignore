@@ -19,3 +19,5 @@ _opam
 .coq-native/
 build-dep/
 *.crashcoqide
+.Makefile.coq.d
+.nia.cache

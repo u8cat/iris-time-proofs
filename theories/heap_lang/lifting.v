@@ -20,13 +20,12 @@ Instance heapG_irisG `{heapG Σ} : irisG heap_lang Σ := {
 }.
 
 (** Override the notations so that scopes and coercions work out *)
-Notation "l ↦{ q } v" := (mapsto (L:=loc) (V:=val) l q v%V)
-  (at level 20, q at level 50, format "l  ↦{ q }  v") : bi_scope.
+Notation "l ↦{ dq } v" := (mapsto (L:=loc) (V:=val) l dq v%V)
+  (at level 20, dq at level 50, format "l  ↦{ dq }  v") : bi_scope.
+Notation "l ↦{# q } v" := (mapsto (L:=loc) (V:=val) l (DfracOwn q) v%V)
+  (at level 20, q at level 50, format "l  ↦{# q }  v") : bi_scope.
 Notation "l ↦ v" :=
-  (mapsto (L:=loc) (V:=val) l 1 v%V) (at level 20) : bi_scope.
-Notation "l ↦{ q } -" := (∃ v, l ↦{q} v)%I
-  (at level 20, q at level 50, format "l  ↦{ q }  -") : bi_scope.
-Notation "l ↦ -" := (l ↦{1} -)%I (at level 20) : bi_scope.
+  (mapsto (L:=loc) (V:=val) l (DfracOwn 1) v%V) (at level 20) : bi_scope.
 
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
 [head_step]. The tactic will discharge head-reductions starting from values, and
@@ -171,8 +170,8 @@ Proof.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
 
-Lemma wp_load s E l q v :
-  {{{ ▷ l ↦{q} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{q} v }}}.
+Lemma wp_load s E l dq v :
+  {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.

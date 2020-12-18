@@ -128,7 +128,7 @@ Notation Phi := (Phi 1).
    client. *)
 
 Definition mapsto_M M : iProp Σ :=
-  ([∗ map] l ↦ c ∈ M, from_option (mapsto l 1) False (val_of_content c))%I.
+  ([∗ map] l ↦ c ∈ M, from_option (mapsto l (DfracOwn 1)) False (val_of_content c))%I.
 
 Definition UF D R V : iProp Σ :=
   (∃ F K M,
