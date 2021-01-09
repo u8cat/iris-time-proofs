@@ -331,7 +331,7 @@ Section Soundness.
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc (MaxNat 0)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time receipts: *)
-    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ _ γ1 γ2)
+    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ _ γ1 γ2)
       as HtrHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TR_invariant nmax)%I with "[Hℓ◯ Hγ1● Hγ2●]" as "> Hinv".

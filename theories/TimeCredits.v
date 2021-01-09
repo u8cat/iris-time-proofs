@@ -433,7 +433,7 @@ Section Soundness.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc k) as (γ) "[Hγ● Hγ◯]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ γ)
+    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ γ)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> Hinv".

@@ -856,7 +856,7 @@ Section Soundness.
     iMod (auth_nat_alloc (max_tr-1-M)) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc (MaxNat (max_tr-1-M))) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_tctrHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ _ _ _ _ _ h γmeta)) _ _ _ _ γ γ1 γ2 _)
+    pose (Build_tctrHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ _ _ γ γ1 γ2 _)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TCTR_invariant max_tr)%I with "[Hℓ◯ Hγ● Hγ1● Hγ2●]" as "> Hinv".
