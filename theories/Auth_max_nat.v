@@ -39,7 +39,7 @@ Section Auth_max_nat.
     iIntros (I) "H".
     rewrite (_ : n₁ = n₁ ⋅ n₂)%nat.
     - rewrite auth_frag_op. iDestruct "H" as "[_$]".
-    - destruct n₁, n₂. rewrite max_nat_op_max. f_equal. simpl in I. lia.
+    - destruct n₁, n₂. rewrite max_nat_op. f_equal. simpl in I. lia.
   Qed.
   Global Arguments own_auth_max_nat_weaken _ (_ _ _)%nat_scope.
 
@@ -84,7 +84,7 @@ Section Auth_max_nat.
     iModIntro.
     rewrite (_ : MaxNat (m + k) = MaxNat (n + k) ⋅ MaxNat (m + k))%nat.
     - iDestruct "H◯" as "[$ _]".
-    - rewrite max_nat_op_max. f_equal. lia.
+    - rewrite max_nat_op. f_equal. lia.
   Qed.
   Global Arguments auth_max_nat_update_incr' _ (_ _ _)%nat_scope.
 
