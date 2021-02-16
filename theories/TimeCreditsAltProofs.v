@@ -285,7 +285,7 @@ Proof.
   (* close the invariant (in fact, this is not required): *)
   iMod ("InvClose" with "[-]") as "_" ; first by auto with iFrame.
   (* conclude: *)
-  iMod (fupd_intro_mask' ⊤ ∅) as "_" ; first done. iPureIntro.
+  iMod (fupd_mask_subseteq ∅) as "_" ; first done. iPureIntro.
   lia.
 Qed.
 
