@@ -1,13 +1,10 @@
 From iris Require Export  algebra.auth algebra.numbers.
 From iris Require Import  base_logic.lib.own proofmode.tactics.
 
-
-
-Notation "'●nat' n"  := (auth_auth (A:=natUR)  1%Qp n%nat) (at level 20).
-Notation "'◯nat' n"  := (auth_frag (A:=natUR)  n%nat) (at level 20).
+Notation "'●nat' n" := (auth_auth (A:=natUR) (DfracOwn 1%Qp) n%nat) (at level 20).
+Notation "'◯nat' n" := (auth_frag (A:=natUR) n%nat) (at level 20).
 
 Section Auth_nat.
-
   Context `{inG Σ (authR natUR)}.
 
   Lemma auth_nat_alloc (n : nat) :
@@ -65,5 +62,4 @@ Section Auth_nat.
     iMod (own_update_2 with "H● H◯") as "[$ $]" ; last done.
     apply auth_update, nat_local_update. lia.
   Qed.
-
 End Auth_nat.

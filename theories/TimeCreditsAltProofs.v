@@ -282,11 +282,8 @@ Proof.
   iDestruct (gen_heap_valid with "Hheap2 Hc") as %Eq.
   rewrite lookup_insert in Eq.
   injection Eq as ->.
-  (* close the invariant (in fact, this is not required): *)
-  iMod ("InvClose" with "[-]") as "_" ; first by auto with iFrame.
-  (* conclude: *)
-  iMod (fupd_intro_mask' ⊤ ∅) as "_" ; first done. iPureIntro.
-  lia.
+  (* close the invariant (in fact, this is not required), and conclue: *)
+  iMod ("InvClose" with "[-]") as "_" ; by auto with iFrame lia.
 Qed.
 
 (* The simulation lemma with no assumption that m ≤ n. *)

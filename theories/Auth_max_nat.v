@@ -1,15 +1,12 @@
 From iris Require Export  algebra.auth algebra.numbers.
 From iris Require Import  algebra.excl base_logic.lib.own proofmode.tactics.
 
-
-
-Notation "'●max_nat' n" := (auth_auth (A:=max_natUR) 1%Qp n%nat) (at level 20).
+Notation "'●max_nat' n" := (auth_auth (A:=max_natUR) (DfracOwn 1%Qp) n%nat) (at level 20).
 Notation "'◯max_nat' n" := (auth_frag (A:=max_natUR) n%nat) (at level 20).
 
 Local Coercion max_nat_car : max_nat >-> nat.
 
 Section Auth_max_nat.
-
   Context `{inG Σ (authR max_natUR)}.
 
   Lemma auth_max_nat_alloc (n : max_nat) :
@@ -87,5 +84,4 @@ Section Auth_max_nat.
     - rewrite max_nat_op. f_equal. lia.
   Qed.
   Global Arguments auth_max_nat_update_incr' _ (_ _ _)%nat_scope.
-
 End Auth_max_nat.
