@@ -833,21 +833,16 @@ Section Soundness.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #M]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #M))
-      as (h) "[Hh● Hℓ◯]".
-    { apply gmap_view_both_valid_L. split; first done.
-      rewrite lookup_insert. done.
-    }
-    (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
-      first by apply gmap_view_auth_valid.
+    iMod (gen_heap_init (<[ℓ := #M]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
+    iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
+    { by rewrite lookup_insert. }
     (* allocate the ghost state associated with ℓ: *)
     iAssert (|==> ∃ γ,
         (if useTC then own γ (● M) else True)
       ∗ (if useTC then own γ (◯ m) else True)
     )%I as "Hγalloc".
     {
-      rewrite /useTC ; case_bool_decide ; last done.
+      rewrite /useTC ; case_bool_decide ; last by iExists inhabitant.
       rewrite (_ : M = m) ; last by (rewrite /M ; lia).
       iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
       auto with iFrame.
@@ -856,20 +851,18 @@ Section Soundness.
     iMod (auth_nat_alloc (max_tr-1-M)) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc (MaxNat (max_tr-1-M))) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_tctrHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ _ _ γ γ1 γ2 _)
+    pose (Build_tctrHeapG Σ (HeapG Σ _ Hheap) _ _ _ _ γ γ1 γ2 _)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TCTR_invariant max_tr)%I with "[Hℓ◯ Hγ● Hγ1● Hγ2●]" as "> Hinv".
     {
       iApply inv_alloc.
-      iExists M.
-      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
+      iExists M. by iFrame.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●".
-    - iExists ∅. auto with iFrame.
-    - iApply (Hspec $ HtcHeapG with "Hinv Hγ◯") ; auto.
+    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iFrame.
+    iApply (Hspec $ HtcHeapG with "Hinv Hγ◯") ; auto.
   Qed.
 
   (* the final soundness theorem. *) 

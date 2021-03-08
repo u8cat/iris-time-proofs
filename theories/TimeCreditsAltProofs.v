@@ -246,32 +246,24 @@ Proof.
    * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
   (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-  iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #m]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #m))
-    as (h) "[Hh● Hℓ◯]".
-  { apply gmap_view_both_valid_L. split; first done.
-    rewrite lookup_insert. done.
-  }
-  (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
-      first by apply gmap_view_auth_valid.
+  iMod (gen_heap_init (<[ℓ := #m]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
+  iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
+  { by rewrite lookup_insert. }
   (* allocate the ghost state associated with ℓ: *)
   iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
   (* packing all those bits, build the heap instance necessary to use time credits: *)
   destruct HtcPreG as [[HinvPreG [HgenHeapPreInG]] HinG] ; simpl ; clear HinvPreG.
-  pose (Build_timeCreditHeapG Σ (HeapG Σ HinvG
-                                    (@GenHeapG _ _ Σ _ _ {| gen_heap_preG_inG := _ |} h γmeta)) HinG _ γ)
+  pose (Build_timeCreditHeapG Σ (HeapG Σ HinvG Hheap) HinG _ γ)
     as HtcHeapG.
   (* create the invariant: *)
   iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> #Hinv".
   {
     iApply inv_alloc.
-    iExists m.
-    unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
+    iExists m. by iFrame.
   }
   (* finally, use the user-given specification: *)
   iModIntro.
-    iExists (λ σ _ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●" ;
-     first by (iExists ∅ ; auto with iFrame).
+    iExists (λ σ _ _, gen_heap_interp σ), (λ _, True%I). iFrame.
   iSplitL ; first (iApply (Hspec with "Hinv Hγ◯") ; auto).
   (* it remains to prove that the interpretation of the final state, along
    * with the invariant, implies the inequality… *)

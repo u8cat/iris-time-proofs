@@ -319,32 +319,26 @@ Section Soundness.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #(nmax-1)%nat]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #(nmax-1)%nat))
-      as (h) "[Hh● Hℓ◯]".
-    { apply gmap_view_both_valid_L. split; first done.
-      rewrite lookup_insert. done.
-    }
-    (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
-      first by apply gmap_view_auth_valid.
+    iMod (gen_heap_init (<[ℓ := #(nmax-1)%nat]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
+    iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
+    { by rewrite lookup_insert. }
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc (MaxNat 0)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time receipts: *)
-    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ _ γ1 γ2)
+    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ Hheap) _ _ _ γ1 γ2)
       as HtrHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TR_invariant nmax)%I with "[Hℓ◯ Hγ1● Hγ2●]" as "> Hinv".
     {
       iApply inv_alloc.
       iExists 0%nat. rewrite (_ : nmax - 0 - 1 = Z.of_nat (nmax - 1)) ; last lia.
-      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
+      by iFrame.
     }
     iModIntro.
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●".
-    - iExists ∅. auto with iFrame.
-    - iApply (Hspec with "Hinv") ; auto.
+    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iFrame.
+    iApply (Hspec with "Hinv") ; auto.
   Qed.
 
   Theorem spec_trtranslation__nadequate {Σ} nmax φ e :

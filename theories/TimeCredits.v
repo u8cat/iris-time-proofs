@@ -422,32 +422,25 @@ Section Soundness.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
-    iMod (own_alloc (gmap_view_auth 1 (<[ℓ := #k]> σ') ⋅ gmap_view_frag ℓ (DfracOwn 1) #k))
-      as (h) "[Hh● Hℓ◯]".
-    { apply gmap_view_both_valid_L. split; first done.
-      rewrite lookup_insert. done.
-    }
-    (* allocate the meta-heap: *)
-    iMod (own_alloc (gmap_view_auth 1 (V:=gnameO) ∅)) as (γmeta) "H" ;
-      first by apply gmap_view_auth_valid.
+    iMod (gen_heap_init (<[ℓ := #k]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
+    iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
+    { by rewrite lookup_insert. }
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc k) as (γ) "[Hγ● Hγ◯]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_timeCreditHeapG Σ (HeapG Σ _ (GenHeapG _ _ Σ h γmeta)) _ _ γ)
+    pose (Build_timeCreditHeapG Σ (HeapG Σ _ Hheap) _ _ γ)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
     {
       iApply inv_alloc.
-      iExists k.
-      unfold mapsto ; destruct mapsto_aux as [_ ->] ; simpl. by iFrame.
+      iExists k. iFrame.
     }
     iIntros (?) "!>".
     (* finally, use the user-given specification: *)
-    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iSplitL "H Hh●".
-    - iExists ∅. auto with iFrame.
-    - iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
-      iApply (Hspec with "Hinv Hγ◯") ; auto.
+    iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iFrame.
+    iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
+    iApply (Hspec with "Hinv Hγ◯") ; auto.
   Qed.
 
   Theorem spec_tctranslation__adequate_and_bounded {Σ} m φ e :
