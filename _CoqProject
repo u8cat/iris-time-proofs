@@ -22,7 +22,7 @@ theories/Examples.v
 theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v
-theories/Thunks.v
+theories/ThunksSimple.v
 theories/TimeCredits.v
 theories/TimeCreditsAltProofs.v
 theories/TimeReceipts.v
