@@ -731,7 +731,7 @@ Theorem make_spec : forall D R V v,
 Proof using.
   iIntros "* #?" (Φ) "!# [HF TC] HΦ".
   wp_tick_rec. wp_tick_pair. wp_tick_inj.
-  iMod (zero_TR with "[//]") as "TR"=>//.
+  iMod zero_TR as "TR".
   wp_tick. wp_alloc x as "Hx". iApply "HΦ".
   iDestruct "HF" as (F K M HI HM) "(HM & TC' & TR')".
 

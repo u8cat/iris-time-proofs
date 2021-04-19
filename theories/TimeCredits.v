@@ -28,7 +28,7 @@ Definition TC_interface `{!irisG heap_lang Σ, Tick}
   (TC : nat → iProp Σ)
 : iProp Σ := (
     ⌜∀ n, Timeless (TC n)⌝
-  ∗ (|={⊤}=> TC 0%nat)
+  ∗ (|==> TC 0%nat)
   ∗ ⌜∀ m n, TC (m + n)%nat ≡ (TC m ∗ TC n)⌝
   ∗ (∀ v, {{{ TC 1%nat }}} tick v {{{ RET v ; True }}})
 )%I.
@@ -77,6 +77,11 @@ Section TickSpec.
   Definition TC (n : nat) : iProp Σ :=
     own γ (◯nat n).
 
+  (* Note: we can avoid the update modality by redefining TC like so:
+         Definition TC' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TC n. *)
+  Lemma zero_TC :
+    ⊢ |==> TC 0.
+  Proof. apply own_unit. Qed.
   Lemma TC_plus m n :
     TC (m + n) ≡ (TC m ∗ TC n)%I.
   Proof. by rewrite /TC auth_frag_op own_op. Qed.
@@ -107,15 +112,6 @@ Section TickSpec.
 
   Definition TC_invariant : iProp Σ :=
     inv timeCreditN (∃ (m:nat), ℓ ↦ #m ∗ own γ (●nat m))%I.
-
-  Lemma zero_TC :
-    TC_invariant ={⊤}=∗ TC 0.
-  Proof.
-    iIntros "#Htickinv".
-    iInv timeCreditN as (m) ">[Hcounter H●]" "Hclose".
-    iDestruct (own_auth_nat_null with "H●") as "[H● $]".
-    iApply "Hclose" ; eauto with iFrame.
-  Qed.
 
   Theorem tick_spec s E (v : val) :
     ↑timeCreditN ⊆ E →
@@ -177,7 +173,7 @@ Section TickSpec.
   Proof.
     iIntros "#Hinv". iSplit ; last iSplit ; last iSplit.
     - iPureIntro. by apply TC_timeless.
-    - by iApply (zero_TC with "Hinv").
+    - by iApply zero_TC.
     - iPureIntro. by apply TC_plus.
     - iIntros (v). by iApply (tick_spec_simple with "Hinv").
   Qed.

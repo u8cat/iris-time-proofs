@@ -31,8 +31,8 @@ Definition TR_interface `{irisG heap_lang Σ, Tick}
   ∗ ⌜∀ n, Timeless (TRdup n)⌝
   ∗ ⌜∀ n, Persistent (TRdup n)⌝
   ∗ (∀ n, TR n ={⊤}=∗ TR n ∗ TRdup n)
-  ∗ (|={⊤}=> TR 0%nat)
-(*   ∗ (|={⊤}=> TRdup 0%nat) *)
+  ∗ (|==> TR 0%nat)
+(*   ∗ (|==> TRdup 0%nat) *)
   ∗ ⌜∀ m n, TR (m + n)%nat ≡ (TR m ∗ TR n)⌝
   ∗ ⌜∀ m n, TRdup (m `max` n)%nat ≡ (TRdup m ∗ TRdup n)⌝
 (*   ∗ (TR nmax ={⊤}=∗ False) *)
@@ -88,6 +88,11 @@ Section TickSpec.
     own γ2 (◯max_nat (MaxNat n)).
   Arguments TRdup _%nat_scope.
 
+  (* Note: we can avoid the update modality by redefining TR like so:
+         Definition TR' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TR n. *)
+  Lemma zero_TR :
+    ⊢ |==> TR 0.
+  Proof. apply own_unit. Qed.
   Lemma TR_plus m n :
     TR (m + n) ≡ (TR m ∗ TR n)%I.
   Proof. by rewrite /TR auth_frag_op own_op. Qed.
@@ -112,6 +117,11 @@ Section TickSpec.
   Global Instance from_sep_TR_succ n : FromSep (TR (S n)) (TR 1) (TR n).
   Proof. by rewrite /FromSep [TR (S n)] TR_succ. Qed.
 
+  (* Note: we can avoid the update modality by redefining TRdup like so:
+         Definition TRdup' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TRdup n. *)
+  Lemma zero_TRdup :
+    ⊢ |==> TRdup 0.
+  Proof. apply own_unit. Qed.
   Lemma TRdup_max m n :
     TRdup (m `max` n) ≡ (TRdup m ∗ TRdup n)%I.
   Proof. by rewrite /TRdup -own_op -auth_frag_op. Qed.
@@ -136,26 +146,6 @@ Section TickSpec.
 
   Definition TR_invariant : iProp Σ :=
     inv timeReceiptN (∃ (n:nat), ℓ ↦ #(nmax-n-1) ∗ own γ1 (●nat n) ∗ own γ2 (●max_nat (MaxNat n)) ∗ ⌜(n < nmax)%nat⌝)%I.
-
-  Lemma zero_TR E :
-    ↑timeReceiptN ⊆ E →
-    TR_invariant ={E}=∗ TR 0.
-  Proof.
-    iIntros (?) "#Htickinv".
-    iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & H)" "Hclose".
-    iDestruct (own_auth_nat_null with "Hγ1●") as "[Hγ1● $]".
-    iApply "Hclose" ; eauto with iFrame.
-  Qed.
-
-  Lemma zero_TRdup E :
-    ↑timeReceiptN ⊆ E →
-    TR_invariant ={E}=∗ TRdup 0.
-  Proof.
-    iIntros (?) "#Htickinv".
-    iInv timeReceiptN as (m) ">(Hcounter & Hγ1● & Hγ2● & Im)" "Hclose".
-    iDestruct (own_auth_max_nat_null with "Hγ2●") as "[Hγ2● $]".
-    iApply "Hclose" ; eauto with iFrame.
-  Qed.
 
   Lemma TR_nmax_absurd (E : coPset) :
     ↑timeReceiptN ⊆ E →
@@ -283,7 +273,7 @@ Section TickSpec.
     - iPureIntro. by apply TRdup_timeless.
     - iPureIntro. by apply TRdup_persistent.
     - iIntros (n). by iApply (TR_TRdup with "Hinv").
-    - by iApply (zero_TR with "Hinv").
+    - by iApply zero_TR.
     - iPureIntro. by apply TR_plus.
     - iPureIntro. by apply TRdup_max.
     - by iApply (TRdup_nmax_absurd with "Hinv").
@@ -410,7 +400,7 @@ Proof.
     rewrite Nat.add_comm. iSpecialize ("HΔ2" with "[//]").
     iDestruct (envs_simple_replace_singleton_sound with "HΔ2") as "[HTR' HΔ']"=>//=.
     iCombine "HTR HTR'" as "HTR". iDestruct ("HΔ'" with "HTR") as "$".
-  - iMod (zero_TRdup with "Hinv") as "HTRdup"=>//.
+  - iMod zero_TRdup as "HTRdup".
     iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [HTR _]". iApply HWP.
     iDestruct (envs_simple_replace_singleton_sound with "HΔ1") as "[HTR' HΔ']"=>//=.
     iCombine "HTR HTR'" as "HTR". iDestruct ("HΔ'" with "HTR") as "$".
@@ -419,7 +409,7 @@ Proof.
     iDestruct "HTRdup" as "#>HTRdup".
     iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [_ #HTRdup']". iApply HWP.
     rewrite Nat.add_comm. iDestruct ("HΔ'" with "[//]") as "$".
-  - iMod (zero_TRdup with "Hinv") as "HTRdup"=>//.
+  - iMod zero_TRdup as "HTRdup".
     iApply (tick_spec with "[//] HTRdup")=>//. iIntros "!> [_ #HTRdup']". by iApply HWP.
 Qed.
 

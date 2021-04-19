@@ -92,7 +92,6 @@ Section Thunk.
     {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
   Proof.
     iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
-    iDestruct (zero_TC with "Htickinv") as ">Htc0".
     iMod (auth_max_nat_alloc (MaxNat 0)) as (γ) "[Hγ● Hγ◯]".
     iApply wp_fupd.
     wp_tick_lam. wp_tick_inj. wp_tick_alloc t.
