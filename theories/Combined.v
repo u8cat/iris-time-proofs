@@ -150,8 +150,7 @@ Section Definitions.
     own γ1 (◯nat n).
 
   Definition TRdup (n : nat) : iProp Σ :=
-    own γ2 (◯max_nat (MaxNat n)).
-  Arguments TRdup _%nat_scope.
+    own γ2 (◯ MaxNat n).
 
   (* Note: we can avoid the update modality by redefining TR like so:
          Definition TR' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TR n. *)
@@ -195,7 +194,7 @@ Section Definitions.
   Lemma TRdup_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
     TRdup n₁ -∗ TRdup n₂.
-  Proof using. apply (own_auth_max_nat_weaken _ (MaxNat _) (MaxNat _)). Qed.
+  Proof using. apply own_auth_max_nat_weaken. Qed.
 
   Lemma TRdup_timeless n :
     Timeless (TRdup n).
@@ -220,7 +219,7 @@ Section Definitions.
       ∗ ℓ ↦ #m
       ∗ (if useTC then own γ (●nat m) else True)
       ∗ own γ1 (●nat (max_tr - 1 - m))
-      ∗ own γ2 (●max_nat (MaxNat (max_tr - 1 - m)))
+      ∗ own γ2 (● MaxNat (max_tr - 1 - m))
     )%I.
 
   Lemma TR_nmax_absurd (E : coPset) :
@@ -249,8 +248,7 @@ Section Definitions.
   Proof using.
     iIntros (?) "#Inv Hγ2◯".
     iInv tctrN as (m) "(>I & _ & _ & _ & >Hγ2●)" "InvClose" ; iDestruct "I" as %I.
-    iDestruct (own_auth_max_nat_le with "Hγ2● Hγ2◯") as %I'.
-    simpl in I'. exfalso ; lia.
+    iDestruct (own_auth_max_nat_le with "Hγ2● Hγ2◯") as %I'. exfalso ; lia.
   Qed.
   Lemma TRdup_lt_nmax n (E : coPset) :
     ↑tctrN ⊆ E →
@@ -332,8 +330,8 @@ Section Definitions.
           rewrite /TC ; destruct useTC ; last done.
           by iMod (auth_nat_update_decr _ _ _ 1 with "Hγ● Hγ◯") as "[$ _]".
         }
-        iMod (auth_nat_update_incr _ _ 1 with "Hγ1●") as "[Hγ1● Hγ1◯]" ; simpl.
-        iMod (auth_max_nat_update_incr' _ _ _ (MaxNat 1) with "Hγ2● Hγ2◯") as "[Hγ2● Hγ2◯]" ; simpl.
+        iMod (auth_nat_update_incr _ _ 1 with "Hγ1●") as "[Hγ1● Hγ1◯]".
+        iMod (auth_max_nat_update_incr' _ _ _ 1 with "Hγ2● Hγ2◯") as "[Hγ2● Hγ2◯]".
         iDestruct "I" as %I.
         replace (max_tr - 1 - m + 1)%nat with (max_tr - 1 - (m - 1))%nat by lia.
         assert ((m-1) < max_tr)%nat by lia.
@@ -837,7 +835,7 @@ Section Soundness.
     }
     iMod "Hγalloc" as (γ) "[Hγ● Hγ◯]".
     iMod (auth_nat_alloc (max_tr-1-M)) as (γ1) "[Hγ1● _]".
-    iMod (auth_max_nat_alloc (MaxNat (max_tr-1-M))) as (γ2) "[Hγ2● _]".
+    iMod (auth_max_nat_alloc (max_tr-1-M)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
     pose (Build_tctrHeapG Σ (HeapG Σ _ Hheap) _ _ _ _ γ γ1 γ2 _)
       as HtcHeapG.

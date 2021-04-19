@@ -30,7 +30,7 @@ Section Thunk.
 
   Definition ThunkInv t γ nc φ : iProp Σ := (
     ∃ (ac : nat),
-        own γ (●max_nat (MaxNat ac))
+        own γ (● MaxNat ac)
       ∗ (
           (∃ (f : val),
               t ↦ UNEVALUATEDV « f »
@@ -46,7 +46,7 @@ Section Thunk.
   Definition Thunk p t n φ : iProp Σ := (
     ∃ (γ : gname) (nc : nat),
         na_inv p (thunkN t) (ThunkInv t γ nc φ)
-      ∗ own γ (◯max_nat (MaxNat (nc-n)))
+      ∗ own γ (◯ MaxNat (nc-n))
   )%I.
 
   Lemma thunk_persistent p t n φ :
@@ -66,8 +66,7 @@ Section Thunk.
   Proof.
     iIntros (I) "H". iDestruct "H" as (γ nc) "[Hinv Hγ◯]".
     iExists γ, nc. iFrame "Hinv".
-    iDestruct (own_auth_max_nat_weaken _ (MaxNat (nc-n₁))%nat (MaxNat (nc-n₂))%nat with "Hγ◯") as "$".
-    simpl. lia.
+    iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
   Qed.
 
   Definition create : val :=
@@ -92,7 +91,7 @@ Section Thunk.
     {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
   Proof.
     iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
-    iMod (auth_max_nat_alloc (MaxNat 0)) as (γ) "[Hγ● Hγ◯]".
+    iMod (auth_max_nat_alloc 0) as (γ) "[Hγ● Hγ◯]".
     iApply wp_fupd.
     wp_tick_lam. wp_tick_inj. wp_tick_alloc t.
     iApply "Post".
@@ -160,7 +159,7 @@ Section Thunk.
     {
       iAssert (TC (ac + k)) with "[Htc Htc_k]" as "Htc" ;
         first by iSplitL "Htc".
-      iDestruct (auth_max_nat_update_incr' _ _ _ (MaxNat k) with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
+      iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
         iClear "Hγ◯".
       iMod ("Hclose" with "[-Hγ◯']") as "$". {
         iFrame "Hp".
@@ -168,11 +167,11 @@ Section Thunk.
       }
       iModIntro.
       iExists γ, nc. iFrame "Hthunkinv".
-      iDestruct (own_auth_max_nat_weaken _ (MaxNat ((nc-n)+k)) (MaxNat (nc-(n-k))) with "Hγ◯'") as "$" ; simpl; lia.
+      iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
     }
     (* (2) if it is EVALUATED, then we do nothing: *)
     {
-      iDestruct (auth_max_nat_update_incr' _ _ _ (MaxNat k) with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ; 
+      iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
         iClear "Hγ◯".
       iMod ("Hclose" with "[-Hγ◯']") as "$". {
         iFrame "Hp".
@@ -180,7 +179,7 @@ Section Thunk.
       }
       iModIntro.
       iExists γ, nc. iFrame "Hthunkinv".
-      iDestruct (own_auth_max_nat_weaken _ (MaxNat ((nc-n)+k)) (MaxNat (nc-(n-k))) with "Hγ◯'") as "$" ; simpl; lia.
+      iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
     }
   Qed.
 
