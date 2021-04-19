@@ -35,20 +35,19 @@ Section Auth_nat.
     iDestruct "H" as "[_$]".
   Qed.
 
-  Lemma own_auth_nat_null (γ : gname) (m : nat) :
-    own γ (●nat m) -∗
-    own γ (●nat m) ∗ own γ (◯nat 0).
+  Lemma own_auth_nat_zero (γ : gname) :
+    ⊢ |==> own γ (◯nat 0).
   Proof.
-    by rewrite - own_op (_ : ●nat m ⋅ ◯nat 0 = ●nat m).
+    apply own_unit.
   Qed.
 
   Lemma auth_nat_update_incr (γ : gname) (m k : nat) :
     own γ (●nat m) -∗
     |==> own γ (●nat (m + k)) ∗ own γ (◯nat k).
   Proof.
-    iIntros "H●". iDestruct (own_auth_nat_null with "H●") as "[H● H◯]".
-    iMod (own_update_2 with "H● H◯") as "[$ $]" ; last done.
-    apply auth_update, nat_local_update. lia.
+    iIntros "H●".
+    rewrite -own_op. iApply (own_update with "H●").
+    apply auth_update_alloc, nat_local_update. rewrite right_id. lia.
   Qed.
 
   Lemma auth_nat_update_decr (γ : gname) (m n k : nat) :
@@ -59,7 +58,7 @@ Section Auth_nat.
   Proof.
     iIntros (I) "H● H◯".
     iDestruct (own_auth_nat_le with "H● H◯") as %J.
-    iMod (own_update_2 with "H● H◯") as "[$ $]" ; last done.
+    rewrite -own_op. iApply (own_update_2 with "H● H◯").
     apply auth_update, nat_local_update. lia.
   Qed.
 End Auth_nat.
