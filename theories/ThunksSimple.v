@@ -3,7 +3,34 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 
-Section Thunk.
+(* This file contains a simple formalization of thunks, as presented in the
+   ESOP 2019 paper. It does not enjoy the consequence rule. A more elaborate
+   formalization (with the same HeapLang code) can be found in Thunks.v. *)
+
+Notation UNEVALUATED f := (InjL f%V) (only parsing).
+Notation EVALUATED v := (InjR v%V) (only parsing).
+Notation UNEVALUATEDV f := (InjLV f%V) (only parsing).
+Notation EVALUATEDV v := (InjRV v%V) (only parsing).
+Notation "'match:' e0 'with' 'UNEVALUATED' x1 => e1 | 'EVALUATED' x2 => e2 'end'" :=
+  (Match e0 x1%bind e1 x2%bind e2)
+  (e0, e1, x2, e2 at level 200, only parsing) : expr_scope.
+
+Definition create : val :=
+  λ: "f",
+    ref (UNEVALUATED "f").
+
+Definition force : val :=
+  λ: "t",
+    match: ! "t" with
+      UNEVALUATED "f" =>
+        let: "v" := "f" #() in
+        "t" <- (EVALUATED "v") ;;
+        "v"
+    | EVALUATED "v" =>
+        "v"
+    end.
+
+Section ThunkSimpleProofs.
 
   Context `{timeCreditHeapG Σ}.
   Context `{inG Σ (authR max_natUR)}.
@@ -16,14 +43,6 @@ Section Thunk.
   Implicit Type f v : val.
   Implicit Type p : na_inv_pool_name.
   Implicit Type E F : coPset.
-
-  Notation UNEVALUATED f := (InjL f%V) (only parsing).
-  Notation EVALUATED v := (InjR v%V) (only parsing).
-  Notation UNEVALUATEDV f := (InjLV f%V) (only parsing).
-  Notation EVALUATEDV v := (InjRV v%V) (only parsing).
-  Notation "'match:' e0 'with' 'UNEVALUATED' x1 => e1 | 'EVALUATED' x2 => e2 'end'" :=
-    (Match e0 x1%bind e1 x2%bind e2)
-    (e0, e1, x2, e2 at level 200, only parsing) : expr_scope.
 
   Definition thunkN t : namespace :=
     nroot .@ "thunk" .@ string_of_pos t.
@@ -68,21 +87,6 @@ Section Thunk.
     iExists γ, nc. iFrame "Hinv".
     iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
   Qed.
-
-  Definition create : val :=
-    λ: "f",
-      ref (UNEVALUATED "f").
-
-  Definition force : val :=
-    λ: "t",
-      match: ! "t" with
-        UNEVALUATED "f" =>
-          let: "v" := "f" #() in
-          "t" <- (EVALUATED "v") ;;
-          "v"
-      | EVALUATED "v" =>
-          "v"
-      end.
 
   Lemma create_spec p nc φ f :
     TC_invariant -∗
@@ -183,4 +187,4 @@ Section Thunk.
     }
   Qed.
 
-End Thunk.
+End ThunkSimpleProofs.
