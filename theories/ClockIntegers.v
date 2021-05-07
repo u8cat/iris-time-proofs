@@ -10,7 +10,6 @@ Open Scope Z_scope.
  *)
 
 Section clock_int.
-
   Context `{timeReceiptHeapG Σ}.
   Context (nmax : nat).
   Context `(nmax ≤ max_mach_int).
@@ -39,9 +38,8 @@ Section clock_int.
     iDestruct ("Post" with "[H]") as "Post".
     { iIntros "{$H} !%". lia. }
     wp_tick_op=>//.
-    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
+    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_True_pi.
   Qed.
-
 End clock_int.
 
 (*
@@ -80,7 +78,7 @@ Section snapclock_int.
       (* FIXME : why isn't lia able to do this directly? *)
       trans 0. unfold min_mach_int; lia. lia. }
     wp_tick_op.
-    { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left. }
+    { by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_True_pi. }
     iApply "Post". iSplit. auto with lia.
     rewrite Z2Nat.inj_add // Nat.add_comm //.
   Qed.
@@ -107,7 +105,6 @@ Section snapclock_int.
     iDestruct ("Post" with "[H]") as "Post".
     { iSplit; auto with lia. }
     wp_tick_op=>//.
-    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_left.
+    by rewrite /bin_op_eval /= /to_mach_int /mach_int_bounded decide_True_pi.
   Qed.
-
 End snapclock_int.

@@ -755,7 +755,7 @@ Proof using.
   repeat iSplit; try iPureIntro.
   { applys* Inv_make. } { applys* Mem_make. }
   iApply mapsto_M_insert; [done| |by iFrame].
-  rewrite /= /to_mach_int decide_left /=; [by apply (proj2_sig mach_int_0)|].
+  rewrite /= /to_mach_int decide_True_pi /=; [by apply (proj2_sig mach_int_0)|].
   intros ?. by rewrite (exists_proj1_pi _ mach_int_0).
 Qed.
 
@@ -1036,7 +1036,7 @@ Proof using.
       assert (`k1 = `k1') as -> by lia. rewrite (_:`k1' = K y) //.
       rewrite Z.add_comm -(Nat2Z.inj_add 1). done. }
     wp_tick_seq. wp_tick_op.
-    { by rewrite /bin_op_eval /= /to_mach_int decide_left. }
+    { by rewrite /bin_op_eval /= /to_mach_int decide_True_pi. }
     iDestruct (mapsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
     { rewrite lookup_insert_ne //. congruence. }
     wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
@@ -1047,7 +1047,7 @@ Proof using.
     iSplit; last iApply ("HM" with "[%] Hx").
     { iPureIntro. applys* Mem_link_incr HM. congruence. applys update2_sym. }
     rewrite /= -(_:(`k1 + 1) = (K y + 1)%nat) //.
-    { by rewrite /to_mach_int decide_left /=. }
+    { by rewrite /to_mach_int decide_True_pi /=. }
     assert (`k1 + 1 = K y + 1)%Z as -> by lia. by rewrite ->Nat2Z.inj_add. }
 Qed.
 
