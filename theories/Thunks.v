@@ -226,7 +226,7 @@ Section ThunkProofs.
     eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
   Qed.
 
-  Local Instance Thunk'_persistent p t γv n R φ d :
+  Global Instance Thunk'_persistent p t γv n R φ d :
     Persistent (Thunk' p t γv n R φ d).
   Proof.
     revert n φ. induction d ; exact _.
