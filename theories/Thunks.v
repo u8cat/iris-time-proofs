@@ -56,6 +56,7 @@ From iris_time Require Import TimeCredits Auth_max_nat.
   Variables:
 
     - p: thread pool name (technical detail)
+    - N: namespace given to the thunk (chosen by the user)
     - t: physical location of the thunk
     - γv: ghost name given to the thunk (technical detail)
     - n: apparent remaining debt (might be over-estimated)
@@ -65,10 +66,10 @@ From iris_time Require Import TimeCredits Auth_max_nat.
 
   Provided assertions:
 
-    - Thunk p t γv n R φ : persistent representation predicate
+    - Thunk p N t γv n R φ : persistent representation predicate
     - ThunkVal γv v      : persistent assertion saying that thunk t/γv has been
                            forced and that its value is v
-    - ThunkToken p t     : unique token required to force thunk t
+    - na_own p N         : token required for forcing a thunk in namespace N
 
   The representation predicate Thunk is defined inductively.
 
@@ -149,15 +150,16 @@ Section ThunkProofs.
   Implicit Type d : nat.
   Implicit Type p : na_inv_pool_name.
   Implicit Type E F : coPset.
+  Implicit Type N : namespace.
 
-  Definition thunkN t : namespace :=
+  (*Definition thunkN t : namespace :=
     nroot .@ "thunk" .@ t.
   Definition thunkPaidN t : namespace :=
     thunkN t .@ "paid".
   Definition thunkAtDepthN t d : namespace :=
-    thunkN t .@ "depth" .@ d.
-
-  Notation ThunkToken p t := (na_own p (↑thunkN t)).
+    thunkN t .@ "depth" .@ d.*)
+  Definition thunkPaidN t : namespace :=
+    nroot .@ "thunkpaid" .@ t.
 
   Notation ThunkVal γv v := (own γv (Cinr $ to_agree v)).
 
@@ -189,31 +191,23 @@ Section ThunkProofs.
       ∗ own γpaid (● MaxNat paid)
       ∗ if forced then True else TC paid
   )%I.
-  Fixpoint Thunk' p t γv n R φ d : iProp Σ := (
+  Fixpoint Thunk' p N t γv n R φ d : iProp Σ := (
     ∃ γforced γpaid paid m,
         ⌜paid ≤ m ≤ n+paid⌝
       ∗ own γpaid (◯ MaxNat paid)
       ∗ inv (thunkPaidN t) (ThunkPaidInv t γforced γpaid)
       ∗ match d with
         | 0 =>
-            na_inv p (thunkAtDepthN t 0) (ThunkBaseInv t γv γforced m R φ)
+            na_inv p (N .@ 0) (ThunkBaseInv t γv γforced m R φ)
         | S d' =>
             ∃ φ',
-                Thunk' p t γv (n+paid-m) R φ' d'
-              ∗ na_inv p (thunkAtDepthN t d) (ThunkCsqInv t γv γforced m φ' φ)
+                Thunk' p N t γv (n+paid-m) R φ' d'
+              ∗ na_inv p (N .@ d) (ThunkCsqInv t γv γforced m φ' φ)
         end
   )%I.
-  Definition Thunk p t γv n R φ : iProp Σ := (
-    ∃ d, Thunk' p t γv n R φ d
+  Definition Thunk p N t γv n R φ : iProp Σ := (
+    ∃ d, Thunk' p N t γv n R φ d
   )%I.
-
-  Lemma ThunkToken_exclusive p t1 t2 :
-    ThunkToken p t1 -∗ ThunkToken p t2 -∗ ⌜t1 ≠ t2⌝.
-  Proof.
-    iIntros "H1 H2" (<-). iDestruct (na_own_disjoint with "H1 H2") as %Hdisj.
-    exfalso. apply (nclose_infinite (thunkN t1)).
-    rewrite (_ : ↑thunkN t1 = ∅) ; last set_solver. apply empty_finite.
-  Qed.
 
   Lemma ThunkVal_persistent γv v :
     Persistent (ThunkVal γv v).
@@ -226,20 +220,20 @@ Section ThunkProofs.
     eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
   Qed.
 
-  Global Instance Thunk'_persistent p t γv n R φ d :
-    Persistent (Thunk' p t γv n R φ d).
+  Global Instance Thunk'_persistent p N t γv n R φ d :
+    Persistent (Thunk' p N t γv n R φ d).
   Proof.
     revert n φ. induction d ; exact _.
   Qed.
 
-  Lemma Thunk_persistent p t γv n R φ :
-    Persistent (Thunk p t γv n R φ).
+  Lemma Thunk_persistent p N t γv n R φ :
+    Persistent (Thunk p N t γv n R φ).
   Proof. exact _. Qed.
 
-  Lemma Thunk_weaken p t γv n₁ n₂ R φ :
+  Lemma Thunk_weaken p N t γv n₁ n₂ R φ :
     (n₁ ≤ n₂)%nat →
-    Thunk p t γv n₁ R φ -∗
-    Thunk p t γv n₂ R φ.
+    Thunk p N t γv n₁ R φ -∗
+    Thunk p N t γv n₂ R φ.
   Proof.
     iIntros (I) "H". iDestruct "H" as (d) "H". iExists d.
     iInduction (d) as [|d'] "IH" forall (n₁ n₂ I φ).
@@ -251,10 +245,10 @@ Section ThunkProofs.
       iExists φ'. iFrame. iApply ("IH" with "[] [$]"). iPureIntro. lia. }
   Qed.
 
-  Lemma Thunk_consequence p t γv n m R φ ψ :
+  Lemma Thunk_consequence p N t γv n m R φ ψ :
     (∀ v, TC m -∗ φ v ={⊤}=∗ □ ψ v) -∗
-    Thunk p t γv  n    R φ  ={∅}=∗
-    Thunk p t γv (n+m) R ψ.
+    Thunk p N t γv  n    R φ  ={∅}=∗
+    Thunk p N t γv (n+m) R ψ.
   Proof.
     iIntros "Hφψ Ht".
     iDestruct "Ht" as (d) "Ht".
@@ -296,9 +290,9 @@ Section ThunkProofs.
       - by iSplitR "Htc".
   Qed.
 
-  Lemma Thunk_pay_ind E p t γv n k R φ d :
+  Lemma Thunk_pay_ind E p N t γv n k R φ d :
     ↑thunkPaidN t ⊆ E →
-    TC k -∗ Thunk' p t γv n R φ d ={E}=∗ Thunk' p t γv (n-k) R φ d.
+    TC k -∗ Thunk' p N t γv n R φ d ={E}=∗ Thunk' p N t γv (n-k) R φ d.
   Proof.
     (* proof by induction on the depth d of the predicate: *)
     iIntros (?) "Htc Ht". iInduction (d) as [|d'] "IH" forall (n k φ).
@@ -326,19 +320,19 @@ Section ThunkProofs.
     }
   Qed.
 
-  Lemma Thunk_pay E p t γv n k R φ :
+  Lemma Thunk_pay E p N t γv n k R φ :
     ↑thunkPaidN t ⊆ E →
-    TC k -∗ Thunk p t γv n R φ ={E}=∗ Thunk p t γv (n-k) R φ.
+    TC k -∗ Thunk p N t γv n R φ ={E}=∗ Thunk p N t γv (n-k) R φ.
   Proof.
     iIntros (?) "Htc Ht". iDestruct "Ht" as (d) "Ht". iExists d.
     by iApply (Thunk_pay_ind with "Htc Ht").
   Qed.
 
-  Lemma create_spec p n R φ f :
+  Lemma create_spec p N n R φ f :
     TC_invariant -∗
     {{{ TC 3 ∗ ( TC n -∗ R -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} ) }}}
     « create f »
-    {{{ t γv, RET #t ; Thunk p t γv n R φ }}}.
+    {{{ t γv, RET #t ; Thunk p N t γv n R φ }}}.
   Proof.
     iIntros "#HtickInv" (Φ) "!# [? Hf] Post".
     iMod (own_alloc (Cinl $ Excl ())) as (γv) "?" ; first done.
@@ -381,11 +375,11 @@ Section ThunkProofs.
     by iFrame.
   Qed.
 
-  Lemma force_spec_ind p F t γv R φ d :
-    (∀ d', d' ≤ d  →  ↑thunkAtDepthN t d' ⊆ F) →
+  Lemma force_spec_ind p N F t γv R φ d :
+    (∀ d', d' ≤ d  →  ↑(N .@ d') ⊆ F) →
     TC_invariant -∗
     {{{ TC 11
-      ∗ Thunk' p t γv 0 R φ d
+      ∗ Thunk' p N t γv 0 R φ d
       ∗ na_own p F
       ∗ R
     }}}
@@ -447,7 +441,7 @@ Section ThunkProofs.
       rewrite (_ : 0+paid-m = 0) ; last lia.
       set d := S d' in HF |- *.
       (* open the “consequence” invariant: *)
-      rewrite (_ : F = ↑thunkAtDepthN t d ∪ (F ∖ ↑thunkAtDepthN t d)) ;
+      rewrite (_ : F = ↑(N .@ d) ∪ (F ∖ ↑(N .@ d))) ;
         first setoid_rewrite na_own_union ;
         [ | set_solver | set_solver | apply union_difference_L ; by auto ].
       iDestruct "Hp" as "[Hpd Hp]".
@@ -484,11 +478,11 @@ Section ThunkProofs.
     }
   Qed.
 
-  Lemma force_spec p t γv R φ :
+  Lemma force_spec p N t γv R φ :
     TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p t γv 0 R φ ∗ ThunkToken p t ∗ R }}}
+    {{{ TC 11 ∗ Thunk p N t γv 0 R φ ∗ na_own p (↑N) ∗ R }}}
     « force #t »
-    {{{ v, RET «v» ; ThunkVal γv v ∗ □ φ v ∗ ThunkToken p t ∗ R }}}.
+    {{{ v, RET «v» ; ThunkVal γv v ∗ □ φ v ∗ na_own p (↑N) ∗ R }}}.
   Proof.
     iIntros "#HtickInv" (Φ) "!>(Htc & Ht & Hp & HR) Post".
     iDestruct "Ht" as (d) "Ht".
@@ -500,22 +494,22 @@ Section ThunkProofs.
      knowing that the base node has already been forced and has value v.
      However the proof would largely replicate that of force_spec, and this
      reasoning rule does not seem useful in practice. *)
-  Lemma ThunkVal_force p t γv R φ v :
-    Thunk p t γv 0 R φ -∗
+  Lemma ThunkVal_force p N t γv R φ v :
+    Thunk p N t γv 0 R φ -∗
     ThunkVal γv v -∗
-    ThunkToken p t -∗
+    na_own p (↑N) -∗
     |={⊤}=>
-      ▷ □ φ v ∗ ThunkToken p t.
+      ▷ □ φ v ∗ na_own p (↑N).
   Abort.
 
   (* Example: forwarding of debt for a thunk that creates a thunk: *)
-  Goal ∀ p t1 γv1 n1 n2 m R φ,
-    Thunk p t1 γv1 n1 R (λ v2, ∃ t2 γv2, ⌜v2 = #t2⌝ ∗
-      Thunk p t2 γv2 n2 R φ
+  Goal ∀ p N1 t1 γv1 n1 N2 n2 m R φ,
+    Thunk p N1 t1 γv1 n1 R (λ v2, ∃ t2 γv2, ⌜v2 = #t2⌝ ∗
+      Thunk p N2 t2 γv2 n2 R φ
     )
     ={∅}=∗
-    Thunk p t1 γv1 (n1+m) R (λ v2, ∃ t2 γv2, ⌜v2 = #t2⌝ ∗
-      Thunk p t2 γv2 (n2-m) R φ
+    Thunk p N1 t1 γv1 (n1+m) R (λ v2, ∃ t2 γv2, ⌜v2 = #t2⌝ ∗
+      Thunk p N2 t2 γv2 (n2-m) R φ
     ).
   Proof.
     iIntros. iApply Thunk_consequence=>//.
@@ -524,12 +518,12 @@ Section ThunkProofs.
   Qed.
 
   (* Example: creating a thunk that forces a thunk: *)
-  Goal ∀ p t2 γv2 n2 R φ,
+  Goal ∀ p N1 N2 t2 γv2 n2 R φ,
     TC_invariant -∗
-    {{{ TC 3 ∗ Thunk p t2 γv2 n2 R φ }}}
+    {{{ TC 3 ∗ Thunk p N2 t2 γv2 n2 R φ }}}
     « create (λ: <>, force #t2)%V »
     {{{ t1 γv1, RET #t1 ;
-      Thunk p t1 γv1 (12+n2) (ThunkToken p t2 ∗ R) (λ v,
+      Thunk p N1 t1 γv1 (12+n2) (na_own p (↑N2) ∗ R) (λ v,
           (*ThunkVal γv1 v (* note: we cannot speak about t1 here, because it is not known before create *)
         ∗*) ThunkVal γv2 v
         ∗ □ φ v
