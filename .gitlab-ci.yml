@@ -21,8 +21,8 @@ variables:
     paths:
     - _opam/
   only:
-  - master
-  - /^ci/
+  - master@iris/time-credits
+  - /^ci/@iris/time-credits
   except:
   - triggers
   - schedules
