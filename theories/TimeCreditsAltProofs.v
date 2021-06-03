@@ -253,7 +253,7 @@ Proof.
   iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
   (* packing all those bits, build the heap instance necessary to use time credits: *)
   destruct HtcPreG as [[HinvPreG [HgenHeapPreInG]] HinG] ; simpl ; clear HinvPreG.
-  pose (Build_timeCreditHeapG Σ (HeapG Σ HinvG Hheap) HinG _ γ)
+  pose (Build_timeCreditHeapG Σ (HeapGS Σ HinvG Hheap) HinG _ γ)
     as HtcHeapG.
   (* create the invariant: *)
   iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> #Hinv".

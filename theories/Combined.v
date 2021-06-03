@@ -23,7 +23,7 @@ Implicit Type Σ : gFunctors.
 
 (* Ideally, this would be represented as a record (or a typeclass), but it has
  * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
-Definition TCTR_interface `{irisG heap_lang Σ, Tick}
+Definition TCTR_interface `{irisGS heap_lang Σ, Tick}
   (TC : nat → iProp Σ)
   (max_tr : nat)
   (TR : nat → iProp Σ)
@@ -52,7 +52,7 @@ Definition TCTR_interface `{irisG heap_lang Σ, Tick}
  *)
 
 Class tctrHeapPreG Σ := {
-  tctrHeapPreG_heapPreG :> heapPreG Σ ;
+  tctrHeapPreG_heapPreG :> heapGpreS Σ ;
   tctrHeapPreG_inG_TC    :> inG Σ (authR natUR) ;
   tctrHeapPreG_inG_TR    :> inG Σ (authR natUR) ;
   tctrHeapPreG_inG_TRdup :> inG Σ (authR max_natUR) ;
@@ -61,7 +61,7 @@ Class tctrHeapPreG Σ := {
 Class UseTC := useTC : bool.
 
 Class tctrHeapG Σ := {
-  tctrHeapG_heapG :> heapG Σ ;
+  tctrHeapG_heapG :> heapGS Σ ;
   tctrHeapG_inG_TC    :> inG Σ (authR natUR) ;
   tctrHeapG_inG_TR    :> inG Σ (authR natUR) ;
   tctrHeapG_inG_TRdup :> inG Σ (authR max_natUR) ;
@@ -837,7 +837,7 @@ Section Soundness.
     iMod (auth_nat_alloc (max_tr-1-M)) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc (max_tr-1-M)) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_tctrHeapG Σ (HeapG Σ _ Hheap) _ _ _ _ γ γ1 γ2 _)
+    pose (Build_tctrHeapG Σ (HeapGS Σ _ Hheap) _ _ _ _ γ γ1 γ2 _)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TCTR_invariant max_tr)%I with "[Hℓ◯ Hγ● Hγ1● Hγ2●]" as "> Hinv".
@@ -880,7 +880,7 @@ Section Soundness.
   (* abstract version of the theorem. *)
   Theorem tctr_sound_abstract {Σ} max_tr m φ e :
     (0 < max_tr)%nat →
-    (∀ `{heapG Σ, Tick} (TC TR TRdup : nat → iProp Σ),
+    (∀ `{heapGS Σ, Tick} (TC TR TRdup : nat → iProp Σ),
       TCTR_interface TC max_tr TR TRdup -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →

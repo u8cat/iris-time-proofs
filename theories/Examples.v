@@ -16,7 +16,7 @@ Definition sum_list : val :=
     end.
 
 (** Representation predicate in separation logic for a list of integers [l]: *)
-Fixpoint is_list `{heapG Σ} (l : list Z) (v : val) : iProp Σ :=
+Fixpoint is_list `{heapGS Σ} (l : list Z) (v : val) : iProp Σ :=
   match l with
   | [] => ⌜ v = NONEV ⌝
   | x :: l' => ∃ (p : loc), ⌜ v = SOMEV #p ⌝ ∗
@@ -100,7 +100,7 @@ Definition sum_list_coq (l : list Z) : Z :=
   fold_right Z.add 0 l.
 
 (** The proof using induction over [l]: *)
-Lemma sum_list_spec `{!heapG Σ} (l : list Z) (v : val) :
+Lemma sum_list_spec `{!heapGS Σ} (l : list Z) (v : val) :
   {{{ is_list l v }}} sum_list v {{{ RET #(sum_list_coq l) ; is_list l v }}}.
 Proof.
   iIntros (Φ) "Hl Post".
@@ -153,7 +153,7 @@ Fixpoint make_list_coq (n : nat) : list Z :=
   end.
 
 (** The proof using induction over [l]: *)
-Lemma make_list_spec `{!heapG Σ} (n : nat) :
+Lemma make_list_spec `{!heapGS Σ} (n : nat) :
   {{{ True }}} make_list #n {{{ v, RET v ; is_list (make_list_coq n) v }}}.
 Proof.
   iIntros (Φ) "_ Post".
@@ -217,7 +217,7 @@ Proof.
   lia.
 Qed.
 
-Lemma prgm_spec `{!heapG Σ} (n : nat) :
+Lemma prgm_spec `{!heapGS Σ} (n : nat) :
   {{{ True }}} prgm n {{{ v, RET v ; ⌜v = #(n*(n+1)/2)⌝ }}}.
 Proof.
   iIntros (Φ) "_ Post".

@@ -8,12 +8,12 @@ From iris.proofmode Require Import tactics.
 From stdpp Require Import fin_maps.
 Set Default Proof Using "Type".
 
-Class heapG Σ := HeapG {
-  heapG_invG : invG Σ;
-  heapG_gen_heapG :> gen_heapG loc val Σ
+Class heapGS Σ := HeapGS {
+  heapG_invG : invGS Σ;
+  heapG_gen_heapG :> gen_heapGS loc val Σ
 }.
 
-Instance heapG_irisG `{heapG Σ} : irisG heap_lang Σ := {
+Instance heapG_irisG `{heapGS Σ} : irisGS heap_lang Σ := {
   iris_invG := heapG_invG;
   state_interp σ _ κs _ := gen_heap_interp σ;
   num_laters_per_step _ := 0%nat;
@@ -146,7 +146,7 @@ Global Instance pure_case_inr v e1 e2 :
 Proof. solve_pure_exec. Qed.
 
 Section lifting.
-Context `{heapG Σ}.
+Context `{heapGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types efs : list expr.

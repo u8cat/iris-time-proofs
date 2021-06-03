@@ -22,7 +22,7 @@ Implicit Type Σ : gFunctors.
 
 (* Ideally, this would be represented as a record (or a typeclass), but it has
  * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
-Definition TR_interface `{irisG heap_lang Σ, Tick}
+Definition TR_interface `{irisGS heap_lang Σ, Tick}
   (nmax : nat)
   (TR : nat → iProp Σ)
   (TRdup : nat → iProp Σ)
@@ -47,13 +47,13 @@ Definition TR_interface `{irisG heap_lang Σ, Tick}
  *)
 
 Class timeReceiptHeapPreG Σ := {
-  timeReceiptHeapPreG_heapPreG :> heapPreG Σ ;
+  timeReceiptHeapPreG_heapPreG :> heapGpreS Σ ;
   timeReceiptHeapPreG_inG1 :> inG Σ (authR natUR) ;
   timeReceiptHeapPreG_inG2 :> inG Σ (authR max_natUR) ;
 }.
 
 Class timeReceiptHeapG Σ := {
-  timeReceiptHeapG_heapG :> heapG Σ ;
+  timeReceiptHeapG_heapG :> heapGS Σ ;
   timeReceiptHeapG_inG1 :> inG Σ (authR natUR) ;
   timeReceiptHeapG_inG2 :> inG Σ (authR max_natUR) ;
   timeReceiptHeapG_loc :> TickCounter ;
@@ -313,7 +313,7 @@ Section Soundness.
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc 0) as (γ2) "[Hγ2● _]".
     (* packing all those bits, build the heap instance necessary to use time receipts: *)
-    pose (Build_timeReceiptHeapG Σ (HeapG Σ _ Hheap) _ _ _ γ1 γ2)
+    pose (Build_timeReceiptHeapG Σ (HeapGS Σ _ Hheap) _ _ _ γ1 γ2)
       as HtrHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TR_invariant nmax)%I with "[Hℓ◯ Hγ1● Hγ2●]" as "> Hinv".
@@ -344,7 +344,7 @@ Section Soundness.
 
   Theorem abstract_spec_trtranslation__nadequate {Σ} nmax φ e :
     (0 < nmax)%nat →
-    (∀ `{heapG Σ, Tick} (TR TRdup : nat → iProp Σ),
+    (∀ `{heapGS Σ, Tick} (TR TRdup : nat → iProp Σ),
       TR_interface nmax TR TRdup -∗
       {{{ True }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →

@@ -24,7 +24,7 @@ Implicit Type Σ : gFunctors.
 
 (* Ideally, this would be represented as a record (or a typeclass), but it has
  * to be an Iris proposition (iProp Σ) and not a Coq proposition (Prop). *)
-Definition TC_interface `{!irisG heap_lang Σ, Tick}
+Definition TC_interface `{!irisGS heap_lang Σ, Tick}
   (TC : nat → iProp Σ)
 : iProp Σ := (
     ⌜∀ n, Timeless (TC n)⌝
@@ -40,12 +40,12 @@ Definition TC_interface `{!irisG heap_lang Σ, Tick}
  *)
 
 Class timeCreditHeapPreG Σ := {
-  timeCreditHeapPreG_heapPreG :> heapPreG Σ ;
+  timeCreditHeapPreG_heapPreG :> heapGpreS Σ ;
   timeCreditHeapPreG_inG :> inG Σ (authR natUR) ;
 }.
 
 Class timeCreditHeapG Σ := {
-  timeCreditHeapG_heapG :> heapG Σ ;
+  timeCreditHeapG_heapG :> heapGS Σ ;
   timeCreditHeapG_inG :> inG Σ (authR natUR) ;
   timeCreditHeapG_loc :> TickCounter ;
   timeCreditHeapG_name : gname ;
@@ -424,7 +424,7 @@ Section Soundness.
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc k) as (γ) "[Hγ● Hγ◯]".
     (* packing all those bits, build the heap instance necessary to use time credits: *)
-    pose (Build_timeCreditHeapG Σ (HeapG Σ _ Hheap) _ _ γ)
+    pose (Build_timeCreditHeapG Σ (HeapGS Σ _ Hheap) _ _ γ)
       as HtcHeapG.
     (* create the invariant: *)
     iAssert (|={⊤}=> TC_invariant)%I with "[Hℓ◯ Hγ●]" as "> Hinv".
@@ -454,7 +454,7 @@ Section Soundness.
 
   (* The abstract version of the theorem: *)
   Theorem abstract_spec_tctranslation__adequate_and_bounded {Σ} m φ e :
-    (∀ `{heapG Σ, Tick} (TC : nat → iProp Σ),
+    (∀ `{heapGS Σ, Tick} (TC : nat → iProp Σ),
       TC_interface TC -∗
       {{{ TC m }}} «e» {{{ v, RET v ; ⌜φ (invtranslationV v)⌝ }}}
     ) →
@@ -525,7 +525,7 @@ Section Tactics.
 
 (*
   (* TODO: abstract version: *)
-  Lemma tac_wp_tick_abstr `{heapG Σ} (TC : nat → iProp Σ) (tick : val) Δ Δ' Δ'' s E i j n K e (v : val) Φ :
+  Lemma tac_wp_tick_abstr `{heapGS Σ} (TC : nat → iProp Σ) (tick : val) Δ Δ' Δ'' s E i j n K e (v : val) Φ :
     MaybeIntoLaterNEnvs 1 Δ Δ' →
     envs_lookup i Δ' = Some (true,  ∀ (v : val), {{{ TC 1%nat }}} tick v @ s ; E {{{ RET v ; True }}})%I →
     envs_lookup j Δ' = Some (false, TC (S n)) →
