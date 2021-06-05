@@ -34,7 +34,7 @@ build-coq.8.12.0:
   variables:
     OPAM_PINS: "coq version 8.12.0"
 
-build-iris.dev:
+trigger-iris.dev:
   <<: *template
   variables:
     STDPP_REPO: "iris/stdpp"
