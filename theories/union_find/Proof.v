@@ -474,11 +474,11 @@ Lemma mapsto_M_acc : forall M x c,
                x ↦ v' -∗ mapsto_M (<[x:=c']>M)).
 Proof.
   introv HM. iIntros "HM".
-  rewrite -[in mapsto_M _](insert_id _ _ _ HM) -insert_delete /mapsto_M.
+  rewrite -[in mapsto_M M](insert_id M _ _ HM) -insert_delete_insert /mapsto_M.
   rewrite big_sepM_insert ?lookup_delete //. iDestruct "HM" as "[Hc HM]".
   destruct (val_of_content c); [|done]. iExists _. iFrame. iSplit; [done|].
   iIntros (c' v' Hv') "?".
-  rewrite -insert_delete big_sepM_insert ?lookup_delete // Hv'. iFrame.
+  rewrite -insert_delete_insert big_sepM_insert ?lookup_delete // Hv'. iFrame.
 Qed.
 
 Lemma mapsto_M_acc_same : forall M x c,
