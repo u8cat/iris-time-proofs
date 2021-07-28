@@ -4,7 +4,7 @@ From iris.program_logic Require Export weakestpre.
 From iris.program_logic Require Import ectx_lifting.
 From iris_time.heap_lang Require Export lang.
 From iris_time.heap_lang Require Import tactics.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From stdpp Require Import fin_maps.
 Set Default Proof Using "Type".
 

@@ -1,5 +1,5 @@
 From iris Require Export  algebra.auth algebra.numbers.
-From iris Require Import  base_logic.lib.own proofmode.tactics.
+From iris Require Import  base_logic.lib.own proofmode.proofmode.
 
 Notation "'●nat' n" := (auth_auth (A:=natUR) (DfracOwn 1%Qp) n%nat) (at level 20).
 Notation "'◯nat' n" := (auth_frag (A:=natUR) n%nat) (at level 20).
