@@ -926,7 +926,7 @@ Proof using.
   wp_apply (find_spec with "[//] [$TC1 $UF]")=>//. iIntros "UF".
   wp_apply (find_spec with "[//] [$TC2 $UF]")=>//. iIntros "UF".
   wp_tick_op.
-  rewrite (bool_decide_iff (#(R x) = #(R y)) (R x = R y)); last (split; congruence).
+  rewrite (bool_decide_ext (#(R x) = #(R y)) (R x = R y)); last (split; congruence).
   by iApply "HΦ".
 Qed.
 

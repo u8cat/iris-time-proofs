@@ -265,13 +265,13 @@ Section Translation.
     destruct v1, v2 ; try done ;
     simpl ; case_match ; try done ;
     simpl ; case_match ; try done ;
-    repeat f_equal ; apply bool_decide_iff ; naive_solver.
+    repeat f_equal ; apply bool_decide_ext ; naive_solver.
   Qed.
 
   Local Lemma _bool_decide_eq_translationV v1 v2 :
     bool_decide (v1 = v2) = bool_decide (translationV v1 = translationV v2).
   Proof.
-    apply bool_decide_iff ; split ; intros H.
+    apply bool_decide_ext ; split ; intros H.
     - by rewrite H.
     - by eapply translationV_injective.
   Qed.
