@@ -161,7 +161,7 @@ Proof using r_geq_1.
   intros. unfold rankr. lia.
 Qed.
 
-Hint Resolve rankr_positive : monotonic.
+Local Hint Resolve rankr_positive : monotonic.
   (* used in conjunction with Akx_tends_to_infinity_along_k *)
 
 (* [rankr] increases along a path. *)
@@ -609,14 +609,14 @@ End Alstrup.
 
 (* Hints. *)
 
-Hint Resolve alphar_monotonic : monotonic.
+Global Hint Resolve alphar_monotonic : monotonic.
 
-Hint Resolve rankr_positive : monotonic.
+Global Hint Resolve rankr_positive : monotonic.
   (* used in conjunction with Akx_tends_to_infinity_along_k *)
 
-Hint Resolve k_exists : k.
+Global Hint Resolve k_exists : k.
 
-Hint Resolve i_exists iter_i_Akx_tends_to_infinity_along_i
+Global Hint Resolve i_exists iter_i_Akx_tends_to_infinity_along_i
 iter_Ak_monotonic_in_i : i.
 
 Ltac k th :=

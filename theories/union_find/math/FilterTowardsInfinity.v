@@ -12,7 +12,7 @@ From iris_time.union_find.math Require Import LibNatExtra Filter.
 Definition towards_infinity (F : nat -> Prop) :=
   exists m, forall n, m <= n -> F n.
 
-Instance filter_towards_infinity : Filter towards_infinity.
+Global Instance filter_towards_infinity : Filter towards_infinity.
 Proof.
   unfold towards_infinity. econstructor.
   (* There exists an element in this filter, namely the universe, [le 0]. *)
@@ -33,7 +33,7 @@ Proof.
   unfold towards_infinity. eauto.
 Qed.
 
-Hint Resolve towards_infinity_le : filter.
+Global Hint Resolve towards_infinity_le : filter.
 
 (* The statement that [f x] tends towards infinity as [x] tends
    towards infinity can be stated in its usual concrete form or

@@ -173,7 +173,7 @@ Proof using.
     eauto using A_monotonic.
 Qed.
 
-Hint Resolve Akx_monotonic_in_k : monotonic typeclass_instances.
+Global Hint Resolve Akx_monotonic_in_k : monotonic typeclass_instances.
 
 (* Example. *)
 
@@ -222,7 +222,7 @@ Proof using.
     preserves_inflationary_Astep, preserves_monotonic_Astep.
 Qed.
 
-Hint Resolve Akx_monotonic_in_x Akx_monotonic_in_k : monotonic typeclass_instances.
+Global Hint Resolve Akx_monotonic_in_x Akx_monotonic_in_k : monotonic typeclass_instances.
 
 (* Example. *)
 
@@ -375,7 +375,7 @@ Proof using.
   eauto with monotonic.
 Qed.
 
-Hint Resolve Akx_tends_to_infinity_along_k : monotonic typeclass_instances.
+Global Hint Resolve Akx_tends_to_infinity_along_k : monotonic typeclass_instances.
   (* exploited in [InverseAckermann.v] *)
 
 (* -------------------------------------------------------------------------- *)
@@ -437,7 +437,7 @@ Proof using.
   lia.
 Qed.
 
-Hint Resolve Akx_strictly_monotonic_in_k : monotonic typeclass_instances.
+Global Hint Resolve Akx_strictly_monotonic_in_k : monotonic typeclass_instances.
 
 (* -------------------------------------------------------------------------- *)
 

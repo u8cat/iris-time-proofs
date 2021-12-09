@@ -414,7 +414,7 @@ Notation "'tickmatch:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
   Typeclass instance for the proofmode
  *)
 
-Instance AsRecV_translationV `{Tick} v f x e :
+Global Instance AsRecV_translationV `{Tick} v f x e :
   AsRecV v f x e →
   AsRecV « v » f x « e ».
 Proof. by intros ->. Qed.

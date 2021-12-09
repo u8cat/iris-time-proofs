@@ -59,7 +59,7 @@ Definition pointwise A B (okA : A -> Prop) (leB : B -> B -> Prop) (f g : A -> B)
 
 (* TEMPORARY maybe this should be the *definition* of [monotonic] *)
 
-Program Instance monotonic_Proper
+Global Program Instance monotonic_Proper
   A B (leA : A -> A -> Prop) (leB : B -> B -> Prop) (f : A -> B) :
   monotonic leA leB f -> Proper (leA ++> leB) f.
 
@@ -105,13 +105,13 @@ Qed.
    ordering relation that appears in the premise can help apply
    [lia] to the premise. *)
 
-Hint Resolve (@use_monotonic nat le nat le) (@use_monotonic nat lt nat lt)
+Global Hint Resolve (@use_monotonic nat le nat le) (@use_monotonic nat lt nat lt)
 : monotonic typeclass_instances.
 
-Hint Resolve (@use_monotonic_2 nat le nat le) (@use_monotonic_2 nat lt nat lt)
+Global Hint Resolve (@use_monotonic_2 nat le nat le) (@use_monotonic_2 nat lt nat lt)
 : monotonic typeclass_instances.
 
-Hint Resolve (@use_inverse_monotonic nat le nat le)
+Global Hint Resolve (@use_inverse_monotonic nat le nat le)
 (@use_inverse_monotonic nat lt nat lt) : monotonic typeclass_instances.
 
 (* -------------------------------------------------------------------------- *)
@@ -180,7 +180,7 @@ Proof using.
     { assert (f x1 < f x2). eapply h; lia. lia. }
 Qed.
 
-Hint Resolve monotonic_lt_lt_implies_inverse_monotonic_le_le
+Global Hint Resolve monotonic_lt_lt_implies_inverse_monotonic_le_le
 monotonic_lt_lt_implies_monotonic_le_le : monotonic typeclass_instances.
 
 Goal
@@ -204,5 +204,5 @@ Proof using.
   intros f ? x y ?. prove_lt_lt_by_contraposition. eauto.
 Qed.
 
-Hint Resolve monotonic_le_le_implies_inverse_monotonic_lt_lt :
+Global Hint Resolve monotonic_le_le_implies_inverse_monotonic_lt_lt :
 monotonic typeclass_instances.

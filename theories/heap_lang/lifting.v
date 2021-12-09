@@ -13,7 +13,7 @@ Class heapGS Σ := HeapGS {
   heapG_gen_heapG :> gen_heapGS loc val Σ
 }.
 
-Instance heapG_irisG `{heapGS Σ} : irisGS heap_lang Σ := {
+Global Instance heapG_irisG `{heapGS Σ} : irisGS heap_lang Σ := {
   iris_invGS := heapG_invG;
   state_interp σ _ κs _ := gen_heap_interp σ;
   num_laters_per_step _ := 0%nat;

@@ -311,7 +311,7 @@ Qed.
 
 End Link.
 
-Hint Resolve is_root_link is_root_link_converse : is_root.
+Global Hint Resolve is_root_link is_root_link_converse : is_root.
 
 Ltac by_cases_on_link :=
   match goal with

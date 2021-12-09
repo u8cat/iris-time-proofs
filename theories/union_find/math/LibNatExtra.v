@@ -50,7 +50,7 @@ Qed.
 
 (* Make [lia] a hint. *)
 
-Hint Extern 1 => lia : lia.
+Global Hint Extern 1 => lia : lia.
 
 (* ---------------------------------------------------------------------------- *)
 
@@ -122,7 +122,7 @@ Lemma mult_positive:
   0 < m * n.
 Proof using. lia. Qed.
 
-Hint Resolve mult_positive : positive.
+Global Hint Resolve mult_positive : positive.
 
 Lemma mult_magnifies_left:
   forall m n,
@@ -305,9 +305,9 @@ Proof using.
   intros m n. div2. lia.
 Qed.
 
-Hint Resolve prove_lt_div2_zero : positive.
+Global Hint Resolve prove_lt_div2_zero : positive.
 
-Hint Resolve prove_div2_le use_div2_plus1_le use_div2_le prove_le_div2
+Global Hint Resolve prove_div2_le use_div2_plus1_le use_div2_le prove_le_div2
 use_le_div2 prove_div2_lt use_div2_lt prove_lt_div2 use_lt_div2 :
 div2.
 
@@ -332,7 +332,7 @@ Proof using.
   eauto using mult_positive.
 Qed.
 
-Hint Resolve power_positive : positive.
+Global Hint Resolve power_positive : positive.
 
 Lemma power_plus:
   forall k1 k2 n,
@@ -410,7 +410,7 @@ Proof using.
       eapply f. lia. } (* ouf *)
 Qed.
 
-Hint Resolve power_monotonic_in_k power_strictly_monotonic_in_k
+Global Hint Resolve power_monotonic_in_k power_strictly_monotonic_in_k
 power_strictly_monotonic_in_n : monotonic typeclass_instances.
 
 Lemma power_monotonic_in_n:
@@ -422,7 +422,7 @@ Proof using.
   { eauto with monotonic lia. }
 Qed.
 
-Hint Resolve power_monotonic_in_n : monotonic typeclass_instances.
+Global Hint Resolve power_monotonic_in_n : monotonic typeclass_instances.
 
 (* TEMPORARY maybe explicitly use [inverse_monotonic] in lemmas below *)
 
@@ -593,7 +593,7 @@ Proof using.
   eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2); simpl; lia.
 Qed.
 
-Hint Resolve log2_monotonic : monotonic typeclass_instances.
+Global Hint Resolve log2_monotonic : monotonic typeclass_instances.
 
 (* A collection of lemmas involving [log2] and ordering. *)
 
@@ -631,7 +631,7 @@ Proof using.
   eauto using Nat.le_lt_trans, pow_log2.
 Qed.
 
-Hint Resolve prove_le_log2 prove_log2_le prove_log2_lt : log2.
+Global Hint Resolve prove_le_log2 prove_log2_le prove_log2_lt : log2.
 
 (* An upper bound on [log2 n]. *)
 

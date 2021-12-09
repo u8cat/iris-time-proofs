@@ -59,7 +59,7 @@ Next Obligation.
   split; unfold min_mach_int; lia.
 Qed.
 
-Instance mach_int_dec_eq :
+Global Instance mach_int_dec_eq :
   EqDecision mach_int.
 Proof. apply sig_eq_dec; by apply _. Qed.
 
@@ -87,10 +87,10 @@ Bind Scope binder_scope with binder.
 Definition cons_binder (mx : binder) (X : list string) : list string :=
   match mx with BAnon => X | BNamed x => x :: X end.
 Infix ":b:" := cons_binder (at level 60, right associativity).
-Instance binder_eq_dec_eq : EqDecision binder.
+Global Instance binder_eq_dec_eq : EqDecision binder.
 Proof. solve_decision. Defined.
 
-Instance set_unfold_cons_binder x mx X P :
+Global Instance set_unfold_cons_binder x mx X P :
   SetUnfold (x ∈ X) P → SetUnfold (x ∈ mx :b: X) (BNamed x = mx ∨ P).
 Proof.
   constructor. rewrite -(set_unfold (x ∈ X) P).

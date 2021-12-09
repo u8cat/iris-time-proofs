@@ -261,9 +261,9 @@ Qed.
 
 (* Hints. *)
 
-Hint Resolve k_exists : k.
+Global Hint Resolve k_exists : k.
 
-Hint Resolve i_exists iter_i_Akx_tends_to_infinity_along_i
+Global Hint Resolve i_exists iter_i_Akx_tends_to_infinity_along_i
 iter_Ak_monotonic_in_i : i.
 
 Ltac k th :=

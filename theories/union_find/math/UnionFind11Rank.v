@@ -68,9 +68,9 @@ Definition is_rdsf_numerous_family := proj53 is_rdsf_F.
 Definition is_rdsf_finite := proj54 is_rdsf_F.
 Definition is_rdsf_zero_rank_outside_domain := proj55 is_rdsf_F.
 
-Hint Resolve is_rdsf_is_dsf : core.
+Local Hint Resolve is_rdsf_is_dsf : core.
 
-Hint Resolve is_rdsf_finite : finite.
+Local Hint Resolve is_rdsf_finite : finite.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -197,10 +197,10 @@ Qed.
 
 End Rank.
 
-Hint Resolve is_rdsf_is_dsf : is_dsf.
+Global Hint Resolve is_rdsf_is_dsf : is_dsf.
 
-Hint Unfold is_rdsf : is_rdsf.
+Global Hint Unfold is_rdsf : is_rdsf.
 
-Hint Resolve is_rdsf_finite : finite.
+Global Hint Resolve is_rdsf_finite : finite.
 
-Hint Resolve is_rdsf_zero_rank_outside_domain : zero_rank.
+Global Hint Resolve is_rdsf_zero_rank_outside_domain : zero_rank.

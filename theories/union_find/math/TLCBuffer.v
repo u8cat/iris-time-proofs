@@ -57,7 +57,7 @@ Qed.
 
 (* LibTactics local extension. *)
 
-Hint Extern 1 (_ = _) => congruence : congruence.
+Global Hint Extern 1 (_ = _) => congruence : congruence.
 
 (* FRANCOIS: this should only be used for terminal goals *)
 Ltac unpack := jauto_set_hyps; intros.
@@ -102,7 +102,7 @@ Ltac exploit_functional F :=
 
 (* Some lemmas that prove membership in a relation. *)
 
-Hint Resolve union_l union_r prove_per_single : relations.
+Global Hint Resolve union_l union_r prove_per_single : relations.
 
 
 
@@ -112,7 +112,7 @@ Lemma tclosure_intro_right:
   forall (A : Type) (R : binary A) y x z,
   rtclosure R x y -> R y z -> tclosure R x z.
 Proof using.
-  Hint Constructors tclosure : core.
+  Local Hint Constructors tclosure : core.
   introv M N. induction M using rtclosure_ind_l; autos*.
 Qed.
 
@@ -142,7 +142,7 @@ Inductive kpath : nat -> binary A :=
     forall y x z k,
     R x y -> kpath k y z -> kpath (S k) x z.
 
-Hint Constructors kpath : kpath.
+Local Hint Constructors kpath : kpath.
 
 Lemma kpath_rtclosure:
   forall k x y,
@@ -174,7 +174,7 @@ Qed.
 
 End Closures.
 
-Hint Resolve kpath_rtclosure : rtclosure.
+Global Hint Resolve kpath_rtclosure : rtclosure.
 
 
 From TLC Require Import LibList.
@@ -281,7 +281,7 @@ Qed.
 
 Lemma le_refl : refl Peano.le.
 Proof using. intros_all; lia. Qed.
-Hint Resolve le_refl : core.
+Global Hint Resolve le_refl : core.
 
 
 
@@ -312,7 +312,7 @@ Definition mmax `{Inhab A} (le:binary A) (P:A->Prop) :=
 
 Lemma mmax_equiv : @mmax = @LibMin.mmax.
 Proof using.
-  extens. intros. unfold mmax. rewrite~ <- mmax_inverse.
+  extens. intros. unfold mmax. rewrite <- mmax_inverse. reflexivity.
 Qed.
 
 Definition MMax `{Inhab A} `{Le A} := mmax le.
@@ -334,7 +334,7 @@ Proof using. intros. apply notin_eq. Qed.
 
 End Autorewrite.
 
-Hint Rewrite notin_eq' : set_norm.
+Global Hint Rewrite notin_eq' : set_norm.
 
 
 (* ------------------------------------------------------------------------- *)
@@ -405,7 +405,7 @@ Proof using. set_prove. Qed.
 (* ------------------------------------------------------------------------- *)
 
 
-Hint Rewrite disjoint_single_left_eq disjoint_single_right_eq subset_single_eq
+Global Hint Rewrite disjoint_single_left_eq disjoint_single_right_eq subset_single_eq
 @notin_eq @in_empty_eq @in_single_eq @in_union_eq @in_inter_eq @in_remove_eq : rew_set.
 
 Tactic Notation "rew_set" "in" "*" :=
@@ -414,19 +414,19 @@ Tactic Notation "rew_set" "in" "*" :=
 
 (* ------------------------------------------------------------------------- *)
 
-Program Instance Reflexive_incl A :
+Global Program Instance Reflexive_incl A :
   Reflexive (@LibContainer.incl _ (incl_inst A)).
 Next Obligation.
   eapply incl_refl; eauto.
 Qed.
 
-Program Instance Transitive_incl A :
+Global Program Instance Transitive_incl A :
   Transitive (@LibContainer.incl _ (incl_inst A)).
 Next Obligation.
   eapply incl_trans; eauto. typeclass.
 Qed.
 
-Program Instance Proper_inter_incl (A : Type) :
+Global Program Instance Proper_inter_incl (A : Type) :
   Proper (@LibContainer.incl _ (incl_inst A) ++>
           @LibContainer.incl _ (incl_inst A) ++>
           @LibContainer.incl _ (incl_inst A))
@@ -560,7 +560,7 @@ Proof.
   rew_set in *.
 Qed.
 
-Hint Resolve use_confined_left use_confined_right confined_union
+Global Hint Resolve use_confined_left use_confined_right confined_union
 confined_per_single confined_stclosure : confined.
 
 Definition confine (A : Type) (D : set A) (F : binary A) : binary A :=
@@ -621,7 +621,7 @@ Proof using.
   unfold rel_incl, confine. intuition eauto.
 Qed.
 
-Hint Resolve confined_confine incl_confine : confined.
+Global Hint Resolve confined_confine incl_confine : confined.
 
 
 (* ------------------------------------------------------------------------- *)
@@ -658,7 +658,7 @@ Proof using.
   forwards: h. eauto. tauto.
 Qed.
 
-Hint Resolve use_sticky_left use_sticky_right : sticky.
+Global Hint Resolve use_sticky_left use_sticky_right : sticky.
 
 Lemma sticky_per_single:
   forall (A : Type) (D : set A) x y,
@@ -687,7 +687,7 @@ Proof using.
   unfold sticky. induction 2. eauto. tauto. tauto.
 Qed.
 
-Hint Resolve sticky_per_single sticky_union sticky_stclosure : sticky.
+Global Hint Resolve sticky_per_single sticky_union sticky_stclosure : sticky.
 
 Lemma confine_stclosure:
   forall (A : Type) (D : set A) (R : binary A),
@@ -734,4 +734,4 @@ Qed.
 
 (* ------------------------------------------------------------------------- *)
 
-Hint Resolve tclosure_of_rtclosure_r : tclosure.
+Global Hint Resolve tclosure_of_rtclosure_r : tclosure.

@@ -55,8 +55,8 @@ Inductive fw_ipc V : binary V -> V -> nat -> binary V -> Prop :=
     fw_ipc (compress F x z) y l F' ->
     fw_ipc F x (S l) F'.
 
-Hint Constructors bw_ipc : bw_ipc.
-Hint Constructors fw_ipc : fw_ipc.
+Global Hint Constructors bw_ipc : bw_ipc.
+Global Hint Constructors fw_ipc : fw_ipc.
 
 (* ------------------------------------------ ------------------------------- *)
 

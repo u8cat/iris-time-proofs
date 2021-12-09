@@ -398,4 +398,4 @@ Qed.
 
 End Inverse.
 
-Hint Resolve alphaf_monotonic betaf_monotonic : monotonic typeclass_instances.
+Global Hint Resolve alphaf_monotonic betaf_monotonic : monotonic typeclass_instances.

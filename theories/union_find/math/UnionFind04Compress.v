@@ -178,7 +178,7 @@ Lemma compress_preserves_is_repr_direct':
   is_repr F x r ->
   is_repr compress x r.
 Proof using x_edge_y is_dsf_F y_path_z.
-  Hint Unfold is_repr : core.
+  Local Hint Unfold is_repr : core.
   intros x' r' Rz [Pr' Rr']. split.
   { induction Pr' as [r'|y' x' z'] using rtclosure_ind_l.
     { now constructor. }
@@ -211,7 +211,7 @@ Proof using x_edge_y is_dsf_F y_path_z.
     eauto using compress_preserves_is_repr_direct. }
 Qed.
 
-Hint Resolve is_dsf_compress : functional.
+Local Hint Resolve is_dsf_compress : functional.
 
 (* [is_repr] is preserved (both ways). *)
 
@@ -286,7 +286,7 @@ Qed.
 
 End PathCompression.
 
-Hint Resolve compress_preserves_roots compress_preserves_roots_converse : is_root.
+Global Hint Resolve compress_preserves_roots compress_preserves_roots_converse : is_root.
 
 Ltac by_cases_on_compress :=
   unfold compress in *; branches; unpack; subst.

@@ -79,9 +79,9 @@ Definition is_dsf_confined := proj31 is_dsf_F.
 Definition is_dsf_functional := proj32 is_dsf_F.
 Definition is_dsf_defined_is_repr := proj33 is_dsf_F.
 
-Hint Resolve is_dsf_confined : confined.
+Local Hint Resolve is_dsf_confined : confined.
 
-Hint Resolve is_dsf_functional : functional.
+Local Hint Resolve is_dsf_functional : functional.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -153,7 +153,7 @@ Proof using is_dsf_F.
   exploit_functional F; eauto.
 Qed.
 
-Hint Resolve functional_is_repr : functional.
+Local Hint Resolve functional_is_repr : functional.
 
 (* Two equivalent vertices must have the same representative. *)
 
@@ -327,7 +327,7 @@ Proof using is_dsf_F.
   tauto.
 Qed.
 
-Hint Resolve sticky_path sticky_is_repr sticky_is_equiv : sticky.
+Local Hint Resolve sticky_path sticky_is_repr sticky_is_equiv : sticky.
 
 Lemma is_equiv_in_D_direct:
   forall x y,
@@ -371,7 +371,7 @@ Lemma one_step_in_a_cycle:
 Proof using is_dsf_F.
   induction 1 using tclosure_ind_l; intros; subst; exploit_functional F.
   applys~ tclosure_once.
-  eauto using tclosure_intro_right.
+  eauto using tclosure_intro_right, rtclosure_of_tclosure.
 Qed.
 
 (* Thus, a path cannot leave a cycle. *)
@@ -749,23 +749,23 @@ Qed.
 
 End DisjointSetForest.
 
-Hint Resolve sticky_path sticky_is_repr sticky_is_equiv : sticky.
+Global Hint Resolve sticky_path sticky_is_repr sticky_is_equiv : sticky.
 
-Hint Resolve is_dsf_functional functional_is_repr : functional.
+Global Hint Resolve is_dsf_functional functional_is_repr : functional.
 
-Hint Resolve finite_descendants finite_ancestors : finite.
+Global Hint Resolve finite_descendants finite_ancestors : finite.
 
-Hint Resolve is_repr_is_root : is_root.
+Global Hint Resolve is_repr_is_root : is_root.
 
-Hint Resolve is_dsf_confined non_root_in_D : confined.
+Global Hint Resolve is_dsf_confined non_root_in_D : confined.
 
-Hint Unfold is_repr : is_repr.
+Global Hint Unfold is_repr : is_repr.
 
-Hint Resolve is_repr_is_equiv_is_repr path_is_equiv : is_repr.
+Global Hint Resolve is_repr_is_equiv_is_repr path_is_equiv : is_repr.
 
-Hint Constructors rtclosure : is_repr.
+Global Hint Constructors rtclosure : is_repr.
 
-Hint Unfold is_equiv : is_equiv.
+Global Hint Unfold is_equiv : is_equiv.
 
-Hint Resolve is_equiv_refl is_equiv_sym is_equiv_trans : is_equiv.
+Global Hint Resolve is_equiv_refl is_equiv_sym is_equiv_trans : is_equiv.
 

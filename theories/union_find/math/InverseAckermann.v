@@ -20,7 +20,7 @@ Proof using.
   eauto 8 with monotonic typeclass_instances.
 Qed.
 
-Hint Resolve alpha_monotonic : monotonic typeclass_instances.
+Global Hint Resolve alpha_monotonic : monotonic typeclass_instances.
 
 (* -------------------------------------------------------------------------- *)
 

@@ -174,5 +174,4 @@ End StudyOfV.
 
 End StudyOfEvolution.
 
-Hint Constructors evolution : evolution.
-
+Global Hint Constructors evolution : evolution.
