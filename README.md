@@ -5,15 +5,14 @@
 _If opam is not already installed:_ See instructions [there][install-opam] to
 install it; then:
 
-    opam init --comp=4.09.1
+    opam init --comp=4.13.1
     eval $(opam config env)
 
 (This will create a `~/.opam` directory.)
 
-_If opam is already installed:_ Create a new switch for the project:
+_If opam (≥ 2.0) is already installed:_ Create a new switch for the project:
 
-    opam switch iris-time-proofs --alias-of 4.09.1                  # for opam 1.x
-    opam switch create iris-time-proofs ocaml-base-compiler.4.09.1  # for opam 2.x
+    opam switch create iris-time ocaml-base-compiler.4.13.1
     eval $(opam config env)
 
 ### Step 2: Installing the dependencies
@@ -21,8 +20,9 @@ _If opam is already installed:_ Create a new switch for the project:
 In an opam switch as created above, the commands
 
     opam repo add coq-released https://coq.inria.fr/opam/released
+    opam repo add iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
     opam update
-    make build-dep
+    make builddep
 
 will pin and install the dependencies at the correct version.
 
