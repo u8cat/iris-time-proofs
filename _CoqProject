@@ -32,6 +32,9 @@ theories/TimeReceipts.v
 theories/Combined.v
 theories/Translation.v
 
+theories/pqueue/Code.v
+theories/pqueue/Proof.v
+
 theories/union_find/math/Ackermann.v
 theories/union_find/math/FilterTowardsInfinity.v
 theories/union_find/math/Filter.v
