@@ -26,6 +26,7 @@ theories/Tactics.v
 theories/Simulation.v
 theories/ThunksSimple.v
 theories/Thunks.v
+theories/Gthunks.v
 theories/TimeCredits.v
 theories/TimeCreditsAltProofs.v
 theories/TimeReceipts.v

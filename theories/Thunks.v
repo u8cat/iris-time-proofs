@@ -535,3 +535,6 @@ Section ThunkProofs.
   Qed.
 
 End ThunkProofs.
+
+(* Re-export the notation *)
+Notation ThunkVal γ v := (own γ (Cinr $ to_agree v%V)).
