@@ -759,7 +759,7 @@ Section Soundness.
     (* (1) adequate result: *)
     - intros t2 σ2 v2 Hsteps.
       (* build a location ℓ which is not in the domain of σ2: *)
-      pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
+      pose (Build_TickCounter (fresh (dom σ2))) as Hloc.
       assert (σ2 !! ℓ = None)
         by (simpl ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
       by eapply adequate_tctranslation__adequate_result.
@@ -767,7 +767,7 @@ Section Soundness.
     - intros t2 σ2 e2 _ Hsteps He2.
       (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
       pose (set1 := loc_set_of_expr e2 : gset loc).
-      pose (set2 := dom (gset loc) σ2 : gset loc).
+      pose (set2 := dom σ2 : gset loc).
       pose (Build_TickCounter (fresh (set1 ∪ set2))) as Hloc.
       eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
         by (unfold ℓ ; apply is_fresh).
@@ -780,7 +780,7 @@ Section Soundness.
     (* (3) bounded time: *)
     - intros t2 σ2 k.
       (* build a location ℓ which is not in the domain of σ2: *)
-      pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
+      pose (Build_TickCounter (fresh (dom σ2))) as Hloc.
       assert (σ2 !! ℓ = None)
         by (unfold ℓ ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
       specialize (Hadq Hloc) as Hsafe % safe_adequate.

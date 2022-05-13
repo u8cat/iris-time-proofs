@@ -523,7 +523,7 @@ Proof.
   (* (1) adequate result: *)
   - intros n t2 σ2 v2 Hnsteps Inm.
     (* build a location ℓ which is not in the domain of σ2: *)
-    pose (Hloc := Build_TickCounter (fresh (dom (gset loc) σ2)) : TickCounter).
+    pose (Hloc := Build_TickCounter (fresh (dom σ2)) : TickCounter).
     assert (σ2 !! ℓ = None)
       by (simpl ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
     by eapply adequate_translation__nadequate_result.
@@ -531,7 +531,7 @@ Proof.
   - intros n t2 σ2 e2 _ Hnsteps Inm He2.
     (* build a location ℓ which is fresh in e2 and in the domain of σ2: *)
     pose (set1 := loc_set_of_expr e2 : gset loc).
-    pose (set2 := dom (gset loc) σ2 : gset loc).
+    pose (set2 := dom σ2 : gset loc).
     pose (Hloc := Build_TickCounter (fresh (set1 ∪ set2)) : TickCounter).
     eassert (ℓ ∉ set1 ∪ set2) as [Hℓ1 Hℓ2] % not_elem_of_union
       by (unfold ℓ ; apply is_fresh).

@@ -369,7 +369,7 @@ Section Soundness.
     intros Hadq.
     intros t2 σ2 k.
     (* build a location ℓ which is not in the domain of σ2: *)
-    pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
+    pose (Build_TickCounter (fresh (dom σ2))) as Hloc.
     assert (σ2 !! ℓ = None)
       by (unfold ℓ ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
