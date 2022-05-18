@@ -380,7 +380,7 @@ Lemma tac_wp_tick `{timeReceiptHeapG Σ} Δ pe Δ1 Δ2 Δ' i max_tc s E K (v : v
   envs_entails Δ' (WP fill K v @ s; E {{ Φ }}) →
   envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_eq=>??? HTRdup HTR HWP.
+  rewrite envs_entails_unseal=>??? HTRdup HTR HWP.
   iIntros "HΔ".
   iAssert (TR_invariant max_tc) as "#Hinv".
   { destruct pe.

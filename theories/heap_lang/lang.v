@@ -604,7 +604,7 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
 Proof. destruct Ki1, Ki2; intros; by simplify_eq. Qed.
 
 Lemma alloc_fresh v σ :
-  let l := fresh (dom (gset loc) σ) in
+  let l := fresh (dom σ) in
   head_step (Alloc $ Val v) σ [] (Val $ LitV $ LitLoc l) (<[l:=v]> σ) [].
 Proof. by intros; apply AllocS, (not_elem_of_dom (D:=gset loc)), is_fresh. Qed.
 

@@ -369,9 +369,8 @@ Section Soundness.
     intros Hadq.
     intros t2 σ2 k.
     (* build a location ℓ which is not in the domain of σ2: *)
-    pose (Build_TickCounter (fresh (dom (gset loc) σ2))) as Hloc.
-    assert (σ2 !! ℓ = None)
-      by (unfold ℓ ; eapply (not_elem_of_dom (D:=gset loc)), is_fresh).
+    pose (Build_TickCounter (fresh (dom σ2))) as Hloc.
+    assert (σ2 !! ℓ = None) by (unfold ℓ ; eapply not_elem_of_dom, is_fresh).
     specialize (Hadq Hloc) as Hsafe % safe_adequate.
     by eapply safe_tctranslation__bounded.
   Qed.
@@ -513,7 +512,7 @@ Section Tactics.
     envs_entails Δ'' (WP fill K v @ s; E {{ Φ }}) →
     envs_entails Δ (WP fill K (App tick v) @ s; E {{ Φ }}).
   Proof.
-    rewrite envs_entails_eq => HsubsetE ???? Hentails''.
+    rewrite envs_entails_unseal => HsubsetE ???? Hentails''.
     rewrite envs_lookup_intuitionistic_sound // intuitionistically_elim. apply wand_elim_r'.
     rewrite -wp_bind.
     eapply wand_apply ; first by (iIntros "HTC1 HΦ #Htick" ; iApply (tick_spec with "Htick HTC1 HΦ")).
