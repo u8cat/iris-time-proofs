@@ -413,7 +413,7 @@ Section Soundness.
   Proof.
     intros Hspec HpreG Hloc σ k Ik.
     (* apply the adequacy results. *)
-    apply (wp_adequacy _ _) ; simpl ; intros HinvG.
+    apply (wp_adequacy_no_lc _ _) ; simpl ; intros HinvG _.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)

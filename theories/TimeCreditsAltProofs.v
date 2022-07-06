@@ -239,8 +239,8 @@ Lemma spec_tctranslation__bounded {Σ} m ψ e :
 Proof.
   intros Hspec Hloc HtcPreG σ1 t2 σ2 z Hsteps.
   (* apply the invariance result. *)
-  apply (wp_invariance Σ _ NotStuck «e» S«σ1,m» T«t2» S«σ2,z») ; simpl ; last assumption.
-  intros HinvG κs(*κs'*).
+  apply (wp_invariance_no_lc Σ _ NotStuck «e» S«σ1,m» T«t2» S«σ2,z») ; simpl ; last assumption.
+  intros HinvG _ κs(*κs'*).
   (* … now we have to prove a WP for some state interpretation, for which
    * we settle the needed invariant TC_invariant. *)
   set σ' := S«σ1».
