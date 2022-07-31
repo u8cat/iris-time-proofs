@@ -158,7 +158,7 @@ Lemma wp_fork s E e Φ :
 Proof.
   iIntros "He HΦ". iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1 ? κ κs n) "Hσ !>"; iSplit; first by eauto.
-  iNext; iIntros (v2 σ2 efs Hstep); inv_head_step. by iFrame.
+  iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step. by iFrame.
 Qed.
 
 (** Heap *)
@@ -167,7 +167,7 @@ Lemma wp_alloc s E v :
 Proof.
   iIntros (Φ) "_ HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>"; iSplit; first by auto.
-  iNext; iIntros (v2 σ2 efs Hstep); inv_head_step.
+  iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_alloc with "Hσ") as "(Hσ & Hl & _)"; first done.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
@@ -177,7 +177,7 @@ Lemma wp_load s E l dq v :
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep); inv_head_step.
+  iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
 
@@ -188,7 +188,7 @@ Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep); inv_head_step.
+  iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
 Qed.
@@ -200,7 +200,7 @@ Lemma wp_cas_fail s E l q v' v1 v2 :
 Proof.
   iIntros (?? Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep); inv_head_step.
+  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
 
@@ -211,7 +211,7 @@ Lemma wp_cas_suc s E l v1 v2 :
 Proof.
   iIntros (? Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep); inv_head_step.
+  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
 Qed.
@@ -222,7 +222,7 @@ Lemma wp_faa s E l i1 i2 :
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
   iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
-  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep); inv_head_step.
+  iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
 Qed.

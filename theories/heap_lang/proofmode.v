@@ -33,6 +33,7 @@ Proof.
   (* We want [pure_exec_fill] to be available to TC search locally. *)
   pose proof @pure_exec_fill.
   rewrite HΔ' -lifting.wp_pure_step_later //.
+  iIntros "HWP !> _". eauto.
 Qed.
 
 Lemma tac_wp_value `{heapGS Σ} Δ s E Φ v :
