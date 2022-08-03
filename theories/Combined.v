@@ -813,7 +813,7 @@ Section Soundness.
     assert (M ≤ m)%nat by (unfold M ; lia).
     assert (M < max_tr)%nat by (unfold M ; lia).
     (* apply the adequacy results. *)
-    apply (wp_adequacy_lc _ _) ; simpl ; intros HinvG Hlc.
+    apply (wp_adequacy _ _) ; simpl ; intros HinvG.
     (* … now we have to prove a WP. *)
     set σ' := S«σ».
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
