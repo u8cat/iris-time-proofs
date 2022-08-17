@@ -233,7 +233,7 @@ Section TickSpec.
       wp_bind (CAS _ _ _)%E ;
       iInv timeReceiptN as (n') ">(Hℓ & Hγ1● & Hγ2● & In')" "InvClose" ; iDestruct "In'" as %In'.
       (* test whether the value ℓ is still k, by comparing n with n': *)
-      destruct (nat_eq_dec n n') as [ <- | Hneq ].
+      destruct (Nat.eq_dec n n') as [ <- | Hneq ].
       (* — if it holds, then CAS succeeds and ℓ is decremented: *)
       + wp_cas_suc.
         (* reform the invariant with n+1 instead of n, and an additional time

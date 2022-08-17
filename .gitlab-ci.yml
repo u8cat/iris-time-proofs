@@ -30,6 +30,7 @@ variables:
   - api
 
 ## Build jobs
+
 build-coq.8.15.2:
   <<: *template
   variables:

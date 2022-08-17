@@ -22,7 +22,7 @@ Section Auth_nat.
   Proof.
     iIntros "H● H◯".
     by iDestruct (own_valid_2 with "H● H◯")
-      as % [?%nat_le_sum _] % auth_both_valid.
+      as % [?%Nat.le_sum _] % auth_both_valid.
   Qed.
 
   Lemma own_auth_nat_weaken (γ : gname) (n₁ n₂ : nat) :

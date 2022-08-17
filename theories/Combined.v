@@ -320,7 +320,7 @@ Section Definitions.
       wp_bind (CAS _ _ _)%E ;
       iInv tctrN as (m') "(>I & >Hℓ & Hγ● & >Hγ1● & >Hγ2●)" "InvClose".
       (* test whether the value ℓ is still m, by comparing m with m': *)
-      destruct (nat_eq_dec m m') as [ <- | Hneq ].
+      destruct (Nat.eq_dec m m') as [ <- | Hneq ].
       (* — if it holds, then CAS succeeds and ℓ is decremented: *)
       + wp_cas_suc.
         (* reform the invariant with m−1 instead of m: *)

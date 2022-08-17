@@ -1026,7 +1026,7 @@ Proof using.
       forwards* Hklog: rank_is_logarithmic (fupdate K x (S (K y))) x.
       rewrite fupdate_same in Hklog.
       assert (S (K y) < 2 ^ (word_size - 1))%nat as HK%inj_lt by lia.
-      rewrite Z2Nat_inj_pow -Z.shiftl_1_l Nat2Z.inj_sub in HK;
+      rewrite Z2Nat.inj_pow -Z.shiftl_1_l Nat2Z.inj_sub in HK;
         [|pose proof word_size_gt_1; lia].
       apply bool_decide_pack. split.
       { destruct (bool_decide_unpack _ (proj2_sig k1)) as [? _]. lia. }
