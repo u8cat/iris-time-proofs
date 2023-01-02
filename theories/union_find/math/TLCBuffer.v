@@ -59,9 +59,6 @@ Qed.
 
 Global Hint Extern 1 (_ = _) => congruence : congruence.
 
-(* FRANCOIS: this should only be used for terminal goals *)
-Ltac unpack := jauto_set_hyps; intros.
-
 Ltac three_ways r1 r2 :=
   destruct (classicT (r1 = r2)); [ | destruct (classicT (r1 < r2)) ];
   repeat rewrite If_l in * by lia;
