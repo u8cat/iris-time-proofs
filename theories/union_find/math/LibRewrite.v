@@ -34,7 +34,7 @@ Qed.
 Global Program Instance proper_mult: Proper (le ++> le ++> le) mult.
 Next Obligation.
   intros x1 y1 h1 x2 y2 h2.
-  rewrite Mult.mult_le_compat_l, Mult.mult_le_compat_r by eauto.
+  rewrite Nat.mul_le_mono_l, Nat.mul_le_mono_r by eauto.
   reflexivity.
 Qed.
 
@@ -152,4 +152,3 @@ Goal
 Proof using.
   introv h. rewrite h. reflexivity.
 Qed.
-
