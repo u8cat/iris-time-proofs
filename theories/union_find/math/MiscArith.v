@@ -15,7 +15,7 @@ Lemma lexpo_is_well_defined:
 Proof using.
   intros.
   replace (a - k) with (1 + (a - k - 1)) by lia.
-  rewrite Mult.mult_plus_distr_r.
+  rewrite Nat.mul_add_distr_r.
   generalize ((a - k - 1) * r); intro n.
   lia.
 Qed.
@@ -29,7 +29,7 @@ Proof using.
   intros.
   assert (h: ak' <= ak - 1). lia.
   rewrite h.
-  rewrite Mult.mult_minus_distr_r.
+  rewrite Nat.mul_sub_distr_r.
   lia.
 Qed.
 
@@ -136,7 +136,7 @@ Proof.
   (* Use the known bound on [ix]. *)
   rewrite <- hix.
   (* Simplify. *)
-  ring_simplify. repeat rewrite <- Mult.mult_assoc.
+  ring_simplify. repeat rewrite <- Nat.mul_assoc.
   generalize dependent (kx * ry); intro krxy.
   (* Conclude. *)
   lia.
@@ -149,7 +149,7 @@ Lemma random_arithmetic_lemma_02:
 Proof.
   intros.
   (* Simplify. *)
-  ring_simplify. repeat rewrite <- Mult.mult_assoc.
+  ring_simplify. repeat rewrite <- Nat.mul_assoc.
   (* Get rid of the product [ary * ry], while recording that it is at
      least [ry]. *)
   assert (ry <= ary * ry). { eapply mult_magnifies_left. lia. }
