@@ -157,11 +157,11 @@ Definition Thunk p t n φ : iProp Σ := (
    [thunk_pay], this implies that several different views of a thunk, with
    distinct numbers of debits, can co-exist. *)
 
-Lemma thunk_persistent p t n φ :
+Global Instance thunk_persistent p t n φ :
   Persistent (Thunk p t n φ).
-Proof.
+Proof using.
   exact _.
-Qed.
+Qe.d
 
 Lemma thunk_dup p t n φ :
   Thunk p t n φ ≡ (Thunk p t n φ ∗ Thunk p t n φ)%I.
