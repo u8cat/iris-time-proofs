@@ -38,7 +38,7 @@ toplevel for Coq), install it as well:
 When all required libraries can be found (e.g. in an opam switch as configured
 above), compile the proof scripts with:
 
-    make -j4
+    make -j
 
 Other recipes are available, such as `all`, `clean` and `userinstall`.
 
