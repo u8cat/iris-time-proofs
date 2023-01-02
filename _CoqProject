@@ -5,6 +5,8 @@
 # Iris has some ambiguous coercion paths (TLC has one, too)
 # which produce a lot of warnings starting with Coq 8.10.
 -arg -w -arg -ambiguous-paths
+# The following warning is triggered by union_find/math/LibFunOrd.v
+-arg -w -arg -fragile-hint-constr
 
 theories/heap_lang/lang.v
 theories/heap_lang/adequacy.v
