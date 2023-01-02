@@ -396,9 +396,10 @@ Proof using.
   ).
   { induction k; simpl; intros.
     lia.
-    eapply Nat.lt_le_trans; [ eapply Mult.mult_lt_compat_r | eapply Mult.mult_le_compat_l ]. (* wow *)
-      lia.
-      eapply power_positive with (k := S k). lia.
+    eapply Nat.lt_le_trans;
+      [ rewrite <- Nat.mul_lt_mono_pos_r | eapply Nat.mul_le_mono_l ]. (* wow *)
+      tauto.
+      eapply power_positive with (k := S k). tauto.
       forwards: IHk. eauto. simpl in *. lia. }
   (* There remains to treat separately the case where [n1] is 0. *)
   intros. intros n1 n2 ?.
