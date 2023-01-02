@@ -165,20 +165,39 @@ Global Instance thunk_persistent p t n φ :
   Persistent (Thunk p t n φ).
 Proof using.
   exact _.
-Qe.d
+Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* The number of debits can be over-estimated. *)
+(* A public lemma: the number of debits [n] that appears in the assertion
+   [Thunk p t n φ] is in general an over-approximation of the true remaining
+   debt. Therefore, losing information, by replacing [n₁] with a larger number
+   [n₂], is permitted. *)
+
 Lemma thunk_weakening p t n₁ n₂ φ :
   (n₁ ≤ n₂)%nat →
   Thunk p t n₁ φ -∗
   Thunk p t n₂ φ.
 Proof.
-  iIntros (I) "H". iDestruct "H" as (γ nc) "[Hinv Hγ◯]".
+  iIntros (?) "H".
+  iDestruct "H" as (γ nc) "[Hinv Hγ◯]".
   iExists γ, nc. iFrame "Hinv".
   iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
 Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* A public lemma: the specification of [create]. *)
+
+(* In short, [create] requires
+   + 3 time credits;
+   + a permission to call f(), at most once,
+     with precondition nc$ and postcondition φ.
+
+   [create] returns a thunk [t] whose number of debits is [nc]
+                            and whose postcondition is [φ].
+
+   The pool [p] is arbitrarily chosen by the user. *)
 
 Lemma thunk_create_spec p nc φ f :
   TC_invariant -∗
@@ -194,8 +213,15 @@ Proof.
   iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
   iFrame "Hγ◯".
   iApply na_inv_alloc.
-  iNext. iExists 0%nat. auto with iFrame.
+  iNext.
+  (* The number of available credits is initially 0. *)
+  iExists 0%nat.
+  auto with iFrame.
 Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* A public lemma: the specification of [force]. *)
 
 Lemma thunk_force_spec p F t φ :
   ↑(thunkN t) ⊆ F →
@@ -238,6 +264,10 @@ Proof.
     iNext. iExists ac. auto with iFrame.
   }
 Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* A public lemma: the specification of the ghost operation [pay]. *)
 
 Lemma thunk_pay p F (n k : nat) t φ :
   ↑(thunkN t) ⊆ F →
