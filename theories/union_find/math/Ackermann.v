@@ -68,7 +68,7 @@ Proof using.
   generalize dependent (2^i); intro n; intros.
   generalize dependent (1+x); intro y; intros.
   assert (0 < n * y). { eauto using mult_positive. }
-  rewrite <- Mult.mult_assoc.
+  rewrite <- Nat.mul_assoc.
   generalize dependent (n * y); intros ny; intros.
   lia. (* phew! *)
   Transparent plus.
