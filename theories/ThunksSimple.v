@@ -92,7 +92,9 @@ Implicit Type γ : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
 
-(* With each thunk [t], we associate an internal namespace [thunkN t]. *)
+(* With each thunk [t], we associate a namespace [thunkN t]. This namespace
+   appears in the public specification of [force]. It is abstract: its
+   definition is not meant to be exposed to the user. *)
 
 Definition thunkN t : namespace :=
   nroot .@ "thunk" .@ string_of_pos t.
