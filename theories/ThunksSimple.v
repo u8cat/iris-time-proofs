@@ -179,8 +179,8 @@ Lemma thunk_weakening p t n₁ n₂ φ :
   Thunk p t n₁ φ -∗
   Thunk p t n₂ φ.
 Proof.
-  iIntros (?) "H".
-  iDestruct "H" as (γ nc) "[Hinv Hγ◯]".
+  iIntros (?) "Hthunk".
+  iDestruct "Hthunk" as (γ nc) "[Hinv Hγ◯]".
   iExists γ, nc. iFrame "Hinv".
   iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
 Qed.
@@ -223,6 +223,20 @@ Qed.
 
 (* A public lemma: the specification of [force]. *)
 
+(* Forcing a thunk [t] requires a token of the form [na_own p F], where [F]
+   contains the namespace [thunkN t]. Because this token is unique and is not
+   passed on to the function call f(), reentrancy is statically forbidden. *)
+
+(* The postcondition φ is required to be duplicable. Indeed, a copy of the
+   value [v] is returned to the caller and a copy of [v] is memoized for
+   later use. Both copies must satisfy [φ v], so [φ] must be duplicable. *)
+
+(* Forcing a thunk is permitted only if its apparent debt is zero, that is,
+   only if the cost of forcing this thunk has already been paid for (perhaps
+   in several increments) using [thunk_pay]. *)
+
+(* Forcing a thunk has (amortized) constant time complexity. It requires 11$. *)
+
 Lemma thunk_force_spec p F t φ :
   ↑(thunkN t) ⊆ F →
   (∀ (v : val), φ v -∗ φ v ∗ φ v) →
@@ -237,31 +251,42 @@ Proof.
   rewrite (_ : nc - 0 = nc)%nat ; last lia.
   iApply wp_fupd.
   wp_tick_lam.
-  (* reading the thunk… *)
+
+  (* Open the invariant before reading and possibly writing the reference. *)
   iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
-    as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
-    iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
-    [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
-    | iDestruct "Hevaluated" as (v) "(>Ht & Hv)" ].
-  (* (1) if it is UNEVALUATED, we evaluate it: *)
+    as ">(Hthunk & Hp & Hclose)";
+    [done|done|]. (* side conditions about masks *)
+
+  (* Read the reference and perform case analysis. *)
+  iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])".
+  (* Case: the thunk is UNEVALUATED. *)
   {
+    iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)".
     wp_tick_load. wp_tick_match.
+    (* The number of debits is zero, so we learn [nc ≤ ac]. *)
     iDestruct (own_auth_max_nat_le with "Hγ● Hγ◯") as %I.
+    (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
+    (* We can invoke f(), *)
     wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
+    (* and update the reference. *)
     wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
+    (* We must now duplicate φ and close the invariant. *)
     iApply "Post".
     iDestruct (Hφdup with "Hv") as "[Hv $]".
-    iApply "Hclose". iFrame "Hp".
-    iNext. iExists ac. auto with iFrame.
+    iApply "Hclose". iFrame "Hp". iNext.
+    (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
+    iExists ac. auto with iFrame.
   }
-  (* (2) if it is EVALUATED, we get the result which is already memoized: *)
+  (* Case: the thunk is EVALUATED. *)
   {
+    iDestruct "Hevaluated" as (v) "(>Ht & Hv)".
     wp_tick_load. wp_tick_match.
+    (* Duplicate φ and close the invariant. *)
     iApply "Post".
     iDestruct (Hφdup with "Hv") as "[Hv $]".
-    iApply "Hclose". iFrame "Hp".
-    iNext. iExists ac. auto with iFrame.
+    iApply "Hclose". iFrame "Hp". iNext.
+    iExists ac. auto with iFrame.
   }
 Qed.
 
