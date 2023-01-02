@@ -10,7 +10,6 @@ Require Export Coq.Numbers.Natural.Peano.NPeano.
      For this reason, we do NOT import [Nat]. *)
   Notation log2 := Nat.log2.
 From TLC Require Import LibTactics.
-Local Ltac fpunpack := jauto_set_hyps; intros.
 From iris_time.union_find.math Require Import LibFunOrd.
 
 (* ---------------------------------------------------------------------------- *)
@@ -164,7 +163,7 @@ Proof using.
   intros. unfold Nat.div.
   destruct k; [ false; lia | simpl ].
   forwards: Nat.divmod_spec n k 0 k. eauto.
-  destruct (Nat.divmod n k 0 k) as [ q r ]. fpunpack. simpl.
+  destruct (Nat.divmod n k 0 k) as [ q r ]. unpack. simpl.
   exists (k - r). lia.
 Qed.
 
@@ -178,7 +177,7 @@ Ltac div2 :=
   match goal with |- context[?n/2] =>
     let h := fresh in
     forwards h: div_spec n 2; [ lia |
-      gen h; generalize (n/2); intros; fpunpack
+      gen h; generalize (n/2); intros; unpack
     ]
   end.
 
@@ -508,7 +507,7 @@ Ltac log2_spec :=
   match goal with |- context[log2 ?n] =>
     let h := fresh in
     forwards h: Nat.log2_spec n; [ eauto with positive lia |
-      gen h; generalize (log2 n); intros; fpunpack
+      gen h; generalize (log2 n); intros; unpack
     ]
   end.
 
@@ -521,7 +520,7 @@ Lemma log2_uniqueness_half:
   2^k2 <= n < 2^(1 + k2) ->
   k1 <= k2.
 Proof using.
-  simpl. intros. fpunpack.
+  simpl. intros. unpack.
   eapply power_strictly_inverse_monotonic_in_k_variant with (n := 2). lia.
   eauto using Nat.le_lt_trans.
 Qed.
