@@ -154,6 +154,8 @@ Definition Thunk p t n φ : iProp Σ := (
 
 )%I.
 
+(* -------------------------------------------------------------------------- *)
+
 (* A public lemma: the assertion [Thunk p t n φ] is persistent. This means
    that a thunk can be shared. In combination with [thunk_weakening] and
    [thunk_pay], this implies that several different views of a thunk, with
@@ -165,11 +167,7 @@ Proof using.
   exact _.
 Qe.d
 
-Lemma thunk_dup p t n φ :
-  Thunk p t n φ ≡ (Thunk p t n φ ∗ Thunk p t n φ)%I.
-Proof.
-  iSplit. { auto. } { iIntros "[$_]". }
-Qed.
+(* -------------------------------------------------------------------------- *)
 
 (* The number of debits can be over-estimated. *)
 Lemma thunk_weakening p t n₁ n₂ φ :
