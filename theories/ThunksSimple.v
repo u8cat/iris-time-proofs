@@ -257,7 +257,7 @@ Proof.
     as ">(Hthunk & Hp & Hclose)";
     [done|done|]. (* side conditions about masks *)
 
-  (* Read the reference and perform case analysis. *)
+  (* Perform a case analysis. *)
   iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])".
   (* Case: the thunk is UNEVALUATED. *)
   {
@@ -294,43 +294,64 @@ Qed.
 
 (* A public lemma: the specification of the ghost operation [pay]. *)
 
+(* Paying is a ghost operation: there is no HeapLang code for it. It is a
+   ghost update. Its effect is to change the number of debits from [n] to
+   [n-k], while consuming [k] time credits. *)
+
+(* Like [force], paying requires a token of the form [na_own p F], where [F]
+   contains the namespace [thunkN t]. *)
+
 Lemma thunk_pay p F (n k : nat) t φ :
   ↑(thunkN t) ⊆ F →
-  na_own p F -∗ Thunk p t n φ -∗ TC k ={⊤}=∗ Thunk p t (n-k) φ ∗ na_own p F.
+  na_own p F -∗ Thunk p t n φ -∗
+  TC k ={⊤}=∗
+  na_own p F  ∗ Thunk p t (n-k) φ.
 Proof.
   iIntros (?) "Hp #Hthunk Htc_k".
   iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
-  (* reading the thunk… *)
+
+  (* Open the invariant. *)
   iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
-    as ">(Hthunk & Hp & Hclose)" ; [done|done|] ;
-    iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])" ;
-    [ iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)"
-    | iDestruct "Hevaluated" as (v) "(>Ht & Hv)" ].
-  (* (1) if it is UNEVALUATED, then we add the time credits to the deposit: *)
+    as ">(Hthunk & Hp & Hclose)";
+    [done|done|]. (* side conditions about masks *)
+
+  (* Perform a case analysis. *)
+  iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])".
+
+  (* Case: the thunk is UNEVALUATED. *)
   {
+    iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)".
+    (* We have [ac + k] time credits. *)
     iAssert (TC (ac + k)) with "[Htc Htc_k]" as "Htc" ;
       first by iSplitL "Htc".
-    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
+    (* Increment the number of available credits from [ac] to [ac + k]. *)
+    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯")
+      as ">[Hγ●' #Hγ◯']";
       iClear "Hγ◯".
-    iMod ("Hclose" with "[-Hγ◯']") as "$". {
-      iFrame "Hp".
-      iNext. iExists (ac+k)%nat. auto with iFrame.
-    }
+    (* The invariant can be closed. *)
+    iMod ("Hclose" with "[-Hγ◯']") as "$".
+    { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
     iExists γ, nc. iFrame "Hthunkinv".
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
+    (* And our updated fragmentary view of the ghost cell γ
+       allows us to produce an updated [Thunk] assertion. *)
+    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    lia.
   }
-  (* (2) if it is EVALUATED, then we do nothing: *)
+  (* Case: the thunk is EVALUATED. *)
   {
-    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯") as ">[Hγ●' #Hγ◯']" ;
+    iDestruct "Hevaluated" as (v) "(>Ht & Hv)".
+    (* The ghost cell is incremented from [ac] to [ac + k] also in this case.
+       However, in this case, no time credits are actually involved. *)
+    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯")
+      as ">[Hγ●' #Hγ◯']";
       iClear "Hγ◯".
-    iMod ("Hclose" with "[-Hγ◯']") as "$". {
-      iFrame "Hp".
-      iNext. iExists (ac+k)%nat. auto with iFrame.
-    }
+    iMod ("Hclose" with "[-Hγ◯']") as "$".
+    { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
     iExists γ, nc. iFrame "Hthunkinv".
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$" ; lia.
+    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    lia.
   }
 Qed.
 
