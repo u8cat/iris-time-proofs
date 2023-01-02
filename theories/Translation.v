@@ -437,10 +437,10 @@ Section InvTranslation.
     match e with
     (* Concurrency -- This pattern has to appear before the pattern of
       App, since it conflicts with it. *)
-    | App tick (Fork e)          => Fork (invtranslation e)
+    | App _tick (Fork e)         => Fork (invtranslation e)
     (* Base lambda calculus *)
     | Var _                      => e
-    | App tick (Rec f x e)       => Rec f x (invtranslation e)
+    | App _tick (Rec f x e)      => Rec f x (invtranslation e)
     | App (App tick e1) e2       => (invtranslation e1) (invtranslation e2)
     | Val v                      => Val (invtranslationV v)
     (* Base types and their operations *)
