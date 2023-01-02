@@ -4,8 +4,8 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 
 (* This file contains a simple formalization of thunks, as presented in the
-   ESOP 2019 paper. It does not enjoy the consequence rule. A more elaborate
-   formalization (with the same HeapLang code) can be found in Thunks.v. *)
+   ESOP 2019 paper. A more elaborate formalization, which is based on the same
+   HeapLang code but offers a richer logical API, can be found in Thunks.v. *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -49,19 +49,48 @@ Definition force : val :=
 
 (* -------------------------------------------------------------------------- *)
 
-Section ThunkSimpleProofs.
+Section Proofs.
 
 Context `{timeCreditHeapG Σ}.
 Context `{inG Σ (authR max_natUR)}.
 Context `{na_invG Σ}.
 
-Implicit Type t : loc.
-Implicit Type γ : gname.
-Implicit Type n nc ac : nat.
-Implicit Type φ : val → iProp Σ.
-Implicit Type f v : val.
+(* The parameters of the predicate [Thunk p t n φ] are:
+
+    - p: a non-atomic-invariant pool name
+
+    - t: the physical location of the thunk
+
+    - n: the apparent remaining debt,
+         that is, the number of debits associated with this thunk
+
+    - φ: the postcondition of this thunk;
+         must be duplicable *)
+
 Implicit Type p : na_inv_pool_name.
-Implicit Type E F : coPset.
+Implicit Type t : loc.
+Implicit Type n : nat.
+Implicit Type φ : val → iProp Σ.
+
+(* The following variables are used internally:
+
+    - γ: the ghost location associated with this thunk
+
+    - nc: the necessary credits, that is, the credits that appear
+          in the precondition of the function f
+
+    - ac: the available credits, that is, the credits that have
+          been paid so far and currently stored in the thunk
+
+    - f: the function that is invoked when the thunk is forced
+
+    - v: the result of calling f(), and of forcing the thunk
+
+*)
+
+Implicit Type γ : gname.
+Implicit Type nc ac : nat.
+Implicit Type f v : val.
 
 Definition thunkN t : namespace :=
   nroot .@ "thunk" .@ string_of_pos t.
@@ -97,6 +126,7 @@ Proof.
   iSplit. { auto. } { iIntros "[$_]". }
 Qed.
 
+(* The number of debits can be over-estimated. *)
 Lemma Thunk_weaken p t n₁ n₂ φ :
   (n₁ ≤ n₂)%nat →
   Thunk p t n₁ φ -∗
@@ -206,4 +236,4 @@ Proof.
   }
 Qed.
 
-End ThunkSimpleProofs.
+End Proofs.
