@@ -91,7 +91,7 @@ Section Reduction.
       rewrite app_length cons_length. lia.
     }
     destruct t2.
-    - apply thread_pool_grows_after_step, le_not_lt in Hstep. contradiction.
+    - apply thread_pool_grows_after_step, Nat.le_ngt in Hstep. contradiction.
     - eauto.
   Qed.
   Lemma thread_pool_is_cons_after_exec e1 t1' σ1 t2 σ2 :
@@ -144,7 +144,7 @@ Section Reduction.
     - destruct E2, E1.
       eapply rtc_l.
       + exists κ. by eapply step_insert_in_thread_pool.
-      + by eapply IHsteps, le_trans, thread_pool_grows_after_step.
+      + by eapply IHsteps, Nat.le_trans, thread_pool_grows_after_step.
   Qed.
   Lemma exec_frame_thread_pool t1 σ1 t2 σ2 ta tb :
     rtc erased_step (t1, σ1) (t2, σ2) →
