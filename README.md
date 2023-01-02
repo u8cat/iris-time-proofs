@@ -5,6 +5,7 @@
 _If opam is not already installed:_ See instructions [there][install-opam] to
 install it; then:
 
+    opam update
     opam init --comp=4.14.1
     eval $(opam config env)
 
@@ -12,6 +13,7 @@ install it; then:
 
 _If opam (≥ 2.0) is already installed:_ Create a new switch for the project:
 
+    opam update
     opam switch create iris-time ocaml-base-compiler.4.14.1
     eval $(opam config env)
 
