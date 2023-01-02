@@ -9,13 +9,13 @@ Tactic Notation "make_eq" constr(t) "as" ident(x) ident(E) :=
 Lemma take_cons {A : Type} (n : nat) (x : A) (xs : list A) :
   (0 < n)%nat → take n (x :: xs) = x :: take (n-1)%nat xs.
 Proof.
-  intros <- % Nat.succ_pred_pos. by rewrite /= - minus_n_O.
+  intros <- % Nat.succ_pred_pos. by rewrite /= Nat.sub_0_r.
 Qed.
 
 Lemma drop_cons {A : Type} (n : nat) (x : A) (xs : list A) :
   (0 < n)%nat → drop n (x :: xs) = drop (n-1)%nat xs.
 Proof.
-  intros <- % Nat.succ_pred_pos. by rewrite /= - minus_n_O.
+  intros <- % Nat.succ_pred_pos. by rewrite /= Nat.sub_0_r.
 Qed.
 
 Lemma nsteps_split `{R : relation A} m n x y :
