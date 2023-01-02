@@ -79,7 +79,11 @@ Important modules are highlighted.
  *  __`union_find/` directory: application of the combined system to a
     union-find program__
 
-### From ESOP paper to Coq proofs
+### From the ESOP 2019 paper to the Coq proofs
+
+The paper is
+[Time Credits and Time Receipts in Iris](http://cambium.inria.fr/~fpottier/publis/mevel-jourdan-pottier-time-in-iris-2019.pdf)
+by Glen Mével, Jacques-Henri Jourdan, and François Pottier.
 
 #### Generic translation and “tick”
 
