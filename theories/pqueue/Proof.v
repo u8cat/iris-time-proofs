@@ -279,7 +279,7 @@ Proof using.
        wrapping, and all the thunks it may then need to force. *)
     iPoseProof (create_spec _ (S ns_id) (thunk_debt w' fl rl)
                             (λ flv, ⌜flv = list_val fl⌝)%I
-                            (λ: <>, Snd (Thunks.force #t))%V
+                            (λ: <>, Snd (ThunksCode.force #t))%V
                with "[//] [$TC1 TC2]") as "S".
     { iIntros "TC Hgens" (ψ) "Hψ". wp_tick_lam.
       rewrite (_: 28 = 12 + 16) //. iDestruct "TC2" as "[TC1 TC2]".

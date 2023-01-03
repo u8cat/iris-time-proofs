@@ -1,5 +1,5 @@
 From iris_time.heap_lang Require Import notation.
-From iris_time Require Thunks.
+From iris_time Require Import ThunksCode. (* create, force *)
 
 (* Persistent queues from Okasaki's "Purely Functional Data Structures", using
    thunks to achieve constant time amortized complexity.
@@ -21,12 +21,12 @@ Notation "'letq:' ( w , lenf , f , lenr , r ) := e1 'in' e2" :=
    are implemented as a library and thus are not primitive values of the
    language *)
 Definition empty : val := λ: <>,
-  (#(), #0, Thunks.create (λ: <>, #()), #0, #()).
+  (#(), #0, create (λ: <>, #()), #0, #()).
 
 Definition checkw : val := λ: "q",
   letq: ("w", "lenf", "f", "lenr", "r") := "q" in
   if: "w" = #() then
-    (Thunks.force "f", "lenf", "f", "lenr", "r")
+    (force "f", "lenf", "f", "lenr", "r")
   else
     ("w", "lenf", "f", "lenr", "r").
 
@@ -45,8 +45,8 @@ Definition check : val := λ: "q",
   if: "lenr" ≤ "lenf" then
     checkw "q"
   else (
-    let: "fv" := Thunks.force "f" in
-    let: "f'" := Thunks.create (λ: <>, append "fv" (rev "r")) in
+    let: "fv" := force "f" in
+    let: "f'" := create (λ: <>, append "fv" (rev "r")) in
     checkw ("fv", "lenf" + "lenr", "f'", #0, #())
   ).
 
@@ -59,7 +59,7 @@ Definition pop : val := λ: "q",
   if: "w" = #() then NONE else (
     let: "x" := Fst "w" in
     let: "w'" := Snd "w" in
-    let: "f'" := Thunks.create (λ: <>, Snd (Thunks.force "f")) in
+    let: "f'" := create (λ: <>, Snd (force "f")) in
     let: "q'" := check ("w'", "lenf" - #1, "f'", "lenr", "r") in
     SOME ("x", "q'")
   ).

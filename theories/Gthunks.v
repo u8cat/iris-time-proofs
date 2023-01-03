@@ -2,6 +2,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time Require Import TimeCredits Auth_max_nat Thunks.
+From iris_time Require Import ThunksCode.
 
 Definition genid := nat.
 

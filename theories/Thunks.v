@@ -3,6 +3,7 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
+From iris_time Require Import ThunksCode.
 
 (*
   This file contains a formalization of thunks. Compared with ThunksSimple.v,
@@ -107,29 +108,6 @@ From iris_time Require Import TimeCredits Auth_max_nat.
   additional consequences yet. The only thing we know is that the base node has
   indeed been forced.
  *)
-
-Notation UNEVALUATED f := (InjL f%V) (only parsing).
-Notation EVALUATED v := (InjR v%V) (only parsing).
-Notation UNEVALUATEDV f := (InjLV f%V) (only parsing).
-Notation EVALUATEDV v := (InjRV v%V) (only parsing).
-Notation "'match:' e0 'with' 'UNEVALUATED' x1 => e1 | 'EVALUATED' x2 => e2 'end'" :=
-  (Match e0 x1%bind e1 x2%bind e2)
-  (e0, e1, x2, e2 at level 200, only parsing) : expr_scope.
-
-Definition create : val :=
-  λ: "f",
-    ref (UNEVALUATED "f").
-
-Definition force : val :=
-  λ: "t",
-    match: ! "t" with
-      UNEVALUATED "f" =>
-        let: "v" := "f" #() in
-        "t" <- (EVALUATED "v") ;;
-        "v"
-    | EVALUATED "v" =>
-        "v"
-    end.
 
 Section ThunkProofs.
 
