@@ -491,7 +491,7 @@ Section ThunkProofs.
     ThunkVal γ v -∗
     na_own p F -∗
     |={⊤}=>
-      ▷ □ φ v ∗ na_own p (↑N).
+      ▷ □ φ v ∗ na_own p F.
   Abort.
 
   (* Example: forwarding of debt for a thunk that creates a thunk: *)
