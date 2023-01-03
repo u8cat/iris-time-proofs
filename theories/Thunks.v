@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 From iris_time Require Import ThunksCode.
@@ -114,7 +114,7 @@ Section ThunkProofs.
   Notation valO := (valO heap_lang).
   Context `{timeCreditHeapG Σ}.
   Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γ *)
-  Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
+  Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
   Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
   Context `{na_invG Σ}.
 
@@ -133,33 +133,37 @@ Section ThunkProofs.
   Definition thunkPayN t : namespace :=
     nroot .@ "thunkpay" .@ t.
 
-  Notation ThunkVal γ v := (own γ (Cinr $ to_agree v%V)).
+  Definition ThunkUnevaluated γ :=
+    own γ (Cinl $ Excl ()).
+
+  Definition ThunkVal γ v :=
+    own γ (Cinr $ to_agree v).
 
   Definition ThunkBaseInv γ γforced t n R φ : iProp Σ := (
     ∃ forced,
-        own γforced (● Excl' forced)
+        own γforced (●E forced)
       ∗ if forced then
           ∃ v,
               t ↦ EVALUATEDV « v »
-            ∗ own γ (Cinr $ to_agree v)
+            ∗ ThunkVal γ v
             ∗ □ φ v
         else
           ∃ f,
               t ↦ UNEVALUATEDV « f »
-            ∗ own γ (Cinl $ Excl ())
+            ∗ ThunkUnevaluated γ
             ∗ (TC n -∗ R -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }})
   )%I.
   Definition ThunkCsqInv γ γforced t n φ ψ : iProp Σ := (
     ∃ forced,
-        own γforced (● Excl' forced)
+        own γforced (●E forced)
       ∗ if forced then
-          ∃ v, own γ (Cinr $ to_agree v) ∗ □ ψ v
+          ∃ v, ThunkVal γ v ∗ □ ψ v
         else
           ∀ v, TC n -∗ φ v ={⊤}=∗ □ ψ v
   )%I.
   Definition ThunkPaidInv γforced γpaid t : iProp Σ := (
     ∃ forced paid,
-        own γforced (◯ Excl' forced)
+        own γforced (◯E forced)
       ∗ own γpaid (● MaxNat paid)
       ∗ if forced then True else TC paid
   )%I.
@@ -181,8 +185,12 @@ Section ThunkProofs.
     ∃ d, Thunk' p N γ t n R φ d
   )%I.
 
-  Lemma ThunkVal_persistent γ v :
+  Global Instance ThunkVal_persistent γ v :
     Persistent (ThunkVal γ v).
+  Proof. exact _. Qed.
+
+  Global Instance ThunkVal_timeless γ v :
+    Timeless (ThunkVal γ v).
   Proof. exact _. Qed.
 
   Lemma ThunkVal_agree γ v1 v2 :
@@ -192,13 +200,22 @@ Section ThunkProofs.
     eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
   Qed.
 
-  Global Instance Thunk'_persistent p N γ t n R φ d :
+  Local Lemma decide_value γ v :
+    ThunkUnevaluated γ ==∗ ThunkVal γ v.
+  Proof.
+    unfold ThunkUnevaluated, ThunkVal.
+    iIntros "Hγ".
+    iApply (own_update _ _ _ with "Hγ").
+    by apply cmra_update_exclusive.
+  Qed.
+
+  Local Instance Thunk'_persistent p N γ t n R φ d :
     Persistent (Thunk' p N γ t n R φ d).
   Proof.
     revert n φ. induction d ; exact _.
   Qed.
 
-  Lemma Thunk_persistent p N γ t n R φ :
+  Global Instance Thunk_persistent p N γ t n R φ :
     Persistent (Thunk p N γ t n R φ).
   Proof. exact _. Qed.
 
@@ -226,8 +243,8 @@ Section ThunkProofs.
     iDestruct "Ht" as (d) "Ht".
     iMod (own_alloc (● MaxNat 0 ⋅ ◯MaxNat 0)) as (γpaid) "[Hγpaid● Hγpaid◯]".
     { by apply auth_both_valid_2. }
-    iMod (own_alloc (● Excl' false ⋅ ◯ Excl' false)) as (γforced) "[Hγforced● Hγforced◯]".
-    { by apply auth_both_valid_2. }
+    iMod (own_alloc (●E false ⋅ ◯E false)) as (γforced) "[Hγforced● Hγforced◯]".
+    { by apply excl_auth_valid. }
     iExists (S d), γforced, γpaid, 0, m; fold Thunk'. iFrame "Hγpaid◯".
     iSplitR ; last iSplitR "Ht Hγforced● Hφψ".
     { iPureIntro;lia. }
@@ -310,8 +327,8 @@ Section ThunkProofs.
     iMod (own_alloc (Cinl $ Excl ())) as (γ) "?" ; first done.
     iMod (own_alloc (● MaxNat 0 ⋅ ◯MaxNat 0)) as (γpaid) "[Hγpaid● Hγpaid◯]".
     { by apply auth_both_valid_2. }
-    iMod (own_alloc (● Excl' false ⋅ ◯ Excl' false)) as (γforced) "[Hγforced● Hγforced◯]".
-    { by apply auth_both_valid_2. }
+    iMod (own_alloc (●E false ⋅ ◯E false)) as (γforced) "[Hγforced● Hγforced◯]".
+    { by apply excl_auth_valid. }
     iApply wp_fupd. wp_tick_lam. wp_tick_inj. wp_tick_alloc t. iApply "Post".
     iExists 0, γforced, γpaid, 0, n. iFrame. iSplitR ; first (iPureIntro;lia).
     iSplitL "Hγpaid● Hγforced◯".
@@ -322,28 +339,30 @@ Section ThunkProofs.
   Lemma take_paid_from_ThunkPaidInv E γforced γpaid t m :
     ↑thunkPayN t ⊆ E →
     inv (thunkPayN t) (ThunkPaidInv γforced γpaid t) -∗
-    own γforced (● Excl' false) -∗
+    own γforced (●E false) -∗
     own γpaid (◯ MaxNat m) -∗
     |={E}=>
-      own γforced (● Excl' true)
+      own γforced (●E true)
     ∗ TC m.
   Proof.
     iIntros (?) "HpaidInv Hγforced● Hγpaid◯".
     (* get the m accumulated time credits, by opening the “paid” invariant: *)
     iMod (inv_acc with "HpaidInv") as "[HpaidInv HpaidInvClose]" ; first done.
     iDestruct "HpaidInv" as (forced paid) "(>Hγforced◯ & >Hγpaid● & Hpaid)".
-    iAssert ⌜forced = false⌝%I as %->.
-    { by iDestruct (own_valid_2 with "Hγforced● Hγforced◯")
-        as %[[=]%Excl_included ]%auth_both_valid_discrete. }
+    (* TODO automate the following deduction step? *)
+    iAssert ⌜false = forced⌝%I as %<-.
+    { iDestruct (own_valid_2 with "Hγforced● Hγforced◯") as "%Hvalid".
+      eauto using excl_auth_agree_L. }
     iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as %Hle; cbn in Hle.
     iDestruct (TC_weaken _ _ Hle with "Hpaid") as ">Hm".
     (* update the ghost state to b = true, so as to switch both invariants
      * to the other side: *)
     iMod (own_update_2 with "Hγforced● Hγforced◯") as "Hγforced".
-    { by apply auth_update, option_local_update, (exclusive_local_update _ (Excl true)). }
+    { by eapply excl_auth_update. }
     iDestruct "Hγforced" as "[Hγforced● Hγforced◯]".
     (* close the “paid” invariant: *)
-    iMod ("HpaidInvClose" with "[Hγforced◯ Hγpaid●]"). { iExists true, paid. by iFrame. }
+    iMod ("HpaidInvClose" with "[Hγforced◯ Hγpaid●]").
+    { iExists true, paid. by iFrame. }
     by iFrame.
   Qed.
 
@@ -400,8 +419,7 @@ Section ThunkProofs.
         wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
         iApply "Post". iFrame "#∗".
         (* update the ghost state to remember that the value has been computed: *)
-        iDestruct (own_update _ _ (Cinr $ to_agree v) with "Hγ") as ">#$".
-        { by apply cmra_update_exclusive. }
+        iDestruct (decide_value with "Hγ") as ">#$".
         (* close the “base” invariant: *)
         iApply "HtInvClose". iFrame. iExists true. iFrame. iExists v. by iFrame "#∗".
       }
@@ -513,6 +531,3 @@ Section ThunkProofs.
   Qed.
 
 End ThunkProofs.
-
-(* Re-export the notation *)
-Notation ThunkVal γ v := (own γ (Cinr $ to_agree v%V)).
