@@ -93,7 +93,7 @@ Definition ownUndecided γdecided :=
 Definition ownDecided γdecided v :=
   own γdecided (Cinr $ to_agree v).
 
-Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ := (
+Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
@@ -110,7 +110,7 @@ Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ := (
           ∗ □ φ v
         )
       )
-)%I.
+.
 
 (* The predicate [Thunk p N t n R φ] is public. It is an abstract predicate:
    its definition is not meant to be exposed to the user. *)
@@ -131,14 +131,14 @@ Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ := (
    credits that remain to be paid, are sufficient to cover the actual cost
    of invoking f. *)
 
-Definition Thunk p N t n R φ : iProp Σ := (
+Definition Thunk p N t n R φ : iProp Σ :=
 
   ∃ γpaid γdecided nc,
       meta t nroot (γpaid, γdecided)
     ∗ na_inv p N (ThunkInv t γpaid γdecided nc R φ)
     ∗ own γpaid (◯ MaxNat (nc - n))
 
-)%I.
+.
 
 (* -------------------------------------------------------------------------- *)
 
