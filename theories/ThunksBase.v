@@ -20,6 +20,8 @@ Context `{na_invG Σ}.
 
     - p: a non-atomic-invariant pool name
 
+    - N: a non-atomic-invariant namespace
+
     - t: the physical location of the thunk
 
     - n: the apparent remaining debt,
@@ -33,6 +35,7 @@ Context `{na_invG Σ}.
  *)
 
 Implicit Type p : na_inv_pool_name.
+Implicit Type N : namespace.
 Implicit Type t : loc.
 Implicit Type n : nat.
 Implicit Type R : iProp Σ.
@@ -57,13 +60,6 @@ Implicit Type φ : val → iProp Σ.
 Implicit Type γ : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
-
-(* With each thunk [t], we associate a namespace [thunkN t]. This namespace
-   appears in the public specification of [force]. It is abstract: its
-   definition is not meant to be exposed to the user. *)
-
-Definition thunkN t : namespace :=
-  nroot .@ "thunk" .@ string_of_pos t.
 
 (* The internal predicate [ThunkInv t γ nc R φ] is the thunk's invariant. *)
 
@@ -101,7 +97,7 @@ Definition ThunkInv t γ nc R φ : iProp Σ := (
       )
 )%I.
 
-(* The predicate [Thunk p t n R φ] is public. It is an abstract predicate:
+(* The predicate [Thunk p N t n R φ] is public. It is an abstract predicate:
    its definition is not meant to be exposed to the user. *)
 
 (* Its definition states that:
@@ -117,23 +113,23 @@ Definition ThunkInv t γ nc R φ : iProp Σ := (
    the credits that remain to be paid, are sufficient to cover the actual
    cost of invoking f. *)
 
-Definition Thunk p t n R φ : iProp Σ := (
+Definition Thunk p N t n R φ : iProp Σ := (
 
   ∃ (γ : gname) (nc : nat),
-      na_inv p (thunkN t) (ThunkInv t γ nc R φ)
+      na_inv p N (ThunkInv t γ nc R φ)
     ∗ own γ (◯ MaxNat (nc - n))
 
 )%I.
 
 (* -------------------------------------------------------------------------- *)
 
-(* A public lemma: the assertion [Thunk p t n R φ] is persistent. This means
+(* A public lemma: the assertion [Thunk p N t n R φ] is persistent. This means
    that a thunk can be shared. In combination with [thunk_weakening] and
    [thunk_pay], this implies that several different views of a thunk, with
    distinct numbers of debits, can co-exist. *)
 
-Global Instance thunk_persistent p t n R φ :
-  Persistent (Thunk p t n R φ).
+Global Instance thunk_persistent p N t n R φ :
+  Persistent (Thunk p N t n R φ).
 Proof using.
   exact _.
 Qed.
@@ -141,14 +137,14 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 
 (* A public lemma: the number of debits [n] that appears in the assertion
-   [Thunk p t n R φ] is in general an over-approximation of the true remaining
-   debt. Therefore, losing information, by replacing [n₁] with a larger number
-   [n₂], is permitted. *)
+   [Thunk p N t n R φ] is in general an over-approximation of the true
+   remaining debt. Therefore, losing information, by replacing [n₁] with a
+   larger number [n₂], is permitted. *)
 
-Lemma thunk_weakening p t n₁ n₂ R φ :
+Lemma thunk_weakening p N t n₁ n₂ R φ :
   (n₁ ≤ n₂)%nat →
-  Thunk p t n₁ R φ -∗
-  Thunk p t n₂ R φ.
+  Thunk p N t n₁ R φ -∗
+  Thunk p N t n₂ R φ.
 Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γ nc) "[Hinv Hγ◯]".
@@ -170,14 +166,14 @@ Qed.
 
    The pool [p] is arbitrarily chosen by the user. *)
 
-Lemma thunk_create_spec p nc R φ f :
+Lemma thunk_create_spec p N nc R φ f :
   TC_invariant -∗
   {{{
       TC 3 ∗
       ( R -∗ TC nc -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} )
   }}}
   «create f»
-  {{{ (t : loc), RET #t ; Thunk p t nc R φ }}}.
+  {{{ (t : loc), RET #t ; Thunk p N t nc R φ }}}.
 Proof.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
   iMod (auth_max_nat_alloc 0) as (γ) "[Hγ● Hγ◯]".
@@ -209,10 +205,10 @@ Qed.
 
 (* Forcing a thunk requires and preserves the resource [R]. *)
 
-Lemma thunk_force_spec p F t R φ :
-  ↑(thunkN t) ⊆ F →
+Lemma thunk_force_spec p N F t R φ :
+  ↑N ⊆ F →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p t 0 R φ ∗ na_own p F ∗ R }}}
+  {{{ TC 11 ∗ Thunk p N t 0 R φ ∗ na_own p F ∗ R }}}
   «force #t»
   {{{ v, RET «v» ; □ φ v ∗ na_own p F ∗ R }}}.
 Proof.
@@ -224,7 +220,7 @@ Proof.
   wp_tick_lam.
 
   (* Open the invariant before reading and possibly writing the reference. *)
-  iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
+  iDestruct (na_inv_acc with "Hthunkinv Hp")
     as ">(Hthunk & Hp & Hclose)";
     [done|done|]. (* side conditions about masks *)
 
@@ -272,17 +268,17 @@ Qed.
 (* Like [force], paying requires a token of the form [na_own p F], where [F]
    contains the namespace [thunkN t]. *)
 
-Lemma thunk_pay p F (n k : nat) t R φ :
-  ↑(thunkN t) ⊆ F →
-  na_own p F -∗ Thunk p t n R φ -∗
+Lemma thunk_pay p N F (n k : nat) t R φ :
+  ↑N ⊆ F →
+  na_own p F -∗ Thunk p N t n R φ -∗
   TC k ={⊤}=∗
-  na_own p F  ∗ Thunk p t (n-k) R φ.
+  na_own p F  ∗ Thunk p N t (n-k) R φ.
 Proof.
   iIntros (?) "Hp #Hthunk Htc_k".
   iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
 
   (* Open the invariant. *)
-  iDestruct (na_inv_acc p ⊤ F (thunkN t) with "Hthunkinv Hp")
+  iDestruct (na_inv_acc with "Hthunkinv Hp")
     as ">(Hthunk & Hp & Hclose)";
     [done|done|]. (* side conditions about masks *)
 
