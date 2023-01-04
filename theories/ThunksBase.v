@@ -13,7 +13,7 @@ From iris_time Require Import ThunksCode.
 Section Proofs.
 
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (authR max_natUR)}.
+Context `{inG Σ (authR max_natUR)}. (* γpaid *)
 Context `{na_invG Σ}.
 
 (* The parameters of the public predicate [Thunk p t n R φ] are:
@@ -43,7 +43,7 @@ Implicit Type φ : val → iProp Σ.
 
 (* The following variables are used internally:
 
-    - γ: the ghost location associated with this thunk
+    - γpaid: a ghost cell, whose content inhabits the monoid Auth (Nat, max)
 
     - nc: the necessary credits, that is, the credits that appear
           in the precondition of the function f
@@ -61,12 +61,11 @@ Implicit Type γ : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
 
-(* The internal predicate [ThunkInv t γ nc R φ] is the thunk's invariant. *)
+(* The internal predicate [ThunkInv t γpaid nc R φ] is the thunk's invariant. *)
 
 (* It states that
-   + the ghost cell γ, which inhabits the monoid Auth (Nat, max),
-     contains the value ac -- that is, ac is the authoritative
-     number of "available credits";
+   + the ghost cell γpaid contains the authoritative value ac;
+     that is, ac is the authoritative number of "available credits";
    + and
      - either the thunk is currently unevaluated,
        in which case we have a unique permission to call f,
@@ -80,10 +79,10 @@ Implicit Type f v : val.
    memoized for later use. Both copies must satisfy the postcondition,
    so the postcondition must be duplicable. *)
 
-Definition ThunkInv t γ nc R φ : iProp Σ := (
+Definition ThunkInv t γpaid nc R φ : iProp Σ := (
 
   ∃ (ac : nat),
-      own γ (● MaxNat ac)
+      own γpaid (● MaxNat ac)
     ∗ (
         (∃ (f : val),
             t ↦ UNEVALUATEDV « f »
@@ -102,25 +101,26 @@ Definition ThunkInv t γ nc R φ : iProp Σ := (
 
 (* Its definition states that:
 
-   + γ is the ghost location associated with this thunk;
+   + γpaid is the ghost location associated with this thunk;
 
-   + the thunk's invariant holds;
-     it is placed in a non-atomic invariant indexed by the pool p;
+   + the thunk's invariant holds; it is placed in a non-atomic invariant
+     indexed by the pool p;
 
-   + we have a fragmentary view of the ghost cell γ containing the value [nc - n].
+   + we have a fragmentary view of the ghost cell γpaid containing the value
+     [nc - n].
 
-   Because γ inhabits the monoid Auth (Nat, max), this fragmentary view is
-   duplicable. Intuitively, this means that we know [nc - n ≤ ac], hence
-   [nc ≤ ac + n]. That is, the credits that have been paid already, plus
-   the credits that remain to be paid, are sufficient to cover the actual
-   cost of invoking f. *)
+   Because γpaid inhabits the monoid Auth (Nat, max), this fragmentary view
+   is duplicable. Intuitively, this means that we know [nc - n ≤ ac], hence
+   [nc ≤ ac + n]. That is, the credits that have been paid already, plus the
+   credits that remain to be paid, are sufficient to cover the actual cost
+   of invoking f. *)
 
 Definition Thunk p N t n R φ : iProp Σ := (
 
-  ∃ (γ : gname) (nc : nat),
-      meta t nroot γ
-    ∗ na_inv p N (ThunkInv t γ nc R φ)
-    ∗ own γ (◯ MaxNat (nc - n))
+  ∃ (γpaid : gname) (nc : nat),
+      meta t nroot γpaid
+    ∗ na_inv p N (ThunkInv t γpaid nc R φ)
+    ∗ own γpaid (◯ MaxNat (nc - n))
 
 )%I.
 
@@ -150,9 +150,10 @@ Lemma thunk_weakening p N t n₁ n₂ R φ :
   Thunk p N t n₂ R φ.
 Proof.
   iIntros (?) "Hthunk".
-  iDestruct "Hthunk" as (γ nc) "(Hmeta & Hinv & Hγ◯)".
-  iExists γ, nc. iFrame "Hmeta Hinv".
-  iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
+  iDestruct "Hthunk" as (γpaid nc) "(Hmeta & Hinv & Hγpaid◯)".
+  iExists γpaid, nc. iFrame "Hmeta Hinv".
+  iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγpaid◯") as "$".
+  lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -179,14 +180,14 @@ Lemma thunk_create_spec p N nc R φ f :
   {{{ (t : loc), RET #t ; Thunk p N t nc R φ }}}.
 Proof.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
-  iMod (auth_max_nat_alloc 0) as (γ) "[Hγ● Hγ◯]".
+  iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● Hγpaid◯]".
   iApply wp_fupd.
   wp_tick_lam. wp_tick_inj. wp_tick.
   wp_alloc_with_meta t as "Ht" "Hmeta".
-  iMod (meta_set _ t γ nroot with "[$]") as "#Hmeta". { set_solver. }
+  iMod (meta_set _ t γpaid nroot with "[$]") as "#Hmeta". { set_solver. }
   iApply "Post".
-  iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
-  iFrame "Hmeta Hγ◯".
+  iExists γpaid, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
+  iFrame "Hmeta Hγpaid◯".
   iApply na_inv_alloc.
   iNext.
   (* The number of available credits is initially 0. *)
@@ -219,7 +220,7 @@ Lemma thunk_force_spec p N F t R φ :
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
-  iDestruct "Hthunk" as (γ nc) "#(Hmeta & Hthunkinv & Hγ◯)".
+  iDestruct "Hthunk" as (γpaid nc) "#(Hmeta & Hthunkinv & Hγpaid◯)".
   rewrite (_ : nc - 0 = nc)%nat ; last lia.
   iApply wp_fupd.
   wp_tick_lam.
@@ -230,13 +231,13 @@ Proof.
     [done|done|]. (* side conditions about masks *)
 
   (* Perform a case analysis. *)
-  iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])".
+  iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
   (* Case: the thunk is UNEVALUATED. *)
   {
     iDestruct "Hunevaluated" as (f) "(>Ht & Hf & >Htc)".
     wp_tick_load. wp_tick_match.
     (* The number of debits is zero, so we learn [nc ≤ ac]. *)
-    iDestruct (own_auth_max_nat_le with "Hγ● Hγ◯") as %I.
+    iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as %I.
     (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
     (* We can invoke f(), *)
@@ -280,7 +281,7 @@ Lemma thunk_pay p N F (n k : nat) t R φ :
   na_own p F  ∗ Thunk p N t (n-k) R φ.
 Proof.
   iIntros (?) "Hp #Hthunk Htc_k".
-  iDestruct "Hthunk" as (γ nc) "#(Hmeta & Hthunkinv & Hγ◯)".
+  iDestruct "Hthunk" as (γpaid nc) "#(Hmeta & Hthunkinv & Hγpaid◯)".
 
   (* Open the invariant. *)
   iDestruct (na_inv_acc with "Hthunkinv Hp")
@@ -288,7 +289,7 @@ Proof.
     [done|done|]. (* side conditions about masks *)
 
   (* Perform a case analysis. *)
-  iDestruct "Hthunk" as (ac) "(>Hγ● & [ Hunevaluated | Hevaluated ])".
+  iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
 
   (* Case: the thunk is UNEVALUATED. *)
   {
@@ -297,17 +298,18 @@ Proof.
     iAssert (TC (ac + k)) with "[Htc Htc_k]" as "Htc" ;
       first by iSplitL "Htc".
     (* Increment the number of available credits from [ac] to [ac + k]. *)
-    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯")
-      as ">[Hγ●' #Hγ◯']";
-      iClear "Hγ◯".
+    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
+      as ">[Hγpaid●' #Hγpaid◯']";
+      iClear "Hγpaid◯".
     (* The invariant can be closed. *)
-    iMod ("Hclose" with "[-Hγ◯']") as "$".
+    iMod ("Hclose" with "[-Hγpaid◯']") as "$".
     { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
-    iExists γ, nc. iFrame "Hmeta Hthunkinv".
-    (* And our updated fragmentary view of the ghost cell γ
+    iExists γpaid, nc. iFrame "Hmeta Hthunkinv".
+    (* And our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [Thunk] assertion. *)
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγpaid◯'")
+      as "$".
     lia.
   }
   (* Case: the thunk is EVALUATED. *)
@@ -315,14 +317,15 @@ Proof.
     iDestruct "Hevaluated" as (v) "(>Ht & Hv)".
     (* The ghost cell is incremented from [ac] to [ac + k] also in this case.
        However, in this case, no time credits are actually involved. *)
-    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγ● Hγ◯")
-      as ">[Hγ●' #Hγ◯']";
-      iClear "Hγ◯".
-    iMod ("Hclose" with "[-Hγ◯']") as "$".
+    iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
+      as ">[Hγpaid●' #Hγpaid◯']";
+      iClear "Hγpaid◯".
+    iMod ("Hclose" with "[-Hγpaid◯']") as "$".
     { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
-    iExists γ, nc. iFrame "Hmeta Hthunkinv".
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    iExists γpaid, nc. iFrame "Hmeta Hthunkinv".
+    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγpaid◯'")
+      as "$".
     lia.
   }
 Qed.
