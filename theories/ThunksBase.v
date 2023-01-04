@@ -81,7 +81,7 @@ Implicit Type f v : val.
 
 Definition ThunkInv t γpaid nc R φ : iProp Σ := (
 
-  ∃ (ac : nat),
+  ∃ ac,
       own γpaid (● MaxNat ac)
     ∗ (
         (∃ (f : val),
