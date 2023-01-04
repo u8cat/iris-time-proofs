@@ -140,6 +140,20 @@ Proof.
   by rewrite right_id HΔ'.
 Qed.
 
+Lemma tac_wp_alloc_with_meta Δ Δ' s E j j' K v Φ :
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  (∀ l, ∃ Δ'',
+    envs_app false (Esnoc (Esnoc Enil j' (meta_token l ⊤)) j (l ↦ v)) Δ' = Some Δ'' ∧
+    envs_entails Δ'' (WP fill K (Val $ LitV l) @ s; E {{ Φ }})) →
+  envs_entails Δ (WP fill K (Alloc v) @ s; E {{ Φ }}).
+Proof.
+  rewrite envs_entails_unseal=> ? HΔ.
+  rewrite -wp_bind. eapply wand_apply; first exact: wp_alloc_with_meta.
+  rewrite left_id into_laterN_env_sound; apply later_mono, forall_intro=> l.
+  destruct (HΔ l) as (Δ''&?&HΔ'). rewrite envs_app_sound //; simpl.
+  by rewrite right_id HΔ'.
+Qed.
+
 Lemma tac_wp_load Δ Δ' s E i K l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
   envs_lookup i Δ' = Some (false, l ↦{q} v)%I →
@@ -259,6 +273,28 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
 
 Tactic Notation "wp_alloc" ident(l) :=
   wp_alloc l as "?".
+
+Tactic Notation "wp_alloc_with_meta" ident(l) "as" constr(H) constr(H') :=
+  let Htmp := iFresh in
+  let Htmp' := iFresh in
+  let finish _ :=
+    first [intros l | fail 1 "wp_alloc_with_meta:" l "not fresh"];
+      eexists; split;
+        [pm_reflexivity || fail "wp_alloc_with_meta:" H "not fresh"
+        |iDestructHyp Htmp as H; iDestructHyp Htmp' as H'; wp_expr_simpl; try wp_value_head] in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr false e ltac:(fun K e' => eapply (tac_wp_alloc_with_meta _ _ _ _ Htmp Htmp' K))
+      |fail 1 "wp_alloc_with_meta: cannot find 'Alloc' in" e];
+    [tc_solve
+    |finish ()]
+  | _ => fail "wp_alloc_with_meta: not a 'wp'"
+  end.
+
+Tactic Notation "wp_alloc_with_meta" ident(l) :=
+  wp_alloc_with_meta l as "?" "?".
 
 Tactic Notation "wp_load" :=
   let solve_mapsto _ :=
