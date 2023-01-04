@@ -61,7 +61,7 @@ Implicit Type γ : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
 
-(* The internal predicate [ThunkInv t γpaid nc R φ] is the thunk's invariant. *)
+(* The internal predicate [ThunkInv ...] is the thunk's invariant. *)
 
 (* It states that
    + the ghost cell γpaid contains the authoritative value ac;
