@@ -140,9 +140,23 @@ Definition Thunk p N t n R φ : iProp Σ :=
 
 .
 
+(* The predicate [ThunkVal t v] is public. It is an abstract predicate:
+   its definition is not meant to be exposed to the user. *)
+
+(* This predicate is persistent. It means that the thunk t has been forced
+   and that its value is v. *)
+
+Definition ThunkVal t v : iProp Σ :=
+
+  ∃ γpaid γdecided,
+      meta t nroot (γpaid, γdecided)
+    ∗ ownDecided γdecided v
+
+.
+
 (* -------------------------------------------------------------------------- *)
 
-(* Private lemmas about ghost state transitions. *)
+(* Private lemmas about our ghost state. *)
 
 Local Lemma decide γdecided v :
   ownUndecided γdecided ==∗ ownDecided γdecided v.
@@ -151,6 +165,13 @@ Proof.
   iIntros "Hγdecided".
   iApply (own_update _ _ _ with "Hγdecided").
   by apply cmra_update_exclusive.
+Qed.
+
+Local Lemma ownDecided_agree γdecided v1 v2 :
+  ownDecided γdecided v1 -∗ ownDecided γdecided v2 -∗ ⌜v1 = v2⌝.
+Proof.
+  iIntros "H1 H2". iDestruct (own_valid_2 with "H1 H2") as %Hag. iPureIntro.
+  eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -164,6 +185,31 @@ Global Instance thunk_persistent p N t n R φ :
   Persistent (Thunk p N t n R φ).
 Proof using.
   exact _.
+Qed.
+
+(* The assertion [ThunkVal t v] is persistent and timeless. *)
+
+Global Instance ThunkVal_persistent t v :
+  Persistent (ThunkVal t v).
+Proof. exact _. Qed.
+
+Global Instance ThunkVal_timeless t v :
+  Timeless (ThunkVal t v).
+Proof. exact _. Qed.
+
+(* A public lemma: once the value of a thunk has been decided, there is
+   agreement on this value. This can be used to prove that if a thunk is
+   forced twice, then both operations must return the same value. *)
+
+Lemma ThunkVal_agree t v1 v2 :
+  ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝.
+Proof.
+  iIntros "H1 H2".
+  iDestruct "H1" as (γpaid1 γdecided1) "(Hmeta1 & Hown1)".
+  iDestruct "H2" as (γpaid2 γdecided2) "(Hmeta2 & Hown2)".
+  iDestruct (meta_agree with "[$][$]") as "%Heq".
+  assert (γdecided1 = γdecided2) by congruence. subst. clear Heq.
+  iApply (ownDecided_agree with "Hown1 Hown2").
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -241,12 +287,15 @@ Qed.
 
 (* Forcing a thunk requires and preserves the resource [R]. *)
 
+(* Forcing a thunk produces a witness that the value of the thunk has been
+   decided and is [v]. *)
+
 Lemma thunk_force_spec p N F t R φ :
   ↑N ⊆ F →
   TC_invariant -∗
   {{{ TC 11 ∗ Thunk p N t 0 R φ ∗ na_own p F ∗ R }}}
   «force #t»
-  {{{ v, RET «v» ; □ φ v ∗ na_own p F ∗ R }}}.
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}.
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
@@ -276,9 +325,13 @@ Proof.
     wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
     (* Update the ghost state to remember that the value has been computed. *)
     iMod (decide with "Hundecided") as "#Hdecided".
-    (* We must now close the invariant. *)
+    (* Establish the postcondition. *)
     iApply "Post".
     iFrame "Hv HR".
+    iSplitR.
+    (* Subgoal: establish [ThunkVal t v]. *)
+    { iModIntro. unfold ThunkVal. auto. }
+    (* Subgoal: close the invariant. *)
     iApply "Hclose". iFrame "Hp". iNext.
     (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
     iExists ac.
@@ -290,9 +343,13 @@ Proof.
   {
     iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv)".
     wp_tick_load. wp_tick_match.
-    (* Close the invariant. *)
+    (* Establish the postcondition. *)
     iApply "Post".
     iFrame "Hv HR".
+    iSplitR.
+    (* Subgoal: establish [ThunkVal t v]. *)
+    { iModIntro. unfold ThunkVal. auto. }
+    (* Subgoal: close the invariant. *)
     iApply "Hclose". iFrame "Hp". iNext.
     iExists ac.
     iFrame "Hγpaid●".
