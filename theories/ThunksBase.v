@@ -102,6 +102,8 @@ Definition ThunkInv t γ nc R φ : iProp Σ := (
 
 (* Its definition states that:
 
+   + γ is the ghost location associated with this thunk;
+
    + the thunk's invariant holds;
      it is placed in a non-atomic invariant indexed by the pool p;
 
@@ -116,7 +118,8 @@ Definition ThunkInv t γ nc R φ : iProp Σ := (
 Definition Thunk p N t n R φ : iProp Σ := (
 
   ∃ (γ : gname) (nc : nat),
-      na_inv p N (ThunkInv t γ nc R φ)
+      meta t nroot γ
+    ∗ na_inv p N (ThunkInv t γ nc R φ)
     ∗ own γ (◯ MaxNat (nc - n))
 
 )%I.
@@ -147,8 +150,8 @@ Lemma thunk_weakening p N t n₁ n₂ R φ :
   Thunk p N t n₂ R φ.
 Proof.
   iIntros (?) "Hthunk".
-  iDestruct "Hthunk" as (γ nc) "[Hinv Hγ◯]".
-  iExists γ, nc. iFrame "Hinv".
+  iDestruct "Hthunk" as (γ nc) "(Hmeta & Hinv & Hγ◯)".
+  iExists γ, nc. iFrame "Hmeta Hinv".
   iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
 Qed.
 
@@ -178,10 +181,12 @@ Proof.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
   iMod (auth_max_nat_alloc 0) as (γ) "[Hγ● Hγ◯]".
   iApply wp_fupd.
-  wp_tick_lam. wp_tick_inj. wp_tick_alloc t.
+  wp_tick_lam. wp_tick_inj. wp_tick.
+  wp_alloc_with_meta t as "Ht" "Hmeta".
+  iMod (meta_set _ t γ nroot with "[$]") as "#Hmeta". { set_solver. }
   iApply "Post".
   iExists γ, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
-  iFrame "Hγ◯".
+  iFrame "Hmeta Hγ◯".
   iApply na_inv_alloc.
   iNext.
   (* The number of available credits is initially 0. *)
@@ -214,7 +219,7 @@ Lemma thunk_force_spec p N F t R φ :
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
-  iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
+  iDestruct "Hthunk" as (γ nc) "#(Hmeta & Hthunkinv & Hγ◯)".
   rewrite (_ : nc - 0 = nc)%nat ; last lia.
   iApply wp_fupd.
   wp_tick_lam.
@@ -275,7 +280,7 @@ Lemma thunk_pay p N F (n k : nat) t R φ :
   na_own p F  ∗ Thunk p N t (n-k) R φ.
 Proof.
   iIntros (?) "Hp #Hthunk Htc_k".
-  iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
+  iDestruct "Hthunk" as (γ nc) "#(Hmeta & Hthunkinv & Hγ◯)".
 
   (* Open the invariant. *)
   iDestruct (na_inv_acc with "Hthunkinv Hp")
@@ -299,7 +304,7 @@ Proof.
     iMod ("Hclose" with "[-Hγ◯']") as "$".
     { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
-    iExists γ, nc. iFrame "Hthunkinv".
+    iExists γ, nc. iFrame "Hmeta Hthunkinv".
     (* And our updated fragmentary view of the ghost cell γ
        allows us to produce an updated [Thunk] assertion. *)
     iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
@@ -316,7 +321,7 @@ Proof.
     iMod ("Hclose" with "[-Hγ◯']") as "$".
     { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
-    iExists γ, nc. iFrame "Hthunkinv".
+    iExists γ, nc. iFrame "Hmeta Hthunkinv".
     iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
     lia.
   }
