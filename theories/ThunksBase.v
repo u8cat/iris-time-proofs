@@ -87,7 +87,7 @@ Definition ThunkInv t γ nc φ : iProp Σ := (
     ∗ (
         (∃ (f : val),
             t ↦ UNEVALUATEDV « f »
-          ∗ {{{ TC nc }}} « f #() » {{{ v, RET « v » ; □ φ v }}}
+          ∗ (TC nc -∗ ∀ ψ, (∀ v, □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }})
           ∗ TC ac
         )
       ∨ (∃ (v : val),
@@ -168,7 +168,10 @@ Qed.
 
 Lemma thunk_create_spec p nc φ f :
   TC_invariant -∗
-  {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; □ φ v }}} ) }}}
+  {{{
+      TC 3 ∗
+      ( TC nc -∗ ∀ ψ, (∀ v, □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} )
+  }}}
   «create f»
   {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
 Proof.
