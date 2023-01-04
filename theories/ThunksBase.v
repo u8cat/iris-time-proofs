@@ -65,7 +65,7 @@ Implicit Type φ : val → iProp Σ.
 
 *)
 
-Implicit Type γ : gname.
+Implicit Type γpaid γdecided : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
 
