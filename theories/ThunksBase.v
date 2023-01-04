@@ -117,7 +117,7 @@ Definition ThunkInv t γpaid nc R φ : iProp Σ := (
 
 Definition Thunk p N t n R φ : iProp Σ := (
 
-  ∃ (γpaid : gname) (nc : nat),
+  ∃ γpaid nc,
       meta t nroot γpaid
     ∗ na_inv p N (ThunkInv t γpaid nc R φ)
     ∗ own γpaid (◯ MaxNat (nc - n))
