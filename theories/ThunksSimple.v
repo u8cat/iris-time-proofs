@@ -68,7 +68,7 @@ Definition thunkN t : namespace :=
      number of "available credits";
    + and
      - either the thunk is currently unevaluated,
-       in which case we have a unique permission to call f,
+       in which case we have a permission to call f,
        and this call requires nc time credits,
        and we currently have ac time credits at hand;
      - or the thunk is evaluated already,
