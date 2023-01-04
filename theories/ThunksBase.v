@@ -25,8 +25,9 @@ Context `{na_invG Σ}.
     - n: the apparent remaining debt,
          that is, the number of debits associated with this thunk
 
-    - φ: the postcondition of this thunk;
-         must be duplicable *)
+    - φ: the postcondition of this thunk is □φ
+
+ *)
 
 Implicit Type p : na_inv_pool_name.
 Implicit Type t : loc.
@@ -72,7 +73,12 @@ Definition thunkN t : namespace :=
        and this call requires nc time credits,
        and we currently have ac time credits at hand;
      - or the thunk is evaluated already,
-       and its value v satisfies the postcondition φ. *)
+       and its value v satisfies the postcondition □φ. *)
+
+(* The postcondition □φ is persistent by construction. Indeed, a copy
+   of the value [v] is returned to the caller and a copy of [v] is
+   memoized for later use. Both copies must satisfy the postcondition,
+   so the postcondition must be duplicable. *)
 
 Definition ThunkInv t γ nc φ : iProp Σ := (
 
@@ -81,12 +87,12 @@ Definition ThunkInv t γ nc φ : iProp Σ := (
     ∗ (
         (∃ (f : val),
             t ↦ UNEVALUATEDV « f »
-          ∗ {{{ TC nc }}} « f #() » {{{ v, RET « v » ; φ v }}}
+          ∗ {{{ TC nc }}} « f #() » {{{ v, RET « v » ; □ φ v }}}
           ∗ TC ac
         )
       ∨ (∃ (v : val),
             t ↦ EVALUATEDV « v »
-          ∗ φ v
+          ∗ □ φ v
         )
       )
 )%I.
@@ -162,7 +168,7 @@ Qed.
 
 Lemma thunk_create_spec p nc φ f :
   TC_invariant -∗
-  {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; φ v }}} ) }}}
+  {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; □ φ v }}} ) }}}
   «create f»
   {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
 Proof.
@@ -188,10 +194,6 @@ Qed.
    contains the namespace [thunkN t]. Because this token is unique and is not
    passed on to the function call f(), reentrancy is statically forbidden. *)
 
-(* The postcondition φ is required to be duplicable. Indeed, a copy of the
-   value [v] is returned to the caller and a copy of [v] is memoized for
-   later use. Both copies must satisfy [φ v], so [φ] must be duplicable. *)
-
 (* Forcing a thunk is permitted only if its apparent debt is zero, that is,
    only if the cost of forcing this thunk has already been paid for (perhaps
    in several increments) using [thunk_pay]. *)
@@ -200,13 +202,12 @@ Qed.
 
 Lemma thunk_force_spec p F t φ :
   ↑(thunkN t) ⊆ F →
-  (∀ (v : val), φ v -∗ φ v ∗ φ v) →
   TC_invariant -∗
   {{{ TC 11 ∗ Thunk p t 0 φ ∗ na_own p F }}}
   «force #t»
-  {{{ v, RET «v» ; φ v ∗ na_own p F }}}.
+  {{{ v, RET «v» ; □ φ v ∗ na_own p F }}}.
 Proof.
-  iIntros (? Hφdup).
+  iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp) Post".
   iDestruct "Hthunk" as (γ nc) "#[Hthunkinv Hγ◯]".
   rewrite (_ : nc - 0 = nc)%nat ; last lia.
@@ -229,23 +230,23 @@ Proof.
     (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
     (* We can invoke f(), *)
-    wp_apply ("Hf" with "Htc") ; iIntros (v) "Hv".
+    wp_apply ("Hf" with "Htc") ; iIntros (v) "#Hv".
     (* and update the reference. *)
     wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
-    (* We must now duplicate φ and close the invariant. *)
+    (* We must now close the invariant. *)
     iApply "Post".
-    iDestruct (Hφdup with "Hv") as "[Hv $]".
+    iFrame "Hv".
     iApply "Hclose". iFrame "Hp". iNext.
     (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
     iExists ac. auto with iFrame.
   }
   (* Case: the thunk is EVALUATED. *)
   {
-    iDestruct "Hevaluated" as (v) "(>Ht & Hv)".
+    iDestruct "Hevaluated" as (v) "(>Ht & #Hv)".
     wp_tick_load. wp_tick_match.
-    (* Duplicate φ and close the invariant. *)
+    (* Close the invariant. *)
     iApply "Post".
-    iDestruct (Hφdup with "Hv") as "[Hv $]".
+    iFrame "Hv".
     iApply "Hclose". iFrame "Hp". iNext.
     iExists ac. auto with iFrame.
   }
