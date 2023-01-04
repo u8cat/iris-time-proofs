@@ -172,6 +172,16 @@ Proof.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
 
+Lemma wp_alloc_with_meta s E v :
+  {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v ∗ meta_token l ⊤ }}}.
+Proof.
+  iIntros (Φ) "_ HΦ". iApply wp_lift_atomic_head_step_no_fork; auto.
+  iIntros (σ1 ? κ κs n) "Hσ !>"; iSplit; first by auto.
+  iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
+  iMod (@gen_heap_alloc with "Hσ") as "(Hσ & Hl & Hmeta)"; first done.
+  iModIntro; iSplit=> //. iFrame. iApply "HΦ". iFrame.
+Qed.
+
 Lemma wp_load s E l dq v :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
