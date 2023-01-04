@@ -25,6 +25,7 @@ theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v
 theories/ThunksCode.v
+theories/ThunksBase.v
 theories/ThunksSimple.v
 theories/Thunks.v
 theories/Gthunks.v
