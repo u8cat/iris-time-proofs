@@ -69,6 +69,12 @@ Implicit Type γpaid γdecided : gname.
 Implicit Type nc ac : nat.
 Implicit Type f v : val.
 
+Definition ownUndecided γdecided :=
+  own γdecided (Cinl $ Excl ()).
+
+Definition ownDecided γdecided v :=
+  own γdecided (Cinr $ to_agree v).
+
 (* The internal predicate [ThunkInv ...] is the thunk's invariant. *)
 
 (* It states that
@@ -80,18 +86,19 @@ Implicit Type f v : val.
        and this call requires nc time credits,
        and we currently have ac time credits at hand;
      - or the thunk is evaluated already,
-       and its value v satisfies the postcondition □φ. *)
+       and its value v satisfies the postcondition □φ,
+       and the thunk must have been fully paid for (nc ≤ ac). *)
 
 (* The postcondition □φ is persistent by construction. Indeed, a copy
    of the value [v] is returned to the caller and a copy of [v] is
    memoized for later use. Both copies must satisfy the postcondition,
    so the postcondition must be duplicable. *)
 
-Definition ownUndecided γdecided :=
-  own γdecided (Cinl $ Excl ()).
-
-Definition ownDecided γdecided v :=
-  own γdecided (Cinr $ to_agree v).
+(* The assertion [nc ≤ ac] in the second disjunct expresses the idea
+   that if a thunk has been forced then it must have been fully paid
+   for. This assertion is used in the proof of the lemma Thunk_ThunkVal,
+   which states that if a thunk has been forced, then it can be viewed
+   as a zero-debit thunk. *)
 
 Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
 
