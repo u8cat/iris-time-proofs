@@ -170,8 +170,12 @@ Qed.
 Local Lemma ownDecided_agree γdecided v1 v2 :
   ownDecided γdecided v1 -∗ ownDecided γdecided v2 -∗ ⌜v1 = v2⌝.
 Proof.
-  iIntros "H1 H2". iDestruct (own_valid_2 with "H1 H2") as %Hag. iPureIntro.
-  eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
+  iIntros "H1 H2".
+  iDestruct (own_valid_2 with "H1 H2") as %Hag.
+  iPureIntro.
+  eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)).
+  by rewrite Cinr_op.
+Qed.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
