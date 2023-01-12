@@ -535,4 +535,37 @@ Proof using.
   iApply "Post".
 Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* A public lemma: the special case of [force] where the thunk has been
+   forced already. *)
+
+(* TODO In this case, the resource R is not needed. A proof would require
+   duplicating the proof of [force], or (better) generalizing the spec of
+   [force] to cover both cases? *)
+
+Lemma thunk_force_forced p N F t n R φ v :
+  ↑N ⊆ F →
+  TC_invariant -∗
+  {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+  «force #t»
+  {{{ RET «v» ; □ φ v ∗ na_own p F ∗ R }}}.
+Proof.
+  iIntros (?).
+  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
+  (* Argue that this thunk has zero debits. *)
+  iMod (Thunk_ThunkVal with "Hthunk Hval Hp") as "(Hthunk' & Hp)";
+    [ done | done |].
+  iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
+  (* Force the thunk. *)
+  iApply (thunk_force_spec with "Htickinv [$Hcredits $Hthunk $Hp $HR]");
+    [ done |].
+  iNext.
+  iIntros (v') "(#Hv' & #Hval' & Hp & HR)".
+  (* Argue that the two values must be the same. *)
+  iPoseProof (ThunkVal_agree with "Hval Hval'") as "%". subst v'.
+  (* Done. *)
+  iApply "Post". auto with iFrame.
+Qed.
+
 End Proofs.
