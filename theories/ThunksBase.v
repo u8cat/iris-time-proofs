@@ -425,4 +425,30 @@ Proof.
   }
 Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* A public lemma: the combination of [pay] and [force]. *)
+
+Lemma thunk_pay_force p N F t n R φ :
+  ↑N ⊆ F →
+  TC_invariant -∗
+  {{{ TC (n + 11) ∗ Thunk p N t n R φ ∗ na_own p F ∗ R }}}
+    «force #t»
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}.
+Proof using.
+  iIntros (?).
+  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & Hp & HR) Post".
+  (* Split our credits. *)
+  iDestruct "Hcredits" as "(Hn & Hcredits)".
+  (* First, pay. *)
+  iMod (thunk_pay with "Hp Hthunk Hn") as "(Hp & #Hpaid)"; [ done |].
+  iClear "Hthunk". iRename "Hpaid" into "Hthunk".
+  rewrite Nat.sub_diag. (* n - n = 0 *)
+  (* Then, force the thunk. *)
+  iApply (thunk_force_spec with "Htickinv [$Hcredits $Hthunk $Hp $HR]").
+  { eauto. }
+  (* Done. *)
+  iApply "Post".
+Qed.
+
 End Proofs.
