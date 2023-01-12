@@ -176,6 +176,14 @@ Proof.
   eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)).
   by rewrite Cinr_op.
 Qed.
+
+Local Lemma decided_xor_undecided γdecided v :
+  ownUndecided γdecided -∗ ownDecided γdecided v -∗ False.
+Proof.
+  iIntros "H1 H2".
+  iDestruct (own_valid_2 with "H1 H2") as %Hag.
+  iPureIntro.
+  auto.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
