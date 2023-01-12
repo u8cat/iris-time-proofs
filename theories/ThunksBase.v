@@ -449,13 +449,14 @@ Qed.
 (* Like [force], paying requires a token of the form [na_own p F], where [F]
    contains the namespace [thunkN t]. *)
 
-Lemma thunk_pay p N F (n k : nat) t R φ :
+Lemma thunk_pay p N F E (n k : nat) t R φ :
   ↑N ⊆ F →
+  ↑N ⊆ E →
   na_own p F -∗ Thunk p N t n R φ -∗
-  TC k ={⊤}=∗
+  TC k ={E}=∗
   na_own p F  ∗ Thunk p N t (n-k) R φ.
 Proof.
-  iIntros (?) "Hp #Hthunk Htc_k".
+  iIntros (? ?) "Hp #Hthunk Htc_k".
   iDestruct "Hthunk" as (γpaid γdecided nc) "#(Hmeta & Hthunkinv & Hγpaid◯)".
 
   (* Open the invariant. *)
@@ -525,7 +526,7 @@ Proof using.
   (* Split our credits. *)
   iDestruct "Hcredits" as "(Hn & Hcredits)".
   (* First, pay. *)
-  iMod (thunk_pay with "Hp Hthunk Hn") as "(Hp & #Hpaid)"; [ done |].
+  iMod (thunk_pay with "Hp Hthunk Hn") as "(Hp & #Hpaid)"; [ done | done |].
   iClear "Hthunk". iRename "Hpaid" into "Hthunk".
   rewrite Nat.sub_diag. (* n - n = 0 *)
   (* Then, force the thunk. *)
