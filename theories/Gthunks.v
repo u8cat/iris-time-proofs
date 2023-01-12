@@ -88,6 +88,7 @@ Section Gthunks.
   Lemma own_gens_upto_alloc : ⊢ |==> ∃ p, own_gens_upto p None.
   Proof using. iApply na_alloc. Qed.
 
+  (* TODO parameterize with R *)
   Definition Gthunk p id γ t n φ : iProp Σ :=
     Thunk p (gen_ns id) γ t n
             (own_gens_upto p (Some id)) φ.
@@ -106,7 +107,14 @@ Section Gthunks.
     (∀ v, TC m -∗ φ v ={⊤}=∗ □ ψ v) -∗
     Gthunk p id γ t  n    φ  ={∅}=∗
     Gthunk p id γ t (n+m) ψ.
-  Proof using. iIntros "H1 H2". by iMod (Thunk_consequence with "H1 H2"). Qed.
+  Proof using.
+    iIntros "H1 H2".
+    iApply (Thunk_consequence with "[H1] H2").
+    iIntros (v) "Htc HR Hv".
+    iFrame "HR".
+    iApply ("H1" with "Htc").
+    iAssumption.
+  Qed.
 
   Lemma Gthunk_pay E p id γ t n k φ :
     ↑thunkPayN t ⊆ E →
