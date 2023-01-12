@@ -143,7 +143,7 @@ Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γ nc) "[Hinv Hγ◯]".
   iExists γ, nc. iFrame "Hinv".
-  iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγ◯") as "$". lia.
+  iDestruct (own_auth_max_nat_weaken with "Hγ◯") as "$". lia.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -296,7 +296,7 @@ Proof.
     iExists γ, nc. iFrame "Hthunkinv".
     (* And our updated fragmentary view of the ghost cell γ
        allows us to produce an updated [Thunk] assertion. *)
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    iDestruct (own_auth_max_nat_weaken with "Hγ◯'") as "$".
     lia.
   }
   (* Case: the thunk is EVALUATED. *)
@@ -311,7 +311,7 @@ Proof.
     { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
     iModIntro.
     iExists γ, nc. iFrame "Hthunkinv".
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγ◯'") as "$".
+    iDestruct (own_auth_max_nat_weaken with "Hγ◯'") as "$".
     lia.
   }
 Qed.
