@@ -153,13 +153,13 @@ Section ThunkProofs.
             ∗ ThunkUnevaluated γ
             ∗ (TC n -∗ R -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }})
   )%I.
-  Definition ThunkCsqInv γ γforced t n φ ψ : iProp Σ := (
+  Definition ThunkCsqInv γ γforced t n R φ ψ : iProp Σ := (
     ∃ forced,
         own γforced (●E forced)
       ∗ if forced then
           ∃ v, ThunkVal γ v ∗ □ ψ v
         else
-          ∀ v, TC n -∗ φ v ={⊤}=∗ □ ψ v
+          ∀ v, TC n -∗ R -∗ φ v ={⊤}=∗ R ∗ □ ψ v
   )%I.
   Definition ThunkPaidInv γforced γpaid t : iProp Σ := (
     ∃ forced paid,
@@ -178,7 +178,7 @@ Section ThunkProofs.
         | S d' =>
             ∃ φ',
                 Thunk' p N γ t (n+paid-m) R φ' d'
-              ∗ na_inv p (N .@ d) (ThunkCsqInv γ γforced t m φ' φ)
+              ∗ na_inv p (N .@ d) (ThunkCsqInv γ γforced t m R φ' φ)
         end
   )%I.
   Definition Thunk p N γ t n R φ : iProp Σ := (
@@ -235,7 +235,7 @@ Section ThunkProofs.
   Qed.
 
   Lemma Thunk_consequence p N γ t n m R φ ψ :
-    (∀ v, TC m -∗ φ v ={⊤}=∗ □ ψ v) -∗
+    (∀ v, TC m -∗ R -∗ φ v ={⊤}=∗ R ∗ □ ψ v) -∗
     Thunk p N γ t  n    R φ  ={∅}=∗
     Thunk p N γ t (n+m) R ψ.
   Proof.
@@ -443,7 +443,7 @@ Section ThunkProofs.
       iApply ("IH" with "[] Htc Ht Hp HR") ; iClear "HtickInv IH".
       { iPureIntro ; intros d1 ?.
         assert (d1 ≤ d  ∧  d1 ≠ d) as [??] by lia. solve_ndisj. }
-      iIntros (v) "!>(#Hγ & Hφ' & Hp & HR)". iApply "Post". iFrame "#∗".
+      iIntros (v) "!>(#Hγ & Hφ' & Hp & HR)". iApply "Post". iFrame "#Hp".
       (* case analysis on whether this node has been forced already: *)
       iDestruct "HcsqInv" as ([|]) "[Hγforced● Hcsq]".
       (* (2a) if forced = true: *)
@@ -451,7 +451,7 @@ Section ThunkProofs.
         (* get the result of the already computed consequence: *)
         iDestruct "Hcsq" as (v') "[Hγ' #Hφ]".
         iDestruct (ThunkVal_agree with "Hγ Hγ'") as %<-.
-        iFrame "#".
+        iFrame "#HR".
         (* close the “consequence” invariant: *)
         iApply "HcsqInvClose". iFrame. iExists true. iFrame. iExists v. by iFrame "#".
       }
@@ -461,7 +461,7 @@ Section ThunkProofs.
         assert (paid = m) as -> by lia.
         iDestruct (take_paid_from_ThunkPaidInv with "[$][$][$]") as ">[Hγforced● Hm]" ; first done.
         (* compute the consequence: *)
-        iDestruct ("Hcsq" $! v with "Hm Hφ'") as ">#$".
+        iDestruct ("Hcsq" $! v with "Hm HR Hφ'") as ">[$ #$]".
         (* close the “consequence” invariant: *)
         iApply "HcsqInvClose". iFrame. iExists true. iFrame. iExists v. by iFrame "#".
       }
@@ -505,7 +505,7 @@ Section ThunkProofs.
     ).
   Proof.
     iIntros. iApply Thunk_consequence=>//.
-    iIntros (v2) "Htc Ht2" ; iDestruct "Ht2" as (γ2 t2) "[#? Ht2]".
+    iIntros (v2) "Htc $ Ht2" ; iDestruct "Ht2" as (γ2 t2) "[#? Ht2]".
     iExists γ2, t2. iFrame "#". by iMod (Thunk_pay with "Htc Ht2") as "#$".
   Qed.
 
