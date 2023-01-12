@@ -227,7 +227,7 @@ Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γpaid γdecided nc) "(Hmeta & Hinv & Hγpaid◯)".
   iExists γpaid, γdecided, nc. iFrame "Hmeta Hinv".
-  iDestruct (own_auth_max_nat_weaken _ (nc-n₁) (nc-n₂) with "Hγpaid◯") as "$".
+  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$".
   lia.
 Qed.
 
