@@ -108,6 +108,7 @@ Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
             ownDecided γdecided v
           ∗ t ↦ EVALUATEDV « v »
           ∗ □ φ v
+          ∗ ⌜ nc ≤ ac ⌝
         )
       )
 .
@@ -222,6 +223,71 @@ Proof.
   iDestruct (meta_agree with "[$][$]") as "%Heq".
   assert (γdecided1 = γdecided2) by congruence. subst. clear Heq.
   iApply (ownDecided_agree with "Hown1 Hown2").
+Qed.
+
+(* A public lemma: the conjunction of [Thunk p N t n R φ] and [ThunkVal t v]
+   implies that the thunk [t] has zero debits, that is, [Thunk p N t 0 R φ]
+   holds. This guarantees that this thunk can be forced for a constant cost. *)
+
+Lemma Thunk_ThunkVal p N t n R φ v F E :
+  ↑N ⊆ E →
+  ↑N ⊆ F →
+  Thunk p N t n R φ -∗ ThunkVal t v -∗ na_own p F
+  ={E}=∗
+  Thunk p N t 0 R φ ∗                  na_own p F.
+Proof.
+  iIntros (? ?) "#Hthunk #Hval Hp".
+  iDestruct "Hthunk" as (γpaid1 γdecided1 nc) "(Hmeta1 & Hinv & Hγpaid◯)".
+  iDestruct "Hval" as (γpaid2 γdecided2) "(Hmeta2 & Hdecided)".
+  (* Exploit the agreement of the meta tokens. *)
+  iDestruct (meta_agree with "Hmeta1 Hmeta2") as "%Heq".
+  assert (γpaid1 = γpaid2) by congruence.
+  assert (γdecided1 = γdecided2) by congruence.
+  subst. clear Heq.
+  iClear "Hmeta2". iRename "Hmeta1" into "Hmeta".
+  rename γpaid2 into γpaid.
+  rename γdecided2 into γdecided.
+
+  (* Open the invariant. *)
+  iDestruct (na_inv_acc with "Hinv Hp")
+    as ">(Hthunk & Hp & Hclose)";
+    [done|done|]. (* side conditions about masks *)
+
+  (* Perform a case analysis. *)
+  iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
+
+  (* Case: the thunk is UNEVALUATED. This is impossible. *)
+  {
+    iDestruct "Hunevaluated" as (f) "(>Hundecided & _ & _ & _)".
+    (* The ghost cell cannot be both decided and undecided. *)
+    iDestruct (decided_xor_undecided with "Hundecided Hdecided")
+      as "%contradiction".
+    tauto.
+  }
+
+  (* Case: the thunk is EVALUATED. *)
+  {
+    iDestruct "Hevaluated" as (v') "(>#Hdecided' & >Ht & #Hv & >%Hncac)".
+    (* The following two lines argue that v and v' are the same value.
+       This is not necessary in this proof, but we do it for clarity. *)
+    iDestruct (ownDecided_agree with "Hdecided Hdecided'") as "%Heq".
+    subst v'. iClear "Hdecided'".
+    (* We know that this thunk has been paid for: we have nc ≤ ac.
+       We can create a ghost witness of this fact. This will allow
+       us to argue that this thunk has zero debits. *)
+    iClear "Hγpaid◯".
+    iMod (auth_max_nat_update_read_auth with "Hγpaid●")
+      as "(Hγpaid● & Hγpaid◯)".
+    iPoseProof (own_auth_max_nat_weaken _ ac (nc - 0) with "Hγpaid◯")
+      as "Hγpaid◯"; [ lia |].
+    (* Close the invariant. *)
+    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
+    { iFrame "Hp". iNext. iExists ac. iFrame "Hγpaid●". iRight.
+      iExists v. iFrame "Hdecided Ht Hv". iPureIntro. assumption. }
+    iModIntro.
+    iExists γpaid, γdecided, nc.
+    iFrame "Hmeta Hinv Hγpaid◯".
+  }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -350,10 +416,11 @@ Proof.
     iFrame "Hγpaid●".
     iRight. iExists v.
     iFrame "Hdecided Ht Hv".
+    iPureIntro. assumption.
   }
   (* Case: the thunk is EVALUATED. *)
   {
-    iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv)".
+    iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
     wp_tick_load. wp_tick_match.
     (* Establish the postcondition. *)
     iApply "Post".
@@ -367,6 +434,7 @@ Proof.
     iFrame "Hγpaid●".
     iRight. iExists v.
     iFrame "Hdecided Ht Hv".
+    iPureIntro. assumption.
   }
 Qed.
 
@@ -421,14 +489,18 @@ Proof.
   }
   (* Case: the thunk is EVALUATED. *)
   {
-    iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & Hv)".
+    iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
     (* The ghost cell is incremented from [ac] to [ac + k] also in this case.
-       However, in this case, no time credits are actually involved. *)
+       However, in this case, no time credits are actually involved. The extra
+       payment is wasted. *)
     iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
       as ">[Hγpaid●' #Hγpaid◯']";
       iClear "Hγpaid◯".
     iMod ("Hclose" with "[-Hγpaid◯']") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
+    { iFrame "Hp". iNext. iExists (ac+k)%nat.
+      iFrame "Hγpaid●'".
+      iRight. iExists v. iFrame "Hdecided Ht Hv".
+      iPureIntro. lia. }
     iModIntro.
     iExists γpaid, γdecided, nc. iFrame "Hmeta Hthunkinv".
     iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγpaid◯'")
