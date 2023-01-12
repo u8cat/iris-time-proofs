@@ -354,7 +354,7 @@ Qed.
 (* A public lemma: the specification of [force]. *)
 
 (* Forcing a thunk [t] requires a token of the form [na_own p F], where [F]
-   contains the namespace [thunkN t]. Because this token is unique and is not
+   contains the namespace [↑N]. Because this token is unique and is not
    passed on to the function call f(), reentrancy is statically forbidden. *)
 
 (* Forcing a thunk is permitted only if its apparent debt is zero, that is,
@@ -447,7 +447,7 @@ Qed.
    [n-k], while consuming [k] time credits. *)
 
 (* Like [force], paying requires a token of the form [na_own p F], where [F]
-   contains the namespace [thunkN t]. *)
+   contains the namespace [↑N]. *)
 
 Lemma thunk_pay p N F E (n k : nat) t R φ :
   ↑N ⊆ F →
