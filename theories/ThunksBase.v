@@ -542,9 +542,14 @@ Qed.
 (* A public lemma: the special case of [force] where the thunk has been
    forced already. *)
 
-(* TODO In this case, the resource R is not needed. A proof would require
-   duplicating the proof of [force], or (better) generalizing the spec of
-   [force] to cover both cases? *)
+(* In this case, the resource [R] is not needed, so a stronger specification
+   could be given. Its proof would require duplicating the proof of [force],
+   or (better) generalizing the spec of [force] to cover both cases. We do
+   not do so because we have no use for this stronger specification. Indeed,
+   the construction that we have in mind (ThunksStep.v) does not need it and
+   does not preserve it. Forcing a ghost proxy thunk can require [R], even
+   if the underlying physical thunk has been forced already, because we
+   allow the ghost update to use [R]. *)
 
 Lemma thunk_force_forced p N F t n R φ v :
   ↑N ⊆ F →
