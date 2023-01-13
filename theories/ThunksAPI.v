@@ -95,18 +95,6 @@ Class BasicThunkAPI
     ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝
   ;
 
-  (* The conjunction of [Thunk p N t n R φ] and [ThunkVal t v] implies that
-     the thunk [t] has zero debits, that is, [Thunk p N t 0 R φ] holds. This
-     guarantees that this thunk can be forced for a constant cost. *)
-
-  confront_thunk_thunkval p N t n R φ v E F :
-    ↑N ⊆ E →
-    ↑N ⊆ F →
-    Thunk p N t n R φ -∗ ThunkVal t v -∗ na_own p F
-      ={E}=∗
-    Thunk p N t 0 R φ ∗                  na_own p F
-  ;
-
   (* The predicate [Thunk p N t n R φ] must be covariant in the parameter [n],
      which represents the debt (that is, the number of debits) associated with
      this thunk. Therefore, the parameter [n] represents an over-approximation
@@ -143,6 +131,27 @@ Class BasicThunkAPI
     {{{ TC 11 ∗ Thunk p N t 0 R φ ∗ na_own p F ∗ R }}}
       «force #t»
     {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+  ;
+
+  (* Forcing a thunk that has already been forced requires 11 time credits,
+     regardless of the apparent debt associated with this thunk. *)
+
+  (* The value that is returned must be the value [v] predicted by the
+     assertion [ThunkVal t v]. *)
+
+  (* This specification is weak: it does not guarantee [□ φ v]. *)
+
+  (* One could remark that, in this case, forcing does not require [R].
+     However, we do not need this stronger result, and establishing it
+     would require some duplication of proofs, so we do not offer this
+     guarantee. *)
+
+  thunk_force_forced_weak p N t n R φ v F :
+    ↑N ⊆ F →
+    TC_invariant -∗
+    {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+      «force #t»
+    {{{ RET «v» ; na_own p F ∗ R }}}
   ;
 
   (* The ghost operation [pay] allows paying for (part of) the cost of a
@@ -198,42 +207,6 @@ Proof.
   iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done |].
   (* Done. *)
   iApply "Post".
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
-(* The special case of [force] where the thunk has been forced already. *)
-
-(* In this case, the resource [R] is not needed, so a stronger specification
-   could be given. Its proof would require duplicating the proof of [force],
-   or (better) generalizing the spec of [force] to cover both cases. We do
-   not do so because we have no use for this stronger specification. Indeed,
-   the construction that we have in mind (ThunksStep.v) does not need it and
-   does not preserve it. Forcing a ghost proxy thunk can require [R], even
-   if the underlying physical thunk has been forced already, because we
-   allow the ghost update to use [R]. *)
-
-Lemma thunk_force_forced p N t n R φ v F :
-  ↑N ⊆ F →
-  TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
-    «force #t»
-  {{{ RET «v» ; □ φ v ∗ na_own p F ∗ R }}}.
-Proof.
-  iIntros (?).
-  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
-  (* Argue that this thunk has zero debits. *)
-  iMod (confront_thunk_thunkval with "Hthunk Hval Hp") as "(Hthunk' & Hp)";
-    [ done | done |].
-  iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
-  (* Force the thunk. *)
-  iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done |].
-  iNext.
-  iIntros (v') "(#Hv' & #Hval' & Hp & HR)".
-  (* Argue that the two values must be the same. *)
-  iPoseProof (confront_thunkval_thunkval with "Hval Hval'") as "%". subst v'.
-  (* Done. *)
-  iApply "Post". auto with iFrame.
 Qed.
 
 End Consequences.

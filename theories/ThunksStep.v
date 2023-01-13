@@ -1,32 +1,33 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
-From iris_time Require Import ThunksCode ThunksBase.
+From iris_time Require Import ThunksCode ThunksAPI.
 
 (* -------------------------------------------------------------------------- *)
 
-Section Proofs.
+Section Step.
 
-Notation valO := (valO heap_lang).
-Context `{timeCreditHeapG Σ}.
+Context `{BasicThunkAPI}.
+Notation iProp := (iProp Σ).
+Open Scope nat_scope.
+
+(* Notation valO := (valO heap_lang). *)
+(* Context `{timeCreditHeapG Σ}. *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
-Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
-Context `{na_invG Σ}.
 
 Implicit Type p : na_inv_pool_name.
 Implicit Type N : namespace.
 Implicit Type t : loc.
 Implicit Type n : nat.
-Implicit Type R : iProp Σ.
-Implicit Type φ : val → iProp Σ.
+Implicit Type R : iProp.
+Implicit Type φ : val → iProp.
 
-Implicit Type γpaid γdecided : gname.
+Implicit Type γpaid : gname.
 Implicit Type nc ac : nat.
-Implicit Type f v : val.
+Implicit Type v : val.
 
-Definition ThunkStepInv t γpaid nc R φ ψ : iProp Σ :=
+Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
@@ -43,7 +44,7 @@ Definition ThunkStepInv t γpaid nc R φ ψ : iProp Σ :=
       )
 .
 
-Definition ThunkStep p N t n R ψ : iProp Σ :=
+Definition ThunkStep p N t n R ψ : iProp :=
 
   ∃ γpaid nc1 nc2 φ,
       Thunk p (N .@ false) t nc1 R φ
@@ -56,7 +57,7 @@ Definition ThunkStep p N t n R ψ : iProp Σ :=
 
 Global Instance thunkstep_persistent p N t n R ψ :
   Persistent (ThunkStep p N t n R ψ).
-Proof using.
+Proof.
   exact _.
 Qed.
 
@@ -162,12 +163,13 @@ Proof.
     (* Allow a ghost update after we force this thunk. *)
     iApply wp_fupd.
     (* Force this thunk, which we know has been forced already.
-       The result must be [v]. *)
-    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Hp $HR]").
+       The result must be [v]. We do not obtain [□ φ v], but
+       we do not need it. *)
+    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hval $Hp $HR]").
     { eauto with ndisj. }
     iNext.
     iDestruct "Hv" as "#Hv".
-    iIntros "(_ & Hp & HR)".
+    iIntros "(Hp & HR)".
     (* Close the invariant. *)
     iMod ("Hclose" with "[Hγpaid● Hp]") as "Hp".
     { (* The right-hand side of the invariant now holds. *)
@@ -177,6 +179,32 @@ Proof.
     iModIntro.
     iFrame "Hv Hval Hp HR".
   }
+Qed.
+
+Lemma thunkstep_force_forced_weak p N t n R ψ v F :
+  ↑N ⊆ F →
+  TC_invariant -∗
+  {{{ TC 11 ∗ ThunkStep p N t n R ψ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+    «force #t»
+  {{{ RET «v» ; na_own p F ∗ R }}}.
+Proof.
+  intros ?.
+  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
+  iDestruct "Hthunk" as (γpaid nc1 nc2 φ) "#(Hthunk & _ & _)".
+
+  (* Remarkably, we do not even need to open the invariant. *)
+
+  (* We force the underlying thunk using the same law,
+     and do not execute the ghost update, as we are not
+     required to produce [□ ψ v]. *)
+
+  iApply (thunk_force_forced_weak
+    with "Htickinv [$Hcredits $Hthunk $Hval $Hp $HR]");
+    [ eauto with ndisj |].
+
+  (* Done. *)
+  eauto.
+
 Qed.
 
 Lemma thunkstep_pay p N F E n k t R ψ :
@@ -235,4 +263,19 @@ Proof.
 
 Qed.
 
-End Proofs.
+(* -------------------------------------------------------------------------- *)
+
+(* We now check that the API is satisfied. *)
+
+Global Instance thunkbase_api :
+  BasicThunkAPI ThunkStep ThunkVal.
+Proof.
+  constructor.
+  { eauto using confront_thunkval_thunkval. }
+  { eauto using thunkstep_weakening. }
+  { eauto using thunkstep_force_spec. }
+  { eauto using thunkstep_force_forced_weak. }
+  { eauto using thunkstep_pay. }
+Qed.
+
+End Step.

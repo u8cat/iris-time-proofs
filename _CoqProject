@@ -27,6 +27,7 @@ theories/Simulation.v
 theories/ThunksCode.v
 theories/ThunksAPI.v
 theories/ThunksBase.v
+theories/ThunksStep.v
 theories/ThunksSimple.v
 theories/Thunks.v
 theories/Gthunks.v
