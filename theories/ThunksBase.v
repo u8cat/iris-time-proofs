@@ -5,9 +5,8 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 From iris_time Require Import ThunksCode.
 
-(* This file contains a simple formalization of thunks, as presented in the
-   ESOP 2019 paper. A more elaborate formalization, which is based on the same
-   HeapLang code but offers a richer logical API, can be found in Thunks.v. *)
+(* This file contains definitions of the predicates [Thunk] and [ThunkVal]
+   that satisfy the basic thunk API defined in ThunksAPI.v. *)
 
 (* -------------------------------------------------------------------------- *)
 
