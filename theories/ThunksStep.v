@@ -193,4 +193,60 @@ Proof.
   }
 Qed.
 
+Lemma thunkstep_pay p N F E n k t R ψ :
+  ↑N ⊆ F →
+  ↑N ⊆ E →
+  na_own p F -∗ ThunkStep p N t n R ψ -∗
+  TC k ={E}=∗
+  na_own p F  ∗ ThunkStep p N t (n-k) R ψ.
+Proof.
+  iIntros (? ?) "Hp #Hthunk Hk".
+  iDestruct "Hthunk" as (γpaid nc1 nc2 φ) "#(Hthunk & Hinv & Hγpaid◯)".
+
+  (* Open the invariant. *)
+  iDestruct (na_inv_acc with "Hinv Hp") as ">(Hstep & Hp & Hclose)";
+    [ eauto with ndisj | eauto with ndisj |].
+  iDestruct "Hstep" as (ac) "(>Hγpaid● & Hstep)".
+
+  (* Increment the ghost payment record from [ac] to [ac + k]. This is
+     done in both branches of the case analysis (which follows). *)
+  iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
+    as ">[Hγpaid●' #Hγpaid◯']".
+  iClear "Hγpaid◯". iRename "Hγpaid◯'" into "Hγpaid◯".
+
+  (* Perform a case analysis. *)
+  iDestruct "Hstep" as "[ Hstep | Hstep ]".
+
+  (* Case: the ghost update has not yet been used. *)
+  {
+    iDestruct "Hstep" as "(Hupdate & >Hac)".
+    (* We have [ac + k] time credits. *)
+    iAssert (TC (ac + k)) with "[Hac Hk]" as "Hack"; first by iSplitL "Hac".
+    (* The invariant can be closed. *)
+    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
+    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
+    iModIntro.
+    iExists γpaid, nc1, nc2, φ. iFrame "Hthunk Hinv".
+    (* Our updated fragmentary view of the ghost cell γpaid
+       allows us to produce an updated [Thunk] assertion. *)
+    iApply (own_auth_max_nat_weaken with "[$]").
+    lia.
+  }
+
+  (* Case: the ghost update has been used. *)
+  {
+    iDestruct "Hstep" as (v) "(>#Hval & #Hv)".
+    (* The invariant can be closed. In this case, no new time credits are
+       stored in the invariant. The extra payment is wasted. *)
+    iClear "Hk". (* wasted *)
+    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
+    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
+    iModIntro.
+    iExists γpaid, nc1, nc2, φ. iFrame "Hthunk Hinv".
+    iApply (own_auth_max_nat_weaken with "[$]").
+    lia.
+  }
+
+Qed.
+
 End Proofs.
