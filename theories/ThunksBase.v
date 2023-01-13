@@ -17,6 +17,7 @@ Context `{timeCreditHeapG Σ}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
+Notation iProp := (iProp Σ).
 
 (* The parameters of the public predicate [Thunk p F t n R φ] are:
 
@@ -41,8 +42,8 @@ Implicit Type N : namespace.
 Implicit Type E F : coPset.
 Implicit Type t : loc.
 Implicit Type n : nat.
-Implicit Type R : iProp Σ.
-Implicit Type φ : val → iProp Σ.
+Implicit Type R : iProp.
+Implicit Type φ : val → iProp.
 
 (* The following variables are used internally:
 
@@ -99,7 +100,7 @@ Local Definition ownDecided γdecided v :=
    is used in the proof of the lemma Thunk_ThunkVal, which states that if a
    thunk has been forced, then it can be viewed as a zero-debit thunk. *)
 
-Local Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
+Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
@@ -138,7 +139,7 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
    credits that remain to be paid, are sufficient to cover the actual cost
    of invoking f. *)
 
-Definition Thunk p F t n R φ : iProp Σ :=
+Definition Thunk p F t n R φ : iProp :=
 
   ∃ γpaid γdecided nc N,
       ⌜ ↑N ⊆ F ⌝
@@ -154,7 +155,7 @@ Definition Thunk p F t n R φ : iProp Σ :=
 (* This predicate is persistent. It means that the thunk t has been forced
    and that its value is v. *)
 
-Definition ThunkVal t v : iProp Σ :=
+Definition ThunkVal t v : iProp :=
 
   ∃ γpaid γdecided,
       meta t nroot (γpaid, γdecided)
