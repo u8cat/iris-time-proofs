@@ -224,7 +224,7 @@ Proof.
     iDestruct "Hstep" as (v) "(>#Hval & #Hv)".
     (* The invariant can be closed. In this case, no new time credits are
        stored in the invariant. The extra payment is wasted. *)
-    iClear "Hk". (* wasted *)
+    iClear "Hk".
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
     { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
     iModIntro.
