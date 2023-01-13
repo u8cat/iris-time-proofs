@@ -100,10 +100,10 @@ Class BasicThunkAPI
      this thunk. Therefore, the parameter [n] represents an over-approximation
      of the true remaining debt. *)
 
-  thunk_increase_debt p N t n₁ n₂ R φ :
-    n₁ ≤ n₂ →
-    Thunk p N t n₁ R φ -∗
-    Thunk p N t n₂ R φ
+  thunk_increase_debt p N t n1 n2 R φ :
+    n1 ≤ n2 →
+    Thunk p N t n1 R φ -∗
+    Thunk p N t n2 R φ
   ;
 
   (* The creation of a thunk is *not* part of this basic API. *)

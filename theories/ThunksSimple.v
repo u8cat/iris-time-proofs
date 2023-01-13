@@ -132,13 +132,13 @@ Qed.
 
 (* A public lemma: the number of debits [n] that appears in the assertion
    [Thunk p t n φ] is in general an over-approximation of the true remaining
-   debt. Therefore, losing information, by replacing [n₁] with a larger number
-   [n₂], is permitted. *)
+   debt. Therefore, losing information, by replacing [n1] with a larger number
+   [n2], is permitted. *)
 
-Lemma thunk_weakening p t n₁ n₂ φ :
-  (n₁ ≤ n₂)%nat →
-  Thunk p t n₁ φ -∗
-  Thunk p t n₂ φ.
+Lemma thunk_weakening p t n1 n2 φ :
+  n1 ≤ n2 →
+  Thunk p t n1 φ -∗
+  Thunk p t n2 φ.
 Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γ nc) "[Hinv Hγ◯]".

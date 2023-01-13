@@ -61,10 +61,10 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma thunkstep_weakening p N t n₁ n₂ R ψ :
-  n₁ ≤ n₂ →
-  ThunkStep p N t n₁ R ψ -∗
-  ThunkStep p N t n₂ R ψ.
+Lemma thunkstep_weakening p N t n1 n2 R ψ :
+  n1 ≤ n2 →
+  ThunkStep p N t n1 R ψ -∗
+  ThunkStep p N t n2 R ψ.
 Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γpaid nc1 nc2 φ) "(? & ? & Hγpaid◯)".

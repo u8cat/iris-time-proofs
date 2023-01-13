@@ -302,10 +302,10 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Local Lemma thunk_weakening p N t n₁ n₂ R φ :
-  n₁ ≤ n₂ →
-  Thunk p N t n₁ R φ -∗
-  Thunk p N t n₂ R φ.
+Local Lemma thunk_weakening p N t n1 n2 R φ :
+  n1 ≤ n2 →
+  Thunk p N t n1 R φ -∗
+  Thunk p N t n2 R φ.
 Proof.
   iIntros (?) "Hthunk".
   iDestruct "Hthunk" as (γpaid γdecided nc) "(Hmeta & Hinv & Hγpaid◯)".
