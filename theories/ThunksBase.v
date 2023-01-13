@@ -18,7 +18,7 @@ Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 
-(* The parameters of the public predicate [Thunk p t n R φ] are:
+(* The parameters of the public predicate [Thunk p N t n R φ] are:
 
     - p: a non-atomic-invariant pool name
 
