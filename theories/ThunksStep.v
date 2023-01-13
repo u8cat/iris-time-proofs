@@ -26,7 +26,9 @@ Implicit Type γpaid : gname.
 Implicit Type nc ac : nat.
 Implicit Type v : val.
 
-Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
+(* TODO comments needed *)
+
+Local Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
@@ -87,7 +89,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma thunkstep_weakening p F t n1 n2 R ψ :
+Local Lemma thunkstep_weakening p F t n1 n2 R ψ :
   n1 ≤ n2 →
   ThunkStep p F t n1 R ψ -∗
   ThunkStep p F t n2 R ψ.
@@ -128,7 +130,7 @@ Qed.
 
 (* A public lemma: the specification of [force]. *)
 
-Lemma thunkstep_force_spec p F F' t R ψ :
+Local Lemma thunkstep_force_spec p F F' t R ψ :
   F ⊆ F' →
   TC_invariant -∗
   {{{ TC 11 ∗ ThunkStep p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
@@ -204,7 +206,7 @@ Proof.
   }
 Qed.
 
-Lemma thunkstep_force_forced_weak p F t n R ψ v F' :
+Local Lemma thunkstep_force_forced_weak p F t n R ψ v F' :
   F ⊆ F' →
   TC_invariant -∗
   {{{ TC 11 ∗ ThunkStep p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
@@ -230,7 +232,7 @@ Proof.
 
 Qed.
 
-Lemma thunkstep_pay p F F' E n k t R ψ :
+Local Lemma thunkstep_pay p F F' E n k t R ψ :
   F ⊆ F' →
   F ⊆ E →
   ThunkToken p F' -∗ ThunkStep p F t n R ψ -∗
