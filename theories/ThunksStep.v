@@ -12,8 +12,6 @@ Context `{BasicThunkAPI}.
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
-(* Notation valO := (valO heap_lang). *)
-(* Context `{timeCreditHeapG Σ}. *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 
 Implicit Type p : na_inv_pool_name.
