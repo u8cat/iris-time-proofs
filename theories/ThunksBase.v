@@ -290,7 +290,7 @@ Proof.
     (* Close the invariant. *)
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
     { iFrame "Hp". iNext. iExists ac. iFrame "Hγpaid●". iRight.
-      iExists v. iFrame "Hdecided Ht Hv". iPureIntro. assumption. }
+      iExists v. eauto with iFrame. }
     iModIntro.
     iExists γpaid, γdecided, nc.
     iFrame "Hmeta Hinv Hγpaid◯".
@@ -421,9 +421,7 @@ Proof.
     (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
     iExists ac.
     iFrame "Hγpaid●".
-    iRight. iExists v.
-    iFrame "Hdecided Ht Hv".
-    iPureIntro. assumption.
+    iRight. iExists v. eauto with iFrame.
   }
   (* Case: the thunk is EVALUATED. *)
   {
@@ -436,12 +434,9 @@ Proof.
     (* Subgoal: establish [ThunkVal t v]. *)
     { iModIntro. unfold ThunkVal. auto. }
     (* Subgoal: close the invariant. *)
-    iApply "Hclose". iFrame "Hp". iNext.
-    iExists ac.
+    iApply "Hclose". iFrame "Hp". iNext. iExists ac.
     iFrame "Hγpaid●".
-    iRight. iExists v.
-    iFrame "Hdecided Ht Hv".
-    iPureIntro. assumption.
+    iRight. iExists v. eauto with iFrame.
   }
 Qed.
 
@@ -486,7 +481,7 @@ Proof.
       iClear "Hγpaid◯".
     (* The invariant can be closed. *)
     iMod ("Hclose" with "[-Hγpaid◯']") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k)%nat. auto with iFrame. }
+    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
     iModIntro.
     iExists γpaid, γdecided, nc. iFrame "Hmeta Hthunkinv".
     (* And our updated fragmentary view of the ghost cell γpaid
@@ -505,14 +500,13 @@ Proof.
       as ">[Hγpaid●' #Hγpaid◯']";
       iClear "Hγpaid◯".
     iMod ("Hclose" with "[-Hγpaid◯']") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k)%nat.
+    { iFrame "Hp". iNext. iExists (ac+k).
       iFrame "Hγpaid●'".
       iRight. iExists v. iFrame "Hdecided Ht Hv".
       iPureIntro. lia. }
     iModIntro.
     iExists γpaid, γdecided, nc. iFrame "Hmeta Hthunkinv".
-    iDestruct (own_auth_max_nat_weaken _ ((nc-n)+k) (nc-(n-k)) with "Hγpaid◯'")
-      as "$".
+    iApply (own_auth_max_nat_weaken with "[$]").
     lia.
   }
 Qed.

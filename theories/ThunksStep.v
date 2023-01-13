@@ -148,14 +148,7 @@ Proof.
     (* Close the invariant. *)
     iMod ("Hclose" with "[Hγpaid● Hp]") as "Hp".
     { (* The right-hand side of the invariant now holds. *)
-      iFrame "Hp".
-      iNext.
-      iExists ac.
-      iFrame "Hγpaid●".
-      iRight.
-      iExists v.
-      iFrame "Hval Hv".
-    }
+      iFrame "Hp". iNext. iExists ac. eauto with iFrame. }
     (* Done. *)
     iModIntro.
     iApply "Post".
@@ -178,14 +171,7 @@ Proof.
     (* Close the invariant. *)
     iMod ("Hclose" with "[Hγpaid● Hp]") as "Hp".
     { (* The right-hand side of the invariant now holds. *)
-      iFrame "Hp".
-      iNext.
-      iExists ac.
-      iFrame "Hγpaid●".
-      iRight.
-      iExists v.
-      iFrame "Hval Hv".
-    }
+      iFrame "Hp". iNext. iExists ac. eauto with iFrame. }
     (* Done. *)
     iApply "Post".
     iModIntro.
