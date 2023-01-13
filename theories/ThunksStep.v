@@ -64,10 +64,18 @@ Local Ltac destruct_thunk :=
 
 Local Ltac open_invariant :=
   iDestruct (na_inv_acc with "Hinv Hp") as ">(Hstepinv & Hp & Hclose)";
-    [ set_solver | set_solver |].
+    [ set_solver | set_solver |];
+  iDestruct "Hstepinv" as (ac) "(>Hγpaid● & Hstepinv)".
+
+Local Ltac case_analysis :=
+  iDestruct "Hstepinv" as "[ Hstepinv | Hstepinv ]".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
+
+Local Ltac witness :=
+  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$";
+  lia.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -89,8 +97,7 @@ Proof.
   iExists γpaid, nc1, nc2, φ, F1, N.
   repeat pure_conjunct.
   iFrame.
-  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$".
-  lia.
+  witness.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -137,7 +144,7 @@ Proof.
   open_invariant.
 
   (* Perform a case analysis. *)
-  iDestruct "Hstepinv" as (ac) "(>Hγpaid● & [ Hstepinv | Hstepinv ])".
+  case_analysis.
 
   (* Case: the ghost update has not been used yet. *)
   {
@@ -235,7 +242,6 @@ Proof.
 
   (* Open the invariant. *)
   open_invariant.
-  iDestruct "Hstepinv" as (ac) "(>Hγpaid● & Hstep)".
 
   (* Increment the ghost payment record from [ac] to [ac + k]. This is
      done in both branches of the case analysis (which follows). *)
@@ -244,11 +250,11 @@ Proof.
   iClear "Hγpaid◯". iRename "Hγpaid◯'" into "Hγpaid◯".
 
   (* Perform a case analysis. *)
-  iDestruct "Hstep" as "[ Hstep | Hstep ]".
+  case_analysis.
 
   (* Case: the ghost update has not yet been used. *)
   {
-    iDestruct "Hstep" as "(Hupdate & >Hac)".
+    iDestruct "Hstepinv" as "(Hupdate & >Hac)".
     (* We have [ac + k] time credits. *)
     iAssert (TC (ac + k)) with "[Hac Hk]" as "Hack"; first by iSplitL "Hac".
     (* The invariant can be closed. *)
@@ -259,13 +265,12 @@ Proof.
     repeat pure_conjunct.
     (* Our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [Thunk] assertion. *)
-    iApply (own_auth_max_nat_weaken with "[$]").
-    lia.
+    witness.
   }
 
   (* Case: the ghost update has been used. *)
   {
-    iDestruct "Hstep" as (v) "(>#Hval & #Hv)".
+    iDestruct "Hstepinv" as (v) "(>#Hval & #Hv)".
     (* The invariant can be closed. In this case, no new time credits are
        stored in the invariant. The extra payment is wasted. *)
     iClear "Hk".
@@ -274,8 +279,7 @@ Proof.
     iModIntro.
     iExists γpaid, nc1, nc2, φ, F1, N. iFrame "Hthunk Hinv".
     repeat pure_conjunct.
-    iApply (own_auth_max_nat_weaken with "[$]").
-    lia.
+    witness.
   }
 
 Qed.

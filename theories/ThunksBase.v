@@ -128,7 +128,8 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
    + γpaid and γdecided are the ghost locations associated with this thunk;
 
    + the thunk's invariant holds; it is placed in a non-atomic invariant
-     indexed by the pool p;
+     indexed by the pool p; the token [ThunkToken p F] suffices to open
+     this invariant;
 
    + we have a fragmentary view of the ghost cell γpaid containing the value
      [nc - n].
@@ -172,8 +173,22 @@ Local Ltac destruct_thunk :=
     as (γpaid γdecided nc N) "(%HNF & Hmeta & Hinv & Hγpaid◯)".
 
 Local Ltac open_invariant :=
-  iDestruct (na_inv_acc with "Hinv Hp") as ">(Hthunk & Hp & Hclose)";
-    [set_solver | set_solver |].
+  iDestruct (na_inv_acc with "Hinv Htoken") as ">(Hthunk & Htoken & Hclose)";
+    [set_solver | set_solver |];
+  iDestruct "Hthunk" as (ac) "(>Hγpaid● & Hthunk)".
+
+Local Ltac case_analysis :=
+  iDestruct "Hthunk" as "[ Hthunk | Hthunk ]".
+
+Local Ltac destruct_thunkval :=
+  iDestruct "Hval" as (γpaid γdecided) "(Hmeta & Hγdecided)".
+
+Local Ltac pure_conjunct :=
+  iSplitR; [ iPureIntro; eauto |].
+
+Local Ltac witness :=
+  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$";
+  lia.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -234,12 +249,12 @@ Proof. exact _. Qed.
 Local Lemma ThunkVal_agree t v1 v2 :
   ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝.
 Proof.
-  iIntros "H1 H2".
-  iDestruct "H1" as (γpaid1 γdecided1) "(Hmeta1 & Hown1)".
-  iDestruct "H2" as (γpaid2 γdecided2) "(Hmeta2 & Hown2)".
-  iDestruct (meta_agree with "[$][$]") as "%Heq".
-  assert (γdecided1 = γdecided2) by congruence. subst. clear Heq.
-  iApply (ownDecided_agree with "Hown1 Hown2").
+  iIntros "Hval Hval2".
+  destruct_thunkval.
+  iDestruct "Hval2" as (γpaid2 γdecided2) "(Hmeta2 & Hγdecided2)".
+  iDestruct (meta_agree with "[$][$]") as "%Heq". iClear "Hmeta Hmeta2".
+  assert (γdecided2 = γdecided) by congruence. subst. clear Heq.
+  iApply (ownDecided_agree with "Hγdecided [$]").
 Qed.
 
 (* A public lemma: the conjunction of [Thunk p F t n R φ] and [ThunkVal t v]
@@ -258,7 +273,7 @@ Lemma Thunk_ThunkVal p F t n R φ v F' E :
   ={E}=∗
   Thunk p F t 0 R φ ∗                  ThunkToken p F'.
 Proof.
-  iIntros (? ?) "#Hthunk #Hval Hp".
+  iIntros (? ?) "#Hthunk #Hval Htoken".
   destruct_thunk.
   iDestruct "Hval" as (γpaid2 γdecided2) "(Hmeta2 & Hdecided)".
 
@@ -273,20 +288,20 @@ Proof.
   open_invariant.
 
   (* Perform a case analysis. *)
-  iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
+  case_analysis.
 
-  (* Case: the thunk is UNEVALUATED. This is impossible. *)
+  (* Case: the thunk is unevaluated. This is impossible. *)
   {
-    iDestruct "Hunevaluated" as (f) "(>Hundecided & _ & _ & _)".
+    iDestruct "Hthunk" as (f) "(>Hundecided & _ & _ & _)".
     (* The ghost cell cannot be both decided and undecided. *)
     iDestruct (decided_xor_undecided with "Hundecided Hdecided")
       as "%contradiction".
     tauto.
   }
 
-  (* Case: the thunk is EVALUATED. *)
+  (* Case: the thunk is evaluated. *)
   {
-    iDestruct "Hevaluated" as (v') "(>#Hdecided' & >Ht & #Hv & >%Hncac)".
+    iDestruct "Hthunk" as (v') "(>#Hdecided' & >Ht & #Hv & >%Hncac)".
     (* The following two lines argue that v and v' are the same value.
        This is not necessary in this proof, but we do it for clarity. *)
     iDestruct (ownDecided_agree with "Hdecided Hdecided'") as "%Heq".
@@ -297,15 +312,14 @@ Proof.
     iClear "Hγpaid◯".
     iMod (auth_max_nat_update_read_auth with "Hγpaid●")
       as "(Hγpaid● & Hγpaid◯)".
-    iPoseProof (own_auth_max_nat_weaken _ ac (nc - 0) with "Hγpaid◯")
-      as "Hγpaid◯"; [ lia |].
     (* Close the invariant. *)
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Hp". iNext. iExists ac. iFrame "Hγpaid●". iRight.
+    { iFrame "Htoken". iNext. iExists ac. iFrame "Hγpaid●". iRight.
       iExists v. eauto with iFrame. }
     iModIntro.
     iExists γpaid, γdecided, nc, N.
-    eauto with iFrame.
+    pure_conjunct. iFrame "Hmeta Hinv".
+    witness.
   }
 
 Qed.
@@ -322,9 +336,8 @@ Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
   iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
-  iSplitR; [ eauto |].
-  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$".
-  lia.
+  pure_conjunct.
+  witness.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -363,7 +376,7 @@ Proof.
   iExists γpaid, γdecided, nc ; rewrite (_ : nc - nc = 0); last lia.
   iFrame "Hmeta Hγpaid◯".
   iExists N.
-  iSplitR; [ eauto |].
+  pure_conjunct.
   iApply na_inv_alloc.
   iNext.
   (* The number of available credits is initially 0. *)
@@ -383,7 +396,7 @@ Local Lemma thunk_force_spec p F F' t R φ :
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   intros ?.
-  iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
+  iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Htoken & HR) Post".
   destruct_thunk.
   rewrite (_ : nc - 0 = nc); last lia.
   iApply wp_fupd.
@@ -393,11 +406,11 @@ Proof.
   open_invariant.
 
   (* Perform a case analysis. *)
-  iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
+  case_analysis.
 
   (* Case: the thunk is unevaluated. *)
   {
-    iDestruct "Hunevaluated" as (f) "(>Hundecided & >Ht & Hf & >Htc)".
+    iDestruct "Hthunk" as (f) "(>Hundecided & >Ht & Hf & >Htc)".
     wp_tick_load. wp_tick_match.
     (* The number of debits is zero, so we learn [nc ≤ ac]. *)
     iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as %I.
@@ -416,7 +429,7 @@ Proof.
     (* Subgoal: establish [ThunkVal t v]. *)
     { iModIntro. unfold ThunkVal. auto. }
     (* Subgoal: close the invariant. *)
-    iApply "Hclose". iFrame "Hp". iNext.
+    iApply "Hclose". iFrame "Htoken". iNext.
     (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
     iExists ac.
     iFrame "Hγpaid●".
@@ -425,7 +438,7 @@ Proof.
 
   (* Case: the thunk is evaluated. *)
   {
-    iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
+    iDestruct "Hthunk" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
     wp_tick_load. wp_tick_match.
     (* Establish the postcondition. *)
     iApply "Post".
@@ -434,7 +447,7 @@ Proof.
     (* Subgoal: establish [ThunkVal t v]. *)
     { iModIntro. unfold ThunkVal. auto. }
     (* Subgoal: close the invariant. *)
-    iApply "Hclose". iFrame "Hp". iNext. iExists ac.
+    iApply "Hclose". iFrame "Htoken". iNext. iExists ac.
     iFrame "Hγpaid●".
     iRight. iExists v. eauto with iFrame.
   }
@@ -452,12 +465,11 @@ Lemma thunk_pay p F F' E n k t R φ :
   TC k ={E}=∗
   ThunkToken p F'  ∗ Thunk p F t (n-k) R φ.
 Proof.
-  iIntros (? ?) "Hp #Hthunk Hk".
+  iIntros (? ?) "Htoken #Hthunk Hk".
   destruct_thunk.
 
   (* Open the invariant. *)
   open_invariant.
-  iDestruct "Hthunk" as (ac) "(>Hγpaid● & Hthunk)".
 
   (* Increment the ghost payment record from [ac] to [ac + k]. This is
      done in both branches of the case analysis (which follows). *)
@@ -466,7 +478,7 @@ Proof.
   iClear "Hγpaid◯". iRename "Hγpaid◯'" into "Hγpaid◯".
 
   (* Perform a case analysis. *)
-  iDestruct "Hthunk" as "[ Hthunk | Hthunk ]".
+  case_analysis.
 
   (* Case: the thunk is unevaluated. *)
   {
@@ -475,14 +487,13 @@ Proof.
     iAssert (TC (ac + k)) with "[Hac Hk]" as "Hack"; first by iSplitL "Hac".
     (* The invariant can be closed. *)
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
+    { iFrame "Htoken". iNext. iExists (ac+k). auto with iFrame. }
     iModIntro.
     iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
-    iSplitR; [ eauto |].
+    pure_conjunct.
     (* Our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [Thunk] assertion. *)
-    iApply (own_auth_max_nat_weaken with "[$]").
-    lia.
+    witness.
   }
 
   (* Case: the thunk is evaluated. *)
@@ -492,13 +503,12 @@ Proof.
        stored in the invariant. The extra payment is wasted. *)
     iClear "Hk".
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k). iFrame "Hγpaid●".
+    { iFrame "Htoken". iNext. iExists (ac+k). iFrame "Hγpaid●".
       iRight. iExists v. iFrame "Hdecided Ht Hv". iPureIntro. lia. }
     iModIntro.
     iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
-    iSplitR; [ eauto |].
-    iApply (own_auth_max_nat_weaken with "[$]").
-    lia.
+    pure_conjunct.
+    witness.
   }
 
 Qed.
@@ -526,16 +536,16 @@ Lemma thunk_force_forced_strong p F t n R φ v F' :
   {{{ RET «v» ; □ φ v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
-  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
+  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
   (* Argue that this thunk has zero debits. *)
-  iMod (Thunk_ThunkVal with "Hthunk Hval Hp") as "(#Hthunk' & Hp)";
+  iMod (Thunk_ThunkVal with "Hthunk Hval Htoken") as "(#Hthunk' & Htoken)";
     [ done | done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   (* Force the thunk. *)
-  iApply (thunk_force_spec with "Htickinv [$Hcredits $Hthunk $Hp $HR]");
+  iApply (thunk_force_spec with "Htickinv [$Hcredits $Hthunk $Htoken $HR]");
     [ done |].
   iNext.
-  iIntros (v') "(#Hv' & #Hval' & Hp & HR)".
+  iIntros (v') "(#Hv' & #Hval' & Htoken & HR)".
   (* Argue that the two values must be the same. *)
   iPoseProof (ThunkVal_agree with "Hval Hval'") as "%". subst v'.
   (* Done. *)
@@ -552,11 +562,11 @@ Local Lemma thunk_force_forced_weak p F t n R φ v F' :
   {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
-  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
+  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
   iApply (thunk_force_forced_strong with
-    "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done | done |].
+    "Htickinv [$Hcredits $Hthunk $Htoken $HR]"); [ done | done |].
   iNext.
-  iIntros "(Hv & Hp & HR)".
+  iIntros "(Hv & Htoken & HR)".
   iClear "Hv". (* drop [□ φ v] *)
   iApply "Post". eauto with iFrame.
 Qed.
