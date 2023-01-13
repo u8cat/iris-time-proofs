@@ -4,6 +4,10 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode.
 
+(* We write [ThunkToken p F] as a synonym for [na_own p F]. *)
+
+Notation ThunkToken := na_own.
+
 Section API.
 
 Context `{timeCreditHeapG Σ}.
@@ -11,14 +15,11 @@ Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
-(* TODO abstract away p *)
-(* TODO abstract away the namespace token *)
+(* The parameters of the public predicate [Thunk p F t n R φ] are:
 
-(* The parameters of the public predicate [Thunk p t n R φ] are:
+    - p: a non-atomic-invariant pool
 
-    - p: a non-atomic-invariant pool name
-
-    - N: a non-atomic-invariant namespace
+    - F: a mask
 
     - t: the physical location of the thunk
 
@@ -33,7 +34,7 @@ Open Scope nat_scope.
  *)
 
 Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
+Implicit Type F : coPset.
 Implicit Type t : loc.
 Implicit Type n : nat.
 Implicit Type R : iProp.
@@ -43,14 +44,16 @@ Implicit Type φ : val → iProp.
 
 Implicit Type v : val.
 
+(* The basic thunk API. *)
+
 Class BasicThunkAPI
 
-  (* The Thunk predicate takes the form [Thunk p N t n R φ]. *)
+  (* The Thunk predicate takes the form [Thunk p F t n R φ]. *)
 
   (
   Thunk :
     na_inv_pool_name →
-    namespace →
+    coPset →
     loc →
     nat →
     iProp →
@@ -67,11 +70,14 @@ Class BasicThunkAPI
     iProp
   )
 
-  (* Thunk must be persistent. *)
+  (* [Thunk] must be persistent. This means that a thunk can be shared. In
+    combination with [thunk_increase_debt] and [thunk_pay], this implies that
+    several different views of a thunk, with distinct numbers of debits, can
+    co-exist. *)
 
   `{
-    ∀ p N t n R φ,
-    Persistent (Thunk p N t n R φ)
+    ∀ p F t n R φ,
+    Persistent (Thunk p F t n R φ)
   }
 
   (* ThunkVal must be persistent and timeless. *)
@@ -95,15 +101,15 @@ Class BasicThunkAPI
     ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝
   ;
 
-  (* The predicate [Thunk p N t n R φ] must be covariant in the parameter [n],
+  (* The predicate [Thunk F t n R φ] must be covariant in the parameter [n],
      which represents the debt (that is, the number of debits) associated with
      this thunk. Therefore, the parameter [n] represents an over-approximation
      of the true remaining debt. *)
 
-  thunk_increase_debt p N t n1 n2 R φ :
+  thunk_increase_debt p F t n1 n2 R φ :
     n1 ≤ n2 →
-    Thunk p N t n1 R φ -∗
-    Thunk p N t n2 R φ
+    Thunk p F t n1 R φ -∗
+    Thunk p F t n2 R φ
   ;
 
   (* The creation of a thunk is *not* part of this basic API. *)
@@ -114,8 +120,8 @@ Class BasicThunkAPI
      only if the cost of forcing this thunk has already been paid for (perhaps
      in several increments) using [thunk_pay]. *)
 
-  (* Forcing a thunk [t] requires a token of the form [na_own p F]
-     where [F] contains [↑N]. *)
+  (* Forcing a thunk [t] requires a token of the form [ThunkToken p F']
+     where [F'] contains [F]. *)
 
   (* Forcing a thunk has (amortized) constant time complexity. It requires 11
      time credits. *)
@@ -125,12 +131,12 @@ Class BasicThunkAPI
   (* Forcing a thunk produces a witness that the value of the thunk has been
      decided and is [v]. *)
 
-  thunk_force p N t R φ F :
-    ↑N ⊆ F →
+  thunk_force p F t R φ F' :
+    F ⊆ F' →
     TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p N t 0 R φ ∗ na_own p F ∗ R }}}
+    {{{ TC 11 ∗ Thunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
       «force #t»
-    {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+    {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
   ;
 
   (* Forcing a thunk that has already been forced requires 11 time credits,
@@ -146,12 +152,12 @@ Class BasicThunkAPI
      would require some duplication of proofs, so we do not offer this
      guarantee. *)
 
-  thunk_force_forced_weak p N t n R φ v F :
-    ↑N ⊆ F →
+  thunk_force_forced_weak p F t n R φ v F' :
+    F ⊆ F' →
     TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+    {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
       «force #t»
-    {{{ RET «v» ; na_own p F ∗ R }}}
+    {{{ RET «v» ; ThunkToken p F' ∗ R }}}
   ;
 
   (* The ghost operation [pay] allows paying for (part of) the cost of a
@@ -160,14 +166,14 @@ Class BasicThunkAPI
   (* Paying is a ghost operation. Its effect is to change the number of debits
      from [n] to [n - k], while consuming [k] time credits. *)
 
-  (* Like [force], paying requires the token [na_own p F]. *)
+  (* Like [force], paying requires the token [ThunkToken p F']. *)
 
-  thunk_pay p N n k t R φ E F :
-    ↑N ⊆ E →
-    ↑N ⊆ F →
-    na_own p F -∗ Thunk p N t n R φ -∗ TC k
+  thunk_pay p F n k t R φ E F' :
+    F ⊆ E →
+    F ⊆ F' →
+    ThunkToken p F' -∗ Thunk p F t n R φ -∗ TC k
       ={E}=∗
-    na_own p F  ∗ Thunk p N t (n-k) R φ
+    ThunkToken p F'  ∗ Thunk p F t (n-k) R φ
   ;
 
 }.
@@ -188,12 +194,12 @@ Open Scope nat_scope.
 
 (* The combination of [pay] and [force]. *)
 
-Lemma thunk_pay_force p N t n R φ F :
-  ↑N ⊆ F →
+Lemma thunk_pay_force p F t n R φ F' :
+  F ⊆ F' →
   TC_invariant -∗
-  {{{ TC (n + 11) ∗ Thunk p N t n R φ ∗ na_own p F ∗ R }}}
+  {{{ TC (n + 11) ∗ Thunk p F t n R φ ∗ ThunkToken p F' ∗ R }}}
     «force #t»
-  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}.
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   intros hop.
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & Hp & HR) Post".

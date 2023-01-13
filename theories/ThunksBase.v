@@ -18,11 +18,11 @@ Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 
-(* The parameters of the public predicate [Thunk p N t n R φ] are:
+(* The parameters of the public predicate [Thunk p F t n R φ] are:
 
-    - p: a non-atomic-invariant pool name
+    - p: a non-atomic-invariant pool
 
-    - N: a non-atomic-invariant namespace
+    - F: a mask
 
     - t: the physical location of the thunk
 
@@ -38,6 +38,7 @@ Context `{na_invG Σ}.
 
 Implicit Type p : na_inv_pool_name.
 Implicit Type N : namespace.
+Implicit Type E F : coPset.
 Implicit Type t : loc.
 Implicit Type n : nat.
 Implicit Type R : iProp Σ.
@@ -118,7 +119,7 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
       )
 .
 
-(* The predicate [Thunk p N t n R φ] is public. It is an abstract predicate:
+(* The predicate [Thunk p F t n R φ] is public. It is an abstract predicate:
    its definition is not meant to be exposed to the user. *)
 
 (* Its definition states that:
@@ -137,10 +138,11 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp Σ :=
    credits that remain to be paid, are sufficient to cover the actual cost
    of invoking f. *)
 
-Definition Thunk p N t n R φ : iProp Σ :=
+Definition Thunk p F t n R φ : iProp Σ :=
 
-  ∃ γpaid γdecided nc,
-      meta t nroot (γpaid, γdecided)
+  ∃ γpaid γdecided nc N,
+      ⌜ ↑N ⊆ F ⌝
+    ∗ meta t nroot (γpaid, γdecided)
     ∗ na_inv p N (ThunkInv t γpaid γdecided nc R φ)
     ∗ own γpaid (◯ MaxNat (nc - n))
 
@@ -159,6 +161,18 @@ Definition ThunkVal t v : iProp Σ :=
     ∗ ownDecided γdecided v
 
 .
+
+(* -------------------------------------------------------------------------- *)
+
+(* Local tactics, for clarity. *)
+
+Local Ltac destruct_thunk :=
+  iDestruct "Hthunk"
+    as (γpaid γdecided nc N) "(%HNF & Hmeta & Hinv & Hγpaid◯)".
+
+Local Ltac open_invariant :=
+  iDestruct (na_inv_acc with "Hinv Hp") as ">(Hthunk & Hp & Hclose)";
+    [set_solver | set_solver |].
 
 (* -------------------------------------------------------------------------- *)
 
@@ -194,22 +208,21 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* A public lemma: the assertion [Thunk p N t n R φ] is persistent. This means
-   that a thunk can be shared. In combination with [thunk_weakening] and
-   [thunk_pay], this implies that several different views of a thunk, with
-   distinct numbers of debits, can co-exist. *)
+(* This law is part of the basic thunk API. *)
 
-Global Instance thunk_persistent p N t n R φ :
-  Persistent (Thunk p N t n R φ).
+Global Instance thunk_persistent p F t n R φ :
+  Persistent (Thunk p F t n R φ).
 Proof using.
   exact _.
 Qed.
 
-(* The assertion [ThunkVal t v] is persistent and timeless. *)
+(* This law is part of the basic thunk API. *)
 
 Global Instance ThunkVal_persistent t v :
   Persistent (ThunkVal t v).
 Proof. exact _. Qed.
+
+(* This law is part of the basic thunk API. *)
 
 Global Instance ThunkVal_timeless t v :
   Timeless (ThunkVal t v).
@@ -228,8 +241,8 @@ Proof.
   iApply (ownDecided_agree with "Hown1 Hown2").
 Qed.
 
-(* A public lemma: the conjunction of [Thunk p N t n R φ] and [ThunkVal t v]
-   implies that the thunk [t] has zero debits, that is, [Thunk p N t 0 R φ]
+(* A public lemma: the conjunction of [Thunk p F t n R φ] and [ThunkVal t v]
+   implies that the thunk [t] has zero debits, that is, [Thunk p F t 0 R φ]
    holds. This guarantees that this thunk can be forced for a constant cost. *)
 
 (* This lemma is not part of the basic thunk API because it is true at level
@@ -237,29 +250,26 @@ Qed.
    has been forced does not imply that the ghost thunks above it have been
    forced; so a ghost thunk does not satisfy this law. *)
 
-Lemma Thunk_ThunkVal p N t n R φ v F E :
-  ↑N ⊆ E →
-  ↑N ⊆ F →
-  Thunk p N t n R φ -∗ ThunkVal t v -∗ na_own p F
+Lemma Thunk_ThunkVal p F t n R φ v F' E :
+  F ⊆ E →
+  F ⊆ F' →
+  Thunk p F t n R φ -∗ ThunkVal t v -∗ ThunkToken p F'
   ={E}=∗
-  Thunk p N t 0 R φ ∗                  na_own p F.
+  Thunk p F t 0 R φ ∗                  ThunkToken p F'.
 Proof.
   iIntros (? ?) "#Hthunk #Hval Hp".
-  iDestruct "Hthunk" as (γpaid1 γdecided1 nc) "(Hmeta1 & Hinv & Hγpaid◯)".
+  destruct_thunk.
   iDestruct "Hval" as (γpaid2 γdecided2) "(Hmeta2 & Hdecided)".
+
   (* Exploit the agreement of the meta tokens. *)
-  iDestruct (meta_agree with "Hmeta1 Hmeta2") as "%Heq".
-  assert (γpaid1 = γpaid2) by congruence.
-  assert (γdecided1 = γdecided2) by congruence.
+  iDestruct (meta_agree with "Hmeta Hmeta2") as "%Heq".
+  assert (γpaid2 = γpaid) by congruence.
+  assert (γdecided2 = γdecided) by congruence.
   subst. clear Heq.
-  iClear "Hmeta2". iRename "Hmeta1" into "Hmeta".
-  rename γpaid2 into γpaid.
-  rename γdecided2 into γdecided.
+  iClear "Hmeta2".
 
   (* Open the invariant. *)
-  iDestruct (na_inv_acc with "Hinv Hp")
-    as ">(Hthunk & Hp & Hclose)";
-    [done|done|]. (* side conditions about masks *)
+  open_invariant.
 
   (* Perform a case analysis. *)
   iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
@@ -293,23 +303,25 @@ Proof.
     { iFrame "Hp". iNext. iExists ac. iFrame "Hγpaid●". iRight.
       iExists v. eauto with iFrame. }
     iModIntro.
-    iExists γpaid, γdecided, nc.
-    iFrame "Hmeta Hinv Hγpaid◯".
+    iExists γpaid, γdecided, nc, N.
+    eauto with iFrame.
   }
+
 Qed.
 
 (* -------------------------------------------------------------------------- *)
 
 (* This law is part of the basic thunk API. *)
 
-Local Lemma thunk_weakening p N t n1 n2 R φ :
+Local Lemma thunk_weakening p F t n1 n2 R φ :
   n1 ≤ n2 →
-  Thunk p N t n1 R φ -∗
-  Thunk p N t n2 R φ.
+  Thunk p F t n1 R φ -∗
+  Thunk p F t n2 R φ.
 Proof.
   iIntros (?) "Hthunk".
-  iDestruct "Hthunk" as (γpaid γdecided nc) "(Hmeta & Hinv & Hγpaid◯)".
-  iExists γpaid, γdecided, nc. iFrame "Hmeta Hinv".
+  destruct_thunk.
+  iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
+  iSplitR; [ eauto |].
   iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$".
   lia.
 Qed.
@@ -328,15 +340,17 @@ Qed.
 
    The pool [p] is arbitrarily chosen by the user. *)
 
-Lemma thunk_create_spec p N nc R φ f :
+Lemma thunk_create_spec p N F nc R φ f :
+  ↑N ⊆ F →
   TC_invariant -∗
   {{{
       TC 3 ∗
       ( R -∗ TC nc -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} )
   }}}
     «create f»
-  {{{ (t : loc), RET #t ; Thunk p N t nc R φ }}}.
+  {{{ (t : loc), RET #t ; Thunk p F t nc R φ }}}.
 Proof.
+  intros HNF.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
   iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● Hγpaid◯]".
   iMod (own_alloc (Cinl $ Excl ())) as (γdecided) "?"; first done.
@@ -347,6 +361,8 @@ Proof.
   iApply "Post".
   iExists γpaid, γdecided, nc ; rewrite (_ : nc - nc = 0); last lia.
   iFrame "Hmeta Hγpaid◯".
+  iExists N.
+  iSplitR; [ eauto |].
   iApply na_inv_alloc.
   iNext.
   (* The number of available credits is initially 0. *)
@@ -358,28 +374,27 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Local Lemma thunk_force_spec p N F t R φ :
-  ↑N ⊆ F →
+Local Lemma thunk_force_spec p F F' t R φ :
+  F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p N t 0 R φ ∗ na_own p F ∗ R }}}
+  {{{ TC 11 ∗ Thunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
   «force #t»
-  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ na_own p F ∗ R }}}.
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
-  iIntros (?).
+  intros ?.
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
-  iDestruct "Hthunk" as (γpaid γdecided nc) "#(Hmeta & Hthunkinv & Hγpaid◯)".
+  destruct_thunk.
   rewrite (_ : nc - 0 = nc); last lia.
   iApply wp_fupd.
   wp_tick_lam.
 
   (* Open the invariant before reading and possibly writing the reference. *)
-  iDestruct (na_inv_acc with "Hthunkinv Hp")
-    as ">(Hthunk & Hp & Hclose)";
-    [done|done|]. (* side conditions about masks *)
+  open_invariant.
 
   (* Perform a case analysis. *)
   iDestruct "Hthunk" as (ac) "(>Hγpaid● & [ Hunevaluated | Hevaluated ])".
-  (* Case: the thunk is UNEVALUATED. *)
+
+  (* Case: the thunk is unevaluated. *)
   {
     iDestruct "Hunevaluated" as (f) "(>Hundecided & >Ht & Hf & >Htc)".
     wp_tick_load. wp_tick_match.
@@ -406,7 +421,8 @@ Proof.
     iFrame "Hγpaid●".
     iRight. iExists v. eauto with iFrame.
   }
-  (* Case: the thunk is EVALUATED. *)
+
+  (* Case: the thunk is evaluated. *)
   {
     iDestruct "Hevaluated" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
     wp_tick_load. wp_tick_match.
@@ -421,25 +437,25 @@ Proof.
     iFrame "Hγpaid●".
     iRight. iExists v. eauto with iFrame.
   }
+
 Qed.
 
 (* -------------------------------------------------------------------------- *)
 
 (* This law is part of the basic thunk API. *)
 
-Lemma thunk_pay p N F E (n k : nat) t R φ :
-  ↑N ⊆ F →
-  ↑N ⊆ E →
-  na_own p F -∗ Thunk p N t n R φ -∗
+Lemma thunk_pay p F F' E n k t R φ :
+  F ⊆ E →
+  F ⊆ F' →
+  ThunkToken p F' -∗ Thunk p F t n R φ -∗
   TC k ={E}=∗
-  na_own p F  ∗ Thunk p N t (n-k) R φ.
+  ThunkToken p F'  ∗ Thunk p F t (n-k) R φ.
 Proof.
   iIntros (? ?) "Hp #Hthunk Hk".
-  iDestruct "Hthunk" as (γpaid γdecided nc) "#(Hmeta & Hinv & Hγpaid◯)".
+  destruct_thunk.
 
   (* Open the invariant. *)
-  iDestruct (na_inv_acc with "Hinv Hp") as ">(Hthunk & Hp & Hclose)";
-    [done|done|].
+  open_invariant.
   iDestruct "Hthunk" as (ac) "(>Hγpaid● & Hthunk)".
 
   (* Increment the ghost payment record from [ac] to [ac + k]. This is
@@ -460,7 +476,8 @@ Proof.
     iMod ("Hclose" with "[-Hγpaid◯]") as "$".
     { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
     iModIntro.
-    iExists γpaid, γdecided, nc. iFrame "Hmeta Hinv".
+    iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
+    iSplitR; [ eauto |].
     (* Our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [Thunk] assertion. *)
     iApply (own_auth_max_nat_weaken with "[$]").
@@ -477,7 +494,8 @@ Proof.
     { iFrame "Hp". iNext. iExists (ac+k). iFrame "Hγpaid●".
       iRight. iExists v. iFrame "Hdecided Ht Hv". iPureIntro. lia. }
     iModIntro.
-    iExists γpaid, γdecided, nc. iFrame "Hmeta Hinv".
+    iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
+    iSplitR; [ eauto |].
     iApply (own_auth_max_nat_weaken with "[$]").
     lia.
   }
@@ -499,12 +517,12 @@ Qed.
 
 (* In this strong statement, the postcondition mentions [□ φ v]. *)
 
-Lemma thunk_force_forced_strong p N t n R φ v F :
-  ↑N ⊆ F →
+Lemma thunk_force_forced_strong p F t n R φ v F' :
+  F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+  {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
     «force #t»
-  {{{ RET «v» ; □ φ v ∗ na_own p F ∗ R }}}.
+  {{{ RET «v» ; □ φ v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
@@ -525,12 +543,12 @@ Qed.
 
 (* In this weak statement, the postcondition does not mention [□ φ v]. *)
 
-Local Lemma thunk_force_forced_weak p N t n R φ v F :
-  ↑N ⊆ F →
+Local Lemma thunk_force_forced_weak p F t n R φ v F' :
+  F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p N t n R φ ∗ ThunkVal t v ∗ na_own p F ∗ R }}}
+  {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
     «force #t»
-  {{{ RET «v» ; na_own p F ∗ R }}}.
+  {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
@@ -538,7 +556,7 @@ Proof.
     "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done | done |].
   iNext.
   iIntros "(Hv & Hp & HR)".
-  iClear "Hv". (* drop □ φ v *)
+  iClear "Hv". (* drop [□ φ v] *)
   iApply "Post". eauto with iFrame.
 Qed.
 
