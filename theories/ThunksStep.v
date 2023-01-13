@@ -63,7 +63,7 @@ Qed.
 (* -------------------------------------------------------------------------- *)
 
 Lemma thunkstep_weakening p N t n₁ n₂ R ψ :
-  (n₁ ≤ n₂)%nat →
+  n₁ ≤ n₂ →
   ThunkStep p N t n₁ R ψ -∗
   ThunkStep p N t n₂ R ψ.
 Proof.

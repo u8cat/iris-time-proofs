@@ -305,7 +305,7 @@ Qed.
    larger number [n₂], is permitted. *)
 
 Lemma thunk_weakening p N t n₁ n₂ R φ :
-  (n₁ ≤ n₂)%nat →
+  n₁ ≤ n₂ →
   Thunk p N t n₁ R φ -∗
   Thunk p N t n₂ R φ.
 Proof.
@@ -347,12 +347,12 @@ Proof.
   wp_alloc_with_meta t as "Ht" "Hmeta".
   iMod (meta_set _ t _ nroot with "[$]") as "#Hmeta". { set_solver. }
   iApply "Post".
-  iExists γpaid, γdecided, nc ; rewrite (_ : nc - nc = 0)%nat ; last lia.
+  iExists γpaid, γdecided, nc ; rewrite (_ : nc - nc = 0); last lia.
   iFrame "Hmeta Hγpaid◯".
   iApply na_inv_alloc.
   iNext.
   (* The number of available credits is initially 0. *)
-  iExists 0%nat.
+  iExists 0.
   auto with iFrame.
 Qed.
 
@@ -385,7 +385,7 @@ Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Hp & HR) Post".
   iDestruct "Hthunk" as (γpaid γdecided nc) "#(Hmeta & Hthunkinv & Hγpaid◯)".
-  rewrite (_ : nc - 0 = nc)%nat ; last lia.
+  rewrite (_ : nc - 0 = nc); last lia.
   iApply wp_fupd.
   wp_tick_lam.
 
