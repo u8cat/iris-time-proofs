@@ -141,7 +141,10 @@ Proof.
     (* This has consumed at least one time step. (This is fortunate.) *)
     iNext.
     iIntros (v) "(#Hv & #Hval & Hp & HR)".
-    (* We can now apply our ghost update, consuming nc2 time credits. *)
+    (* We can now apply our ghost update, consuming nc2 time credits.
+       We must apply this update before closing the invariant, because
+       this update produces [□ ψ v], which is needed in order to close
+       the invariant. *)
     iMod ("Hupdate" with "HR Hnc2 Hv") as "[HR #Hv']".
     iClear "Hv". iRename "Hv'" into "Hv".
     (* Close the invariant. *)
