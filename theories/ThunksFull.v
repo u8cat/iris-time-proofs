@@ -35,6 +35,9 @@ Definition Thunk p F t n R φ : iProp :=
   ⌜ F' ⊆ ↑N ⊆ F ⌝ ∗
   SomeThunk p F' t n R φ.
 
+Local Ltac destruct_thunk :=
+  iDestruct "Hthunk" as (SomeThunk ? ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
+
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
 
@@ -74,8 +77,7 @@ Lemma thunk_consequence E p F t n1 n2 n R φ ψ :
   Thunk p F t (n1 + n2) R ψ.
 Proof.
   iIntros "Htc #Hthunk Hupdate".
-  iDestruct "Hthunk" as (SomeThunk ? ? N d F') "(%Hroom & %Hincl & #Hthunk)".
-  destruct Hincl.
+  destruct_thunk.
   (* Wrap this thunk into a fresh ghost thunk. *)
   iMod (thunkstep_consequence (N .@ (d+1)) with "Htc Hthunk Hupdate")
     as "Hthunk'".
@@ -91,6 +93,51 @@ Proof.
   { intros. assert (d' ≠ d + 1) by lia.
     eapply disjoint_union_l; eauto with lia ndisj. }
   { eauto using namespaces.coPset_union_least with ndisj. }
+Qed.
+
+Global Instance full_thunk_api :
+  BasicThunkAPI Thunk.
+Proof.
+  constructor; intros.
+
+  { (* thunk_increase_debt *)
+    iIntros "Hthunk".
+    destruct_thunk.
+    iPoseProof (thunk_increase_debt with "Hthunk") as "Hthunk'"; [ done |].
+    iClear "Hthunk".
+    iExists SomeThunk, _, _.
+    iExists _, _, _.
+    eauto. }
+
+  { (* thunk_force *)
+    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post".
+    destruct_thunk.
+    iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]").
+    { set_solver. }
+    done. }
+
+  { (* thunk_force_forced_weak *)
+    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post".
+    destruct_thunk.
+    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hp $HR]").
+    { set_solver. }
+    done. }
+
+  { (* thunk_pay *)
+    iIntros "Htoken #Hthunk Hk".
+    destruct_thunk.
+    iMod (thunk_pay with "Htoken Hthunk Hk") as "(Htoken & Hthunk')".
+    { set_solver. }
+    { set_solver. }
+    iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
+    iFrame "Htoken".
+    iModIntro.
+    (* Pack existentials. *)
+    iExists SomeThunk, _, _.
+    iExists _, _, _.
+    iFrame "Hthunk".
+    eauto. }
+
 Qed.
 
 End Full.
