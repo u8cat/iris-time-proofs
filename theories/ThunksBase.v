@@ -3,10 +3,17 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
-From iris_time Require Import ThunksCode ThunksAPI.
+From iris_time Require Import ThunksCode.
 
-(* This file contains definitions of the predicates [Thunk] and [ThunkVal]
-   that satisfy the basic thunk API defined in ThunksAPI.v. *)
+(* This file defines the predicate [ThunkVal]. It also provides a definition
+   of the predicate [BaseThunk]. Together, these definitions satisfy the
+   basic thunk API defined in ThunksAPI.v. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* We write [ThunkToken p F] as a synonym for [na_own p F]. *)
+
+Notation ThunkToken := na_own.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -19,7 +26,7 @@ Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 
-(* The parameters of the public predicate [Thunk p F t n R φ] are:
+(* The parameters of the public predicate [BaseThunk p F t n R φ] are:
 
     - p: a non-atomic-invariant pool
 
@@ -76,7 +83,7 @@ Local Definition ownUndecided γdecided :=
 Local Definition ownDecided γdecided v :=
   own γdecided (Cinr $ to_agree v).
 
-(* The internal predicate [ThunkInv ...] is the thunk's invariant. *)
+(* The internal predicate [BaseThunkInv ...] is the thunk's invariant. *)
 
 (* It states that
    + the ghost cell γpaid contains the authoritative value ac;
@@ -95,12 +102,13 @@ Local Definition ownDecided γdecided v :=
    memoized for later use. Both copies must satisfy the postcondition,
    so the postcondition must be duplicable. *)
 
-(* The assertion [nc ≤ ac] in the second disjunct expresses the idea that if a
-   thunk has been forced then it must have been fully paid for. This assertion
-   is used in the proof of the lemma Thunk_ThunkVal, which states that if a
-   thunk has been forced, then it can be viewed as a zero-debit thunk. *)
+(* The assertion [nc ≤ ac] in the second disjunct expresses the idea that if
+   a thunk has been forced then it must have been fully paid for. This
+   assertion is used in the proof of the lemma confront_base_thunk_thunkval,
+   which states that if a thunk has been forced, then it can be viewed as a
+   zero-debit thunk. *)
 
-Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
+Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
@@ -120,13 +128,13 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
       )
 .
 
-(* The predicate [Thunk p F t n R φ] is public. It is an abstract predicate:
-   its definition is not meant to be exposed to the user. *)
+(* The predicate [BaseThunk p F t n R φ] is public. It is an abstract
+   predicate: its definition is not meant to be exposed to the user. *)
 
 (* Its definition states that:
 
    + the ghost location γdecided is uniquely associated with this thunk
-     (this is needed to synchronize Thunk and ThunkVal);
+     (this is needed to synchronize BaseThunk and ThunkVal);
 
    + the thunk's invariant holds; it is placed in a non-atomic invariant
      indexed by the pool p; the token [ThunkToken p F] suffices to open
@@ -141,12 +149,12 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
    credits that remain to be paid, are sufficient to cover the actual cost
    of invoking f. *)
 
-Definition Thunk p F t n R φ : iProp :=
+Definition BaseThunk p F t n R φ : iProp :=
 
   ∃ γpaid γdecided nc N,
       ⌜ ↑N ⊆ F ⌝
     ∗ meta t nroot γdecided
-    ∗ na_inv p N (ThunkInv t γpaid γdecided nc R φ)
+    ∗ na_inv p N (BaseThunkInv t γpaid γdecided nc R φ)
     ∗ own γpaid (◯ MaxNat (nc - n))
 
 .
@@ -227,27 +235,33 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Global Instance thunk_persistent p F t n R φ :
-  Persistent (Thunk p F t n R φ).
+Global Instance base_thunk_persistent p F t n R φ :
+  Persistent (BaseThunk p F t n R φ).
 Proof using.
   exact _.
 Qed.
 
-(* This law is part of the basic thunk API. *)
+(* A public lemma: ThunkVal is persistent. *)
 
-Global Instance ThunkVal_persistent t v :
+Global Instance thunkval_persistent t v :
   Persistent (ThunkVal t v).
-Proof. exact _. Qed.
+Proof.
+  exact _.
+Qed.
 
-(* This law is part of the basic thunk API. *)
+(* A public lemma: ThunkVal is timeless. *)
 
-Global Instance ThunkVal_timeless t v :
+Global Instance thunkval_timeless t v :
   Timeless (ThunkVal t v).
-Proof. exact _. Qed.
+Proof.
+  exact _.
+Qed.
 
-(* This law is part of the basic thunk API. *)
+(* A public lemma: in [ThunkVal t v], [t] determines [v]. That is, a thunk
+   has at most one value. Once its value has been decided, it becomes fixed
+   forever. *)
 
-Local Lemma ThunkVal_agree t v1 v2 :
+Lemma confront_thunkval_thunkval t v1 v2 :
   ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝.
 Proof.
   iIntros "Hval Hval2".
@@ -258,21 +272,21 @@ Proof.
   iApply (ownDecided_agree with "Hγdecided [$]").
 Qed.
 
-(* A public lemma: the conjunction of [Thunk p F t n R φ] and [ThunkVal t v]
-   implies that the thunk [t] has zero debits, that is, [Thunk p F t 0 R φ]
-   holds. This guarantees that this thunk can be forced for a constant cost. *)
+(* The conjunction of [BaseThunk p F t n R φ] and [ThunkVal t v] implies that
+   the thunk [t] has zero debits, that is, [BaseThunk p F t 0 R φ] holds. This
+   guarantees that this thunk can be forced at a constant cost. *)
 
 (* This lemma is not part of the basic thunk API because it is true at level
    zero only; it is not true at higher levels. The fact that a physical thunk
    has been forced does not imply that the ghost thunks above it have been
    forced; so a ghost thunk does not satisfy this law. *)
 
-Lemma Thunk_ThunkVal p F t n R φ v F' E :
+Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
   F ⊆ E →
   F ⊆ F' →
-  Thunk p F t n R φ -∗ ThunkVal t v -∗ ThunkToken p F'
+  BaseThunk p F t n R φ -∗ ThunkVal t v -∗ ThunkToken p F'
   ={E}=∗
-  Thunk p F t 0 R φ ∗                  ThunkToken p F'.
+  BaseThunk p F t 0 R φ ∗                  ThunkToken p F'.
 Proof.
   iIntros (? ?) "#Hthunk #Hval Htoken".
   destruct_thunk.
@@ -327,10 +341,10 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Local Lemma thunk_weakening p F t n1 n2 R φ :
+Lemma base_thunk_increase_debt p F t n1 n2 R φ :
   n1 ≤ n2 →
-  Thunk p F t n1 R φ -∗
-  Thunk p F t n2 R φ.
+  BaseThunk p F t n1 R φ -∗
+  BaseThunk p F t n2 R φ.
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
@@ -354,7 +368,7 @@ Qed.
 
    The pool [p] is arbitrarily chosen by the user. *)
 
-Lemma thunk_create_spec p N F nc R φ f :
+Lemma base_thunk_create p N F nc R φ f :
   ↑N ⊆ F →
   TC_invariant -∗
   {{{
@@ -362,7 +376,7 @@ Lemma thunk_create_spec p N F nc R φ f :
       ( R -∗ TC nc -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} )
   }}}
     «create f»
-  {{{ (t : loc), RET #t ; Thunk p F t nc R φ }}}.
+  {{{ (t : loc), RET #t ; BaseThunk p F t nc R φ }}}.
 Proof.
   intros HNF.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
@@ -388,10 +402,10 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Local Lemma thunk_force_spec p F F' t R φ :
+Lemma base_thunk_force p F F' t R φ :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC 11 ∗ BaseThunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
   «force #t»
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
@@ -458,12 +472,12 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Lemma thunk_pay p F F' E n k t R φ :
+Lemma base_thunk_pay p F F' E n k t R φ :
   F ⊆ E →
   F ⊆ F' →
-  ThunkToken p F' -∗ Thunk p F t n R φ -∗
+  ThunkToken p F' -∗ BaseThunk p F t n R φ -∗
   TC k ={E}=∗
-  ThunkToken p F'  ∗ Thunk p F t (n-k) R φ.
+  ThunkToken p F'  ∗ BaseThunk p F t (n-k) R φ.
 Proof.
   iIntros (? ?) "Htoken #Hthunk Hk".
   destruct_thunk.
@@ -492,7 +506,7 @@ Proof.
     iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
     pure_conjunct.
     (* Our updated fragmentary view of the ghost cell γpaid
-       allows us to produce an updated [Thunk] assertion. *)
+       allows us to produce an updated [BaseThunk] assertion. *)
     witness.
   }
 
@@ -528,62 +542,47 @@ Qed.
 
 (* In this strong statement, the postcondition mentions [□ φ v]. *)
 
-Lemma thunk_force_forced_strong p F t n R φ v F' :
+Lemma base_thunk_force_forced_strong p F t n R φ v F' :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC 11 ∗ BaseThunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ RET «v» ; □ φ v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
   (* Argue that this thunk has zero debits. *)
-  iMod (Thunk_ThunkVal with "Hthunk Hval Htoken") as "(#Hthunk' & Htoken)";
-    [ done | done |].
+  iMod (confront_base_thunk_thunkval with "Hthunk Hval Htoken")
+    as "(#Hthunk' & Htoken)"; [ done | done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   (* Force the thunk. *)
-  iApply (thunk_force_spec with "Htickinv [$Hcredits $Hthunk $Htoken $HR]");
+  iApply (base_thunk_force with "Htickinv [$Hcredits $Hthunk $Htoken $HR]");
     [ done |].
   iNext.
   iIntros (v') "(#Hv' & #Hval' & Htoken & HR)".
   (* Argue that the two values must be the same. *)
-  iPoseProof (ThunkVal_agree with "Hval Hval'") as "%". subst v'.
+  iPoseProof (confront_thunkval_thunkval with "Hval Hval'") as "%". subst v'.
   (* Done. *)
   iApply "Post". auto with iFrame.
 Qed.
 
 (* In this weak statement, the postcondition does not mention [□ φ v]. *)
 
-Local Lemma thunk_force_forced_weak p F t n R φ v F' :
+Lemma base_thunk_force_forced_weak p F t n R φ v F' :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC 11 ∗ BaseThunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
 Proof.
   iIntros (?).
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
-  iApply (thunk_force_forced_strong with
+  iApply (base_thunk_force_forced_strong with
     "Htickinv [$Hcredits $Hthunk $Htoken $HR]"); [ done | done |].
   iNext.
   iIntros "(Hv & Htoken & HR)".
   iClear "Hv". (* drop [□ φ v] *)
   iApply "Post". eauto with iFrame.
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
-(* We now check that the API is satisfied. *)
-
-Global Instance thunkbase_api :
-  BasicThunkAPI Thunk ThunkVal.
-Proof.
-  constructor.
-  { eauto using ThunkVal_agree. }
-  { eauto using thunk_weakening. }
-  { eauto using thunk_force_spec. }
-  { eauto using thunk_force_forced_weak. }
-  { eauto using thunk_pay. }
 Qed.
 
 End Proofs.

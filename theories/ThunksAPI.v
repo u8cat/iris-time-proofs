@@ -1,16 +1,15 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
+From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
-From iris_time Require Import ThunksCode.
-
-(* We write [ThunkToken p F] as a synonym for [na_own p F]. *)
-
-Notation ThunkToken := na_own.
+From iris_time Require Import ThunksCode ThunksBase.
 
 Section API.
 
+Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* needed by ThunkVal *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
@@ -61,15 +60,6 @@ Class BasicThunkAPI
     iProp
   )
 
-  (* The ThunkVal predicate takes the form [ThunkVal t v]. *)
-
-  (
-  ThunkVal :
-    loc →
-    val →
-    iProp
-  )
-
   (* [Thunk] must be persistent. This means that a thunk can be shared. In
     combination with [thunk_increase_debt] and [thunk_pay], this implies that
     several different views of a thunk, with distinct numbers of debits, can
@@ -80,26 +70,7 @@ Class BasicThunkAPI
     Persistent (Thunk p F t n R φ)
   }
 
-  (* ThunkVal must be persistent and timeless. *)
-
-  `{
-    ∀ t v,
-    Persistent (ThunkVal t v)
-  }
-
-  `{
-    ∀ t v,
-    Timeless (ThunkVal t v)
-  }
-
 := {
-
-  (* In [ThunkVal t v], [t] determines [v]. That is, a thunk has at most
-     one value. Once its value has been decided, it becomes fixed forever. *)
-
-  confront_thunkval_thunkval t v1 v2 :
-    ThunkVal t v1 -∗ ThunkVal t v2 -∗ ⌜v1 = v2⌝
-  ;
 
   (* The predicate [Thunk F t n R φ] must be covariant in the parameter [n],
      which represents the debt (that is, the number of debits) associated with
@@ -182,11 +153,36 @@ End API.
 
 (* -------------------------------------------------------------------------- *)
 
+(* The predicate [BaseThunk] satisfies the basic thunk API. *)
+
+Section BaseInstance.
+
+Notation valO := (valO heap_lang).
+Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
+Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
+Context `{na_invG Σ}.
+Notation iProp := (iProp Σ).
+
+Global Instance base_thunk_api :
+  BasicThunkAPI BaseThunk.
+Proof.
+  constructor.
+  { eauto using base_thunk_increase_debt. }
+  { eauto using base_thunk_force. }
+  { eauto using base_thunk_force_forced_weak. }
+  { eauto using base_thunk_pay. }
+Qed.
+
+End BaseInstance.
+
+(* -------------------------------------------------------------------------- *)
+
 (* We now establish some laws that are consequences of the above laws. *)
 
 Section Consequences.
 
-Context `{BasicThunkAPI}.
+Context `{BasicThunkAPI Σ Thunk}.
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
@@ -201,7 +197,7 @@ Lemma thunk_pay_force p F t n R φ F' :
     «force #t»
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
-  intros hop.
+  intros ?.
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & Hp & HR) Post".
   (* Split our credits. *)
   iDestruct "Hcredits" as "(Hn & Hcredits)".

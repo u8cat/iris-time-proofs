@@ -2,17 +2,16 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
-From iris_time Require Import ThunksCode ThunksAPI.
+From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 
 (* -------------------------------------------------------------------------- *)
 
 Section Step.
 
-Context `{BasicThunkAPI}.
+Context `{BasicThunkAPI Σ Thunk}.
+Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
-
-Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 
 Implicit Type p : na_inv_pool_name.
 Implicit Type N : namespace.
@@ -290,11 +289,10 @@ Qed.
 
 (* We now check that the API is satisfied. *)
 
-Global Instance thunkbase_api :
-  BasicThunkAPI ThunkStep ThunkVal.
+Global Instance step_thunk_api :
+  BasicThunkAPI ThunkStep.
 Proof.
   constructor.
-  { eauto using confront_thunkval_thunkval. }
   { eauto using thunkstep_weakening. }
   { eauto using thunkstep_force_spec. }
   { eauto using thunkstep_force_forced_weak. }
