@@ -26,6 +26,26 @@ Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 
+Implicit Type p : na_inv_pool_name.
+Implicit Type N : namespace.
+Implicit Type E F : coPset.
+Implicit Type t : loc.
+Implicit Type n nc ac : nat.
+Implicit Type R : iProp.
+Implicit Type φ : val → iProp.
+Implicit Type f v : val.
+Implicit Type γpaid γdecided : gname.
+
+(* We write [isAction f n R φ] to indicate that [f] is a one-shot function
+   that takes a unit argument and returns a value v such that [□ φ v] holds.
+   The cost of this call is [n] time credits. The resource [R] is required,
+   but not consumed, by this call. *)
+
+(* This is essentially a Texan triple without a persistence modality. *)
+
+Definition isAction f n R φ : iProp :=
+  R -∗ TC n -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }}.
+
 (* The parameters of the public predicate [BaseThunk p F t n R φ] are:
 
     - p: a non-atomic-invariant pool
@@ -43,14 +63,6 @@ Notation iProp := (iProp Σ).
     - φ: the postcondition of this thunk is □φ
 
  *)
-
-Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
-Implicit Type E F : coPset.
-Implicit Type t : loc.
-Implicit Type n : nat.
-Implicit Type R : iProp.
-Implicit Type φ : val → iProp.
 
 (* The following variables are used internally:
 
@@ -72,16 +84,6 @@ Implicit Type φ : val → iProp.
     - v: the result of calling f(), and of forcing the thunk
 
 *)
-
-Implicit Type γpaid γdecided : gname.
-Implicit Type nc ac : nat.
-Implicit Type f v : val.
-
-Local Definition ownUndecided γdecided :=
-  own γdecided (Cinl $ Excl ()).
-
-Local Definition ownDecided γdecided v :=
-  own γdecided (Cinr $ to_agree v).
 
 (* The internal predicate [BaseThunkInv ...] is the thunk's invariant. *)
 
@@ -108,6 +110,12 @@ Local Definition ownDecided γdecided v :=
    which states that if a thunk has been forced, then it can be viewed as a
    zero-debit thunk. *)
 
+Local Definition ownUndecided γdecided :=
+  own γdecided (Cinl $ Excl ()).
+
+Local Definition ownDecided γdecided v :=
+  own γdecided (Cinr $ to_agree v).
+
 Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
 
   ∃ ac,
@@ -116,7 +124,7 @@ Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
         (∃ (f : val),
             ownUndecided γdecided
           ∗ t ↦ UNEVALUATEDV « f »
-          ∗ (R -∗ TC nc -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }})
+          ∗ isAction f nc R φ
           ∗ TC ac
         )
       ∨ (∃ (v : val),
@@ -370,13 +378,10 @@ Qed.
 
 Lemma base_thunk_create p N F nc R φ f :
   ↑N ⊆ F →
-  TC_invariant -∗
-  {{{
-      TC 3 ∗
-      ( R -∗ TC nc -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }} )
-  }}}
+  TC_invariant -∗ (* TODO make this a section variable *)
+  {{{ TC 3 ∗ isAction f nc R φ }}}
     «create f»
-  {{{ (t : loc), RET #t ; BaseThunk p F t nc R φ }}}.
+  {{{ t, RET #t ; BaseThunk p F t nc R φ }}}.
 Proof.
   intros HNF.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
@@ -406,7 +411,7 @@ Lemma base_thunk_force p F F' t R φ :
   F ⊆ F' →
   TC_invariant -∗
   {{{ TC 11 ∗ BaseThunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
-  «force #t»
+    «force #t»
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
   intros ?.
@@ -475,8 +480,7 @@ Qed.
 Lemma base_thunk_pay p F F' E n k t R φ :
   F ⊆ E →
   F ⊆ F' →
-  ThunkToken p F' -∗ BaseThunk p F t n R φ -∗
-  TC k ={E}=∗
+  ThunkToken p F' -∗ BaseThunk p F t n R φ -∗   TC k   ={E}=∗
   ThunkToken p F'  ∗ BaseThunk p F t (n-k) R φ.
 Proof.
   iIntros (? ?) "Htoken #Hthunk Hk".
