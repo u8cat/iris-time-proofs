@@ -125,7 +125,8 @@ Local Definition ThunkInv t γpaid γdecided nc R φ : iProp :=
 
 (* Its definition states that:
 
-   + γpaid and γdecided are the ghost locations associated with this thunk;
+   + the ghost location γdecided is uniquely associated with this thunk
+     (this is needed to synchronize Thunk and ThunkVal);
 
    + the thunk's invariant holds; it is placed in a non-atomic invariant
      indexed by the pool p; the token [ThunkToken p F] suffices to open
@@ -144,7 +145,7 @@ Definition Thunk p F t n R φ : iProp :=
 
   ∃ γpaid γdecided nc N,
       ⌜ ↑N ⊆ F ⌝
-    ∗ meta t nroot (γpaid, γdecided)
+    ∗ meta t nroot γdecided
     ∗ na_inv p N (ThunkInv t γpaid γdecided nc R φ)
     ∗ own γpaid (◯ MaxNat (nc - n))
 
@@ -158,8 +159,8 @@ Definition Thunk p F t n R φ : iProp :=
 
 Definition ThunkVal t v : iProp :=
 
-  ∃ γpaid γdecided,
-      meta t nroot (γpaid, γdecided)
+  ∃ γdecided,
+      meta t nroot γdecided
     ∗ ownDecided γdecided v
 
 .
@@ -181,7 +182,7 @@ Local Ltac case_analysis :=
   iDestruct "Hthunk" as "[ Hthunk | Hthunk ]".
 
 Local Ltac destruct_thunkval :=
-  iDestruct "Hval" as (γpaid γdecided) "(Hmeta & Hγdecided)".
+  iDestruct "Hval" as (γdecided) "(Hmeta & Hγdecided)".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
@@ -251,9 +252,9 @@ Local Lemma ThunkVal_agree t v1 v2 :
 Proof.
   iIntros "Hval Hval2".
   destruct_thunkval.
-  iDestruct "Hval2" as (γpaid2 γdecided2) "(Hmeta2 & Hγdecided2)".
+  iDestruct "Hval2" as (γdecided2) "(Hmeta2 & Hγdecided2)".
   iDestruct (meta_agree with "[$][$]") as "%Heq". iClear "Hmeta Hmeta2".
-  assert (γdecided2 = γdecided) by congruence. subst. clear Heq.
+  assert (γdecided2 = γdecided) by congruence. subst.
   iApply (ownDecided_agree with "Hγdecided [$]").
 Qed.
 
@@ -275,13 +276,11 @@ Lemma Thunk_ThunkVal p F t n R φ v F' E :
 Proof.
   iIntros (? ?) "#Hthunk #Hval Htoken".
   destruct_thunk.
-  iDestruct "Hval" as (γpaid2 γdecided2) "(Hmeta2 & Hdecided)".
+  iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
 
   (* Exploit the agreement of the meta tokens. *)
   iDestruct (meta_agree with "Hmeta Hmeta2") as "%Heq".
-  assert (γpaid2 = γpaid) by congruence.
-  assert (γdecided2 = γdecided) by congruence.
-  subst. clear Heq.
+  subst γdecided2.
   iClear "Hmeta2".
 
   (* Open the invariant. *)
@@ -335,8 +334,9 @@ Local Lemma thunk_weakening p F t n1 n2 R φ :
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
-  iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
+  iExists γpaid, γdecided, nc, N.
   pure_conjunct.
+  iFrame "Hmeta Hinv".
   witness.
 Qed.
 
