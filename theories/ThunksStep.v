@@ -48,7 +48,7 @@ Definition ThunkStep p F t n R ψ : iProp :=
 
   ∃ γpaid nc1 nc2 φ F1 N,
       ⌜ F1 ∪ ↑N ⊆ F ⌝
-    ∗ ⌜ F1 ∩ ↑N = ∅ ⌝
+    ∗ ⌜ F1 ## ↑N ⌝
     ∗ Thunk p F1 t nc1 R φ
     ∗ na_inv p N (ThunkStepInv t γpaid nc2 R φ ψ)
     ∗ own γpaid (◯ MaxNat (nc1 + nc2 - n))
@@ -103,9 +103,9 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma thunkstep_consequence E p F1 N F t n1 n2 n R φ ψ :
+Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
   F1 ∪ ↑N ⊆ F →
-  F1 ∩ ↑N = ∅ →
+  F1 ## ↑N →
   TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F1 t n1 R φ -∗
   (∀ v, R -∗ TC n2 -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v) ={E}=∗
