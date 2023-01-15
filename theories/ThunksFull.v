@@ -70,7 +70,7 @@ Proof.
   eauto with iFrame.
 Qed.
 
-Lemma thunk_consequence E p F t n1 n2 n R φ ψ :
+Lemma thunk_consequence E p F t n1 n2 R φ ψ :
   TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F t n1 R φ -∗
   (∀ v, R -∗ TC n2 -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v) ={E}=∗
