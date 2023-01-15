@@ -47,4 +47,42 @@ Proof.
   by iApply ("Post" with "[$] [$]").
 Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* When two thunks are nested (that is, when the outer thunk produces the
+   inner thunk as its result), part of the debt can be shifted from the
+   inner thunk to the outer thunk. This is intuitively sound: it implies
+   that the debt must be paid earlier.
+
+      Thunk t1  n1    (λ t2, Thunk t2  n2    φ)
+      =========================================∗    FORWARDING OF DEBT
+      Thunk t1 (n1+m) (λ t2, Thunk t2 (n2-m) φ)
+
+ *)
+
+Definition ReturnsThunk (φ : loc → iProp) (v : val) : iProp :=
+  ∃ t, ⌜ v = #t ⌝ ∗ φ t.
+
+Lemma forward_debt p F1 F2 t1 n1 n2 R2 φ m E :
+  let R1 := ThunkToken p F2 in
+  TC 0 -∗ (* TODO remove *)
+  Thunk p F1 t1  n1    R1 (ReturnsThunk (λ t2, Thunk p F2 t2  n2    R2 φ))
+    ={E}=∗
+  Thunk p F1 t1 (n1+m) R1 (ReturnsThunk (λ t2, Thunk p F2 t2 (n2-m) R2 φ)).
+Proof.
+  iIntros "Htc0 #Hthunk1".
+  (* Apply the consequence rule to the first thunk. *)
+  iApply (thunk_consequence with "Htc0 Hthunk1").
+  iClear "Hthunk1".
+  unfold ReturnsThunk.
+  (* We must now establish the following update. *)
+  iIntros (v2) "HR1 Hm #Hv2".
+  iDestruct "Hv2" as (t2) "(%Hv2 & Hthunk2)".
+  (* We want to pay [m] credits on the thunk [t2]. *)
+  iMod (thunk_pay with "HR1 Hthunk2 Hm") as "[$ #Hthunk2']";
+    [ done | done |].
+  (* Done. *)
+  eauto.
+Qed.
+
 End Examples.
