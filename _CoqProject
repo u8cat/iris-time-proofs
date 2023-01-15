@@ -29,6 +29,7 @@ theories/ThunksAPI.v
 theories/ThunksBase.v
 theories/ThunksStep.v
 theories/ThunksFull.v
+theories/ThunksExamples.v
 theories/ThunksSimple.v
 theories/Thunks.v
 theories/Gthunks.v
