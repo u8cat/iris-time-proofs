@@ -2,7 +2,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits Auth_max_nat.
+From iris_time Require Import TimeCredits Auth_max_nat PiggyBank.
 From iris_time Require Import ThunksCode.
 
 (* This file defines the predicate [ThunkVal]. It also provides a definition
@@ -34,7 +34,7 @@ Implicit Type n nc ac : nat.
 Implicit Type R : iProp.
 Implicit Type φ : val → iProp.
 Implicit Type f v : val.
-Implicit Type γpaid γdecided : gname.
+Implicit Type γdecided : gname.
 
 (* We write [isAction f n R φ] to indicate that [f] is a one-shot function
    that takes a unit argument and returns a value v such that [□ φ v] holds.
@@ -116,26 +116,6 @@ Local Definition ownUndecided γdecided :=
 Local Definition ownDecided γdecided v :=
   own γdecided (Cinr $ to_agree v).
 
-Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
-
-  ∃ ac,
-      own γpaid (● MaxNat ac)
-    ∗ (
-        (∃ f,
-            ownUndecided γdecided
-          ∗ t ↦ UNEVALUATEDV « f »
-          ∗ isAction f nc R φ
-          ∗ TC ac
-        )
-      ∨ (∃ v,
-            ownDecided γdecided v
-          ∗ t ↦ EVALUATEDV « v »
-          ∗ □ φ v
-          ∗ ⌜ nc ≤ ac ⌝
-        )
-      )
-.
-
 (* The predicate [BaseThunk p F t n R φ] is public. It is an abstract
    predicate: its definition is not meant to be exposed to the user. *)
 
@@ -157,13 +137,27 @@ Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
    credits that remain to be paid, are sufficient to cover the actual cost
    of invoking f. *)
 
+Local Definition LeftBranch t γdecided R φ nc : iProp :=
+  ∃ f,
+      ownUndecided γdecided
+    ∗ t ↦ UNEVALUATEDV « f »
+    ∗ isAction f nc R φ.
+
+Local Definition RightBranch t γdecided R φ nc : iProp :=
+  ∃ v,
+      ownDecided γdecided v
+    ∗ t ↦ EVALUATEDV « v »
+    ∗ □ φ v.
+
 Definition BaseThunk p F t n R φ : iProp :=
 
-  ∃ γpaid γdecided nc N,
+  ∃ γdecided N,
       ⌜ ↑N ⊆ F ⌝
     ∗ meta t nroot γdecided
-    ∗ na_inv p N (BaseThunkInv t γpaid γdecided nc R φ)
-    ∗ own γpaid (◯ MaxNat (nc - n))
+    ∗ PiggyBank
+        (LeftBranch t γdecided R φ)
+        (RightBranch t γdecided R φ)
+        p N n
 
 .
 
@@ -187,25 +181,25 @@ Definition ThunkVal t v : iProp :=
 
 Local Ltac destruct_thunk :=
   iDestruct "Hthunk"
-    as (γpaid γdecided nc N) "(%HNF & Hmeta & Hinv & Hγpaid◯)".
+    as (γdecided N) "(%HNF & Hmeta & #Hpiggy)".
 
-Local Ltac open_invariant :=
-  iDestruct (na_inv_acc with "Hinv Htoken") as ">(Hthunk & Htoken & Hclose)";
-    [set_solver | set_solver |];
-  iDestruct "Hthunk" as (ac) "(>Hγpaid● & Hthunk)".
+Local Ltac destruct_left_branch :=
+  iDestruct "Hbranch" as (f) "(>Hundecided & >Ht & Hf)".
 
-Local Ltac case_analysis :=
-  iDestruct "Hthunk" as "[ Hthunk | Hthunk ]".
+Local Ltac destruct_right_branch :=
+  iDestruct "Hbranch" as (v) "(>#Hdecided & >Ht & #Hv)".
 
 Local Ltac destruct_thunkval :=
   iDestruct "Hval" as (γdecided) "(Hmeta & Hγdecided)".
 
-Local Ltac pure_conjunct :=
-  iSplitR; [ iPureIntro; eauto |].
+Local Ltac construct_thunkval :=
+  try iModIntro; iExists _; auto.
 
-Local Ltac witness :=
-  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$";
-  lia.
+Local Ltac construct_right_branch :=
+  try iNext; iExists _; eauto with iFrame.
+
+Local Ltac construct_thunk :=
+  iExists _, _; eauto with iFrame.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -296,7 +290,8 @@ Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
   ={E}=∗
   BaseThunk p F t 0 R φ ∗                  ThunkToken p F'.
 Proof.
-  iIntros (? ?) "#Hthunk #Hval Htoken".
+  intros.
+  iIntros "#Hthunk #Hval Htoken".
   destruct_thunk.
   iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
 
@@ -305,43 +300,20 @@ Proof.
   subst γdecided2.
   iClear "Hmeta2".
 
-  (* Open the invariant. *)
-  open_invariant.
+  (* Exploit the fact that the piggy bank has zero debit. *)
+  iMod (piggybank_discover_zero_debit with "Hpiggy Htoken []")
+    as "(#Hpiggy0 & $)";
+    [ set_solver | set_solver | | iModIntro; construct_thunk ].
 
-  (* Perform a case analysis. *)
-  case_analysis.
-
-  (* Case: the thunk is unevaluated. This is impossible. *)
-  {
-    iDestruct "Hthunk" as (f) "(>Hundecided & _ & _ & _)".
-    (* The ghost cell cannot be both decided and undecided. *)
-    iDestruct (decided_xor_undecided with "Hundecided Hdecided")
-      as "%contradiction".
-    tauto.
-  }
-
-  (* Case: the thunk is evaluated. *)
-  {
-    iDestruct "Hthunk" as (v') "(>#Hdecided' & >Ht & #Hv & >%Hncac)".
-    (* The following two lines argue that v and v' are the same value.
-       This is not necessary in this proof, but we do it for clarity. *)
-    iDestruct (ownDecided_agree with "Hdecided Hdecided'") as "%Heq".
-    subst v'. iClear "Hdecided'".
-    (* We know that this thunk has been paid for: we have nc ≤ ac.
-       We can create a ghost witness of this fact. This will allow
-       us to argue that this thunk has zero debits. *)
-    iClear "Hγpaid◯".
-    iMod (auth_max_nat_update_read_auth with "Hγpaid●")
-      as "(Hγpaid● & Hγpaid◯)".
-    (* Close the invariant. *)
-    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Htoken". iNext. iExists ac. iFrame "Hγpaid●". iRight.
-      iExists v. eauto with iFrame. }
-    iModIntro.
-    iExists γpaid, γdecided, nc, N.
-    pure_conjunct. iFrame "Hmeta Hinv".
-    witness.
-  }
+  (* This requires us to prove that in the left-hand branch
+     we are able to obtain a contradiction. *)
+  iIntros (nc) "Hbranch".
+  destruct_left_branch.
+  (* The contradiction follows from the fact that the ghost cell γdecided
+     cannot be both decided and undecided. *)
+  iDestruct (decided_xor_undecided with "Hundecided Hdecided")
+    as "%contradiction".
+  tauto.
 
 Qed.
 
@@ -356,10 +328,8 @@ Lemma base_thunk_increase_debt p F t n1 n2 R φ :
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
-  iExists γpaid, γdecided, nc, N.
-  pure_conjunct.
-  iFrame "Hmeta Hinv".
-  witness.
+  iPoseProof (piggy_bank_increase_debt with "Hpiggy") as "#Hpiggy'"; [eauto|].
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -383,24 +353,26 @@ Lemma base_thunk_create p N F nc R φ f :
     «create f»
   {{{ t, RET #t ; BaseThunk p F t nc R φ }}}.
 Proof.
-  intros HNF.
-  iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
-  iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● Hγpaid◯]".
-  iMod (own_alloc (Cinl $ Excl ())) as (γdecided) "?"; first done.
+  intros.
+  iIntros "#Htickinv" (Φ) "!# [Htc Hf] Post".
+  (* Step over the code of [create f] until the end. *)
   iApply wp_fupd.
   wp_tick_lam. wp_tick_inj. wp_tick.
   wp_alloc_with_meta t as "Ht" "Hmeta".
+  (* Allocate the ghost cell γdecided. *)
+  iMod (own_alloc (Cinl $ Excl ())) as (γdecided) "Hundecided"; first done.
+  (* Associate [t] and [γdecided] via a [meta] assertion. *)
   iMod (meta_set _ t _ nroot with "[$]") as "#Hmeta". { set_solver. }
+  (* Create a piggy bank. This requires checking that the left branch holds. *)
+  iMod (piggybank_create
+                (LeftBranch t γdecided R φ)
+                (RightBranch t γdecided R φ)
+              with "Htc [Hundecided Ht Hf]") as "#Hpiggy".
+  { iExists _. eauto with iFrame. }
+  (* Conclude. *)
   iApply "Post".
-  iExists γpaid, γdecided, nc ; rewrite (_ : nc - nc = 0); last lia.
-  iFrame "Hmeta Hγpaid◯".
-  iExists N.
-  pure_conjunct.
-  iApply na_inv_alloc.
-  iNext.
-  (* The number of available credits is initially 0. *)
-  iExists 0.
-  auto with iFrame.
+  iModIntro.
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -417,26 +389,28 @@ Proof.
   intros ?.
   iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & Htoken & HR) Post".
   destruct_thunk.
-  rewrite (_ : nc - 0 = nc); last lia.
   iApply wp_fupd.
   wp_tick_lam.
 
-  (* Open the invariant before reading and possibly writing the reference. *)
-  open_invariant.
+  (* Break the bank! *)
+  iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
+    [ set_solver | set_solver |].
 
-  (* Perform a case analysis. *)
-  case_analysis.
+  (* This places us in one of two situations: either the bank has never
+     been broken yet, or it has been broken before. *)
+  iDestruct "Hbank" as "[Hbank | Hbank]".
 
-  (* Case: the thunk is unevaluated. *)
+  (* Case: the bank has never been broken. *)
   {
-    iDestruct "Hthunk" as (f) "(>Hundecided & >Ht & Hf & >Htc)".
+    (* The piggy bank gives us [nc] time credits as well as the ability
+       to close the bank's invariant, provided we are able to establish
+       the right branch of our invariant. *)
+    iDestruct "Hbank" as (nc) "(Hbranch & Hnc & Htoken & Hclose)".
+    destruct_left_branch.
+    (* We now step through the code. The left branch is taken. *)
     wp_tick_load. wp_tick_match.
-    (* The number of debits is zero, so we learn [nc ≤ ac]. *)
-    iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as %I.
-    (* Therefore, we have the necessary time credits at hand. *)
-    iDestruct (TC_weaken _ _ I with "Htc") as "Htc".
-    (* We can invoke f(), *)
-    wp_apply ("Hf" with "HR Htc") ; iIntros (v) "HR #Hv".
+    (* Because we have the necessary time credits, we can invoke f(), *)
+    wp_apply ("Hf" with "HR Hnc") ; iIntros (v) "HR #Hv".
     (* and update the reference. *)
     wp_tick_let. wp_tick_inj. wp_tick_store. wp_tick_seq.
     (* Update the ghost state to remember that the value has been computed. *)
@@ -446,29 +420,27 @@ Proof.
     iFrame "Hv HR".
     iSplitR.
     (* Subgoal: establish [ThunkVal t v]. *)
-    { iModIntro. unfold ThunkVal. auto. }
+    { construct_thunkval. }
     (* Subgoal: close the invariant. *)
-    iApply "Hclose". iFrame "Htoken". iNext.
-    (* [ac] remains unchanged. We cannot make it zero, and we do not need to. *)
-    iExists ac.
-    iFrame "Hγpaid●".
-    iRight. iExists v. eauto with iFrame.
+    { iApply ("Hclose" with "[Ht] Htoken"). construct_right_branch. }
   }
 
-  (* Case: the thunk is evaluated. *)
+  (* Case: the bank has been broken already. *)
   {
-    iDestruct "Hthunk" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
+    (* The piggy bank requires us to preserve the right branch of our
+       invariant. *)
+    iDestruct "Hbank" as (nc) "(Hbranch & Htoken & Hclose)".
+    destruct_right_branch.
+    (* We now step through the code. The right branch is taken. *)
     wp_tick_load. wp_tick_match.
     (* Establish the postcondition. *)
     iApply "Post".
     iFrame "Hv HR".
     iSplitR.
     (* Subgoal: establish [ThunkVal t v]. *)
-    { iModIntro. unfold ThunkVal. auto. }
+    { construct_thunkval. }
     (* Subgoal: close the invariant. *)
-    iApply "Hclose". iFrame "Htoken". iNext. iExists ac.
-    iFrame "Hγpaid●".
-    iRight. iExists v. eauto with iFrame.
+    { iApply ("Hclose" with "[Ht] Htoken"). construct_right_branch. }
   }
 
 Qed.
@@ -486,49 +458,11 @@ Proof.
   iIntros (? ?) "Htoken #Hthunk Hk".
   destruct_thunk.
 
-  (* Open the invariant. *)
-  open_invariant.
+  (* Put the [k] credits into the piggy bank. *)
+  iMod (piggybank_pay _ _ k with "Htoken Hpiggy Hk") as "($ & #Hpiggy')";
+    [ set_solver | set_solver |].
 
-  (* Increment the ghost payment record from [ac] to [ac + k]. This is
-     done in both branches of the case analysis (which follows). *)
-  iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
-    as ">[Hγpaid● #Hγpaid◯']".
-  iClear "Hγpaid◯". iRename "Hγpaid◯'" into "Hγpaid◯".
-
-  (* Perform a case analysis. *)
-  case_analysis.
-
-  (* Case: the thunk is unevaluated. *)
-  {
-    iDestruct "Hthunk" as (f) "(>Hundecided & >Ht & Hf & >Hac)".
-    (* We have [ac + k] time credits. *)
-    iAssert (TC (ac + k)) with "[Hac Hk]" as "Hack"; first by iSplitL "Hac".
-    (* The invariant can be closed. *)
-    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Htoken". iNext. iExists (ac+k). auto with iFrame. }
-    iModIntro.
-    iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
-    pure_conjunct.
-    (* Our updated fragmentary view of the ghost cell γpaid
-       allows us to produce an updated [BaseThunk] assertion. *)
-    witness.
-  }
-
-  (* Case: the thunk is evaluated. *)
-  {
-    iDestruct "Hthunk" as (v) "(>#Hdecided & >Ht & #Hv & >%Hncac)".
-    (* The invariant can be closed. In this case, no new time credits are
-       stored in the invariant. The extra payment is wasted. *)
-    iClear "Hk".
-    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Htoken". iNext. iExists (ac+k). iFrame "Hγpaid●".
-      iRight. iExists v. iFrame "Hdecided Ht Hv". iPureIntro. lia. }
-    iModIntro.
-    iExists γpaid, γdecided, nc, N. iFrame "Hmeta Hinv".
-    pure_conjunct.
-    witness.
-  }
-
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)

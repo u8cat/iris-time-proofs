@@ -1,7 +1,7 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits Auth_max_nat.
+From iris_time Require Import TimeCredits Auth_max_nat PiggyBank.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 
 (* -------------------------------------------------------------------------- *)
@@ -30,30 +30,25 @@ Implicit Type v : val.
 Definition isUpdate n R φ ψ : iProp :=
   ∀ v, R -∗ TC n -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v.
 
-Local Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
+Local Definition LeftBranch R φ ψ nc1 nc2 nc : iProp :=
+    ⌜ (nc = nc1 + nc2)%nat ⌝
+  ∗ isUpdate nc2 R φ ψ.
 
-  ∃ ac,
-      own γpaid (● MaxNat ac)
-    ∗ (
-        (
-            isUpdate nc R φ ψ
-          ∗ TC ac
-        )
-      ∨ (∃ v,
-            ThunkVal t v
-          ∗ □ ψ v
-        )
-      )
-.
+Local Definition RightBranch t ψ nc : iProp :=
+  ∃ v,
+      ThunkVal t v
+    ∗ □ ψ v.
 
 Definition ThunkStep p F t n R ψ : iProp :=
 
-  ∃ γpaid nc1 nc2 φ F1 N,
+  ∃ nc1 nc2 φ F1 N,
       ⌜ F1 ∪ ↑N ⊆ F ⌝
     ∗ ⌜ F1 ## ↑N ⌝
     ∗ Thunk p F1 t nc1 R φ
-    ∗ na_inv p N (ThunkStepInv t γpaid nc2 R φ ψ)
-    ∗ own γpaid (◯ MaxNat (nc1 + nc2 - n))
+    ∗ PiggyBank
+        (LeftBranch R φ ψ nc1 nc2)
+        (RightBranch t ψ)
+        p N n
 
 .
 
@@ -63,22 +58,20 @@ Definition ThunkStep p F t n R ψ : iProp :=
 
 Local Ltac destruct_thunk :=
   iDestruct "Hthunk"
-    as (γpaid nc1 nc2 φ F1 N) "(%HuF & %HnF & Hthunk & Hinv & Hγpaid◯)".
+    as (nc1 nc2 φ F1 N) "(%HuF & %HnF & Hthunk & #Hpiggy)".
 
-Local Ltac open_invariant :=
-  iDestruct (na_inv_acc with "Hinv Hp") as ">(Hstepinv & Hp & Hclose)";
-    [ set_solver | set_solver |];
-  iDestruct "Hstepinv" as (ac) "(>Hγpaid● & Hstepinv)".
+Local Ltac destruct_left_branch :=
+  unfold LeftBranch;
+  iDestruct "Hbranch" as "(>%Heq & Hupdate)".
 
-Local Ltac case_analysis :=
-  iDestruct "Hstepinv" as "[ Hstepinv | Hstepinv ]".
+Local Ltac destruct_right_branch :=
+  iDestruct "Hbranch" as (v) "(>#Hval & Hv)".
 
-Local Ltac pure_conjunct :=
-  iSplitR; [ iPureIntro; eauto |].
+Local Ltac construct_right_branch :=
+  try iNext; iExists _; eauto with iFrame.
 
-Local Ltac witness :=
-  iDestruct (own_auth_max_nat_weaken with "Hγpaid◯") as "$";
-  lia.
+Local Ltac construct_thunk :=
+  iExists _, _, _, _, _; eauto with iFrame.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -90,17 +83,15 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Local Lemma thunkstep_weakening p F t n1 n2 R ψ :
+Local Lemma thunkstep_increase_debt p F t n1 n2 R ψ :
   n1 ≤ n2 →
   ThunkStep p F t n1 R ψ -∗
   ThunkStep p F t n2 R ψ.
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
-  iExists γpaid, nc1, nc2, φ, F1, N.
-  repeat pure_conjunct.
-  iFrame.
-  witness.
+  iPoseProof (piggy_bank_increase_debt with "Hpiggy") as "#Hpiggy'"; [eauto|].
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -113,18 +104,18 @@ Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
   isUpdate n2 R φ ψ ={E}=∗
   ThunkStep p F t (n1 + n2) R ψ.
 Proof.
-  iIntros (? ?) "Hcredits #Hthunk Hupdate".
-  (* Allocate the ghost cell γpaid. *)
-  iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● Hγpaid◯]".
-  iExists γpaid, n1, n2, φ, F1, N.
-  rewrite Nat.sub_diag.
-  repeat pure_conjunct.
-  iFrame "Hthunk Hγpaid◯".
-  (* Allocate the invariant. *)
-  iApply na_inv_alloc.
-  iNext.
-  (* The number of available credits is initially zero. *)
-  iExists 0. eauto with iFrame.
+  intros.
+  iIntros "Htc #Hthunk Hupdate".
+  (* Create a piggy bank whose initial debt is [n1 + n2].
+     This requires checking that the left branch holds. *)
+  iMod (piggybank_create
+                (LeftBranch R φ ψ n1 n2)
+                (RightBranch t ψ)
+                p N (n1 + n2)
+              with "Htc [Hupdate]") as "#Hpiggy".
+  { unfold LeftBranch. eauto. }
+  (* Done. *)
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -138,73 +129,73 @@ Local Lemma thunkstep_force_spec p F F' t R ψ :
     «force #t»
   {{{ v, RET «v» ; □ ψ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
-  intros ?.
-  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post".
+  intros.
+  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Htoken & HR) Post".
   destruct_thunk.
-  rewrite Nat.sub_0_r. (* nc - 0 = nc *)
 
-  (* Open the invariant. *)
-  open_invariant.
+  (* Break the bank! *)
+  iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
+    [ set_solver | set_solver |].
 
-  (* Perform a case analysis. *)
-  case_analysis.
+  (* This places us in one of two situations: either the bank has never
+     been broken yet, or it has been broken before. *)
+  iDestruct "Hbank" as "[Hbank | Hbank]".
 
-  (* Case: the ghost update has not been used yet. *)
+  (* Case: the bank has never been broken. *)
   {
-    iDestruct "Hstepinv" as "(Hupdate & >Hac)".
-    (* We learn [nc1 + nc2 ≤ ac]. *)
-    iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as "%Hleq".
-    (* Therefore, we have nc1 + nc2 + 11 time credits at hand. *)
-    iDestruct (TC_weaken _ _ Hleq with "Hac") as "[Hnc1 Hnc2]". clear Hleq.
-    iAssert (TC (nc1 + 11))%I with "[Hnc1 Hcredits]" as "Hnc1".
-    { iSplitL "Hnc1"; iFrame. }
+    (* The piggy bank gives us [nc1 + nc2] time credits as well as the
+       ability to close the bank's invariant, provided we are able to
+       establish the right branch of our invariant. *)
+    iDestruct "Hbank" as (nc) "(Hbranch & Hnc & Htoken & Hclose)".
+    destruct_left_branch.
+    subst nc.
+    iDestruct "Hnc" as "(Hnc1 & Hnc2)".
     (* Allow a ghost update after we force this thunk. *)
     iApply wp_fupd.
     (* Force the underlying thunk. *)
-    iApply (thunk_pay_force with "Htickinv [$Hnc1 $Hthunk $Hp $HR]").
+    iCombine "Hnc1" "Hcredits" as "Hnc1".
+    iApply (thunk_pay_force with "Htickinv [$Hnc1 $Hthunk $Htoken $HR]").
     { set_solver. }
     (* This has consumed at least one time step. (This is fortunate.) *)
     iNext.
-    iIntros (v) "(#Hv & #Hval & Hp & HR)".
+    iIntros (v) "(#Hv & #Hval & Htoken & HR)".
     (* We can now apply our ghost update, consuming nc2 time credits.
        We must apply this update before closing the invariant, because
        this update produces [□ ψ v], which is needed in order to close
        the invariant. *)
     iMod ("Hupdate" with "HR Hnc2 Hv") as "[HR #Hv']".
     iClear "Hv". iRename "Hv'" into "Hv".
-    (* Close the invariant. *)
-    iMod ("Hclose" with "[Hγpaid● Hp]") as "Hp".
-    { (* The right-hand side of the invariant now holds. *)
-      iFrame "Hp". iNext. iExists ac. eauto with iFrame. }
+    (* Close the invariant, whose right-hand side now holds. *)
+    iMod ("Hclose" with "[] Htoken") as "Hqwd".
+    { construct_right_branch. }
     (* Done. *)
-    iModIntro.
-    iApply "Post".
-    eauto with iFrame.
+    iModIntro. iApply "Post". eauto with iFrame.
   }
 
-  (* Case: the ghost update has been used already. *)
+  (* Case: the bank has been broken already. *)
   {
-    iDestruct "Hstepinv" as (v) "(>#Hval & Hv)".
+    (* The piggy bank requires us to preserve the right branch of our
+       invariant. *)
+    iDestruct "Hbank" as (nc) "(Hbranch & Htoken & Hclose)".
+    destruct_right_branch.
     (* We have [□ ψ v], so we are happy. *)
     (* Allow a ghost update after we force this thunk. *)
     iApply wp_fupd.
     (* Force this thunk, which we know has been forced already.
        The result must be [v]. We do not obtain [□ φ v], but
        we do not need it. *)
-    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hval $Hp $HR]").
+    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hval $Htoken $HR]").
     { set_solver. }
     iNext.
     iDestruct "Hv" as "#Hv".
-    iIntros "(Hp & HR)".
-    (* Close the invariant. *)
-    iMod ("Hclose" with "[Hγpaid● Hp]") as "Hp".
-    { (* The right-hand side of the invariant now holds. *)
-      iFrame "Hp". iNext. iExists ac. eauto with iFrame. }
+    iIntros "(Htoken & HR)".
+    (* Close the invariant, whose right-hand side now holds. *)
+    iMod ("Hclose" with "[] Htoken") as "Hqwd".
+    { construct_right_branch. }
     (* Done. *)
-    iApply "Post".
-    iModIntro.
-    eauto with iFrame.
+    iModIntro. iApply "Post". eauto with iFrame.
   }
+
 Qed.
 
 Local Lemma thunkstep_force_forced_weak p F t n R ψ v F' :
@@ -214,18 +205,18 @@ Local Lemma thunkstep_force_forced_weak p F t n R ψ v F' :
     «force #t»
   {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
 Proof.
-  intros ?.
-  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp & HR) Post".
-  destruct_thunk. iClear "Hinv Hγpaid◯".
+  intros.
+  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
+  destruct_thunk. iClear "Hpiggy".
 
-  (* Remarkably, we do not even need to open the invariant. *)
+  (* Remarkably, we do not even need the piggy bank. *)
 
   (* We force the underlying thunk using the same law,
      and do not execute the ghost update, as we are not
      required to produce [□ ψ v]. *)
 
   iApply (thunk_force_forced_weak
-    with "Htickinv [$Hcredits $Hthunk $Hval $Hp $HR]");
+    with "Htickinv [$Hcredits $Hthunk $Hval $Htoken $HR]");
     [ set_solver |].
 
   (* Done. *)
@@ -240,51 +231,15 @@ Local Lemma thunkstep_pay p F F' E n k t R ψ :
   TC k ={E}=∗
   ThunkToken p F'  ∗ ThunkStep p F t (n-k) R ψ.
 Proof.
-  iIntros (? ?) "Hp #Hthunk Hk".
+  intros.
+  iIntros "Htoken #Hthunk Hk".
   destruct_thunk.
 
-  (* Open the invariant. *)
-  open_invariant.
+  (* Put the [k] credits into the piggy bank. *)
+  iMod (piggybank_pay _ _ k with "Htoken Hpiggy Hk") as "($ & #Hpiggy')";
+    [ set_solver | set_solver |].
 
-  (* Increment the ghost payment record from [ac] to [ac + k]. This is
-     done in both branches of the case analysis (which follows). *)
-  iDestruct (auth_max_nat_update_incr' _ _ _ k with "Hγpaid● Hγpaid◯")
-    as ">[Hγpaid●' #Hγpaid◯']".
-  iClear "Hγpaid◯". iRename "Hγpaid◯'" into "Hγpaid◯".
-
-  (* Perform a case analysis. *)
-  case_analysis.
-
-  (* Case: the ghost update has not yet been used. *)
-  {
-    iDestruct "Hstepinv" as "(Hupdate & >Hac)".
-    (* We have [ac + k] time credits. *)
-    iAssert (TC (ac + k)) with "[Hac Hk]" as "Hack"; first by iSplitL "Hac".
-    (* The invariant can be closed. *)
-    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
-    iModIntro.
-    iExists γpaid, nc1, nc2, φ, F1, N. iFrame "Hthunk Hinv".
-    repeat pure_conjunct.
-    (* Our updated fragmentary view of the ghost cell γpaid
-       allows us to produce an updated [Thunk] assertion. *)
-    witness.
-  }
-
-  (* Case: the ghost update has been used. *)
-  {
-    iDestruct "Hstepinv" as (v) "(>#Hval & #Hv)".
-    (* The invariant can be closed. In this case, no new time credits are
-       stored in the invariant. The extra payment is wasted. *)
-    iClear "Hk".
-    iMod ("Hclose" with "[-Hγpaid◯]") as "$".
-    { iFrame "Hp". iNext. iExists (ac+k). auto with iFrame. }
-    iModIntro.
-    iExists γpaid, nc1, nc2, φ, F1, N. iFrame "Hthunk Hinv".
-    repeat pure_conjunct.
-    witness.
-  }
-
+  construct_thunk.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -295,7 +250,7 @@ Global Instance step_thunk_api :
   BasicThunkAPI ThunkStep.
 Proof.
   constructor.
-  { eauto using thunkstep_weakening. }
+  { eauto using thunkstep_increase_debt. }
   { eauto using thunkstep_force_spec. }
   { eauto using thunkstep_force_forced_weak. }
   { eauto using thunkstep_pay. }

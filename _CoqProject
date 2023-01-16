@@ -24,6 +24,7 @@ theories/Examples.v
 theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v
+theories/PiggyBank.v
 theories/ThunksCode.v
 theories/ThunksAPI.v
 theories/ThunksBase.v
