@@ -39,7 +39,7 @@ Local Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
             isUpdate nc R φ ψ
           ∗ TC ac
         )
-      ∨ (∃ (v : val),
+      ∨ (∃ v,
             ThunkVal t v
           ∗ □ ψ v
         )

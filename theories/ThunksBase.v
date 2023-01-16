@@ -121,13 +121,13 @@ Local Definition BaseThunkInv t γpaid γdecided nc R φ : iProp :=
   ∃ ac,
       own γpaid (● MaxNat ac)
     ∗ (
-        (∃ (f : val),
+        (∃ f,
             ownUndecided γdecided
           ∗ t ↦ UNEVALUATEDV « f »
           ∗ isAction f nc R φ
           ∗ TC ac
         )
-      ∨ (∃ (v : val),
+      ∨ (∃ v,
             ownDecided γdecided v
           ∗ t ↦ EVALUATEDV « v »
           ∗ □ φ v
