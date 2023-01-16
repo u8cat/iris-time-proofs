@@ -27,14 +27,16 @@ Implicit Type v : val.
 
 (* TODO comments needed *)
 
+Definition isUpdate n R φ ψ : iProp :=
+  ∀ v, R -∗ TC n -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v.
+
 Local Definition ThunkStepInv t γpaid nc R φ ψ : iProp :=
 
   ∃ ac,
       own γpaid (● MaxNat ac)
     ∗ (
         (
-            (∀ v, R -∗ TC nc -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v)
-                  (* TODO is this the correct update symbol? *)
+            isUpdate nc R φ ψ
           ∗ TC ac
         )
       ∨ (∃ (v : val),
@@ -108,7 +110,7 @@ Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
   F1 ## ↑N →
   TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F1 t n1 R φ -∗
-  (∀ v, R -∗ TC n2 -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v) ={E}=∗
+  isUpdate n2 R φ ψ ={E}=∗
   ThunkStep p F t (n1 + n2) R ψ.
 Proof.
   iIntros (? ?) "Hcredits #Hthunk Hupdate".

@@ -73,7 +73,7 @@ Qed.
 Lemma thunk_consequence E p F t n1 n2 R φ ψ :
   TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F t n1 R φ -∗
-  (∀ v, R -∗ TC n2 -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v) ={E}=∗
+  isUpdate n2 R φ ψ ={E}=∗
   Thunk p F t (n1 + n2) R ψ.
 Proof.
   iIntros "Htc #Hthunk Hupdate".
