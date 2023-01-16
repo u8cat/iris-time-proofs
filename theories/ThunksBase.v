@@ -378,7 +378,7 @@ Qed.
 
 Lemma base_thunk_create p N F nc R φ f :
   ↑N ⊆ F →
-  TC_invariant -∗ (* TODO make this a section variable *)
+  TC_invariant -∗ (* TODO hide this in an Iris$ triple *)
   {{{ TC 3 ∗ isAction f nc R φ }}}
     «create f»
   {{{ t, RET #t ; BaseThunk p F t nc R φ }}}.
