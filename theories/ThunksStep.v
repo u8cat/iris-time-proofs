@@ -34,7 +34,7 @@ Local Definition LeftBranch R φ ψ nc1 nc2 nc : iProp :=
     ⌜ (nc = nc1 + nc2)%nat ⌝
   ∗ isUpdate nc2 R φ ψ.
 
-Local Definition RightBranch t ψ nc : iProp :=
+Local Definition RightBranch t ψ : iProp :=
   ∃ v,
       ThunkVal t v
     ∗ □ ψ v.

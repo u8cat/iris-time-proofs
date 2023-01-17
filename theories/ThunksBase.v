@@ -143,7 +143,7 @@ Local Definition LeftBranch t γdecided R φ nc : iProp :=
     ∗ t ↦ UNEVALUATEDV « f »
     ∗ isAction f nc R φ.
 
-Local Definition RightBranch t γdecided R φ nc : iProp :=
+Local Definition RightBranch t γdecided φ : iProp :=
   ∃ v,
       ownDecided γdecided v
     ∗ t ↦ EVALUATEDV « v »
@@ -156,7 +156,7 @@ Definition BaseThunk p F t n R φ : iProp :=
     ∗ meta t nroot γdecided
     ∗ PiggyBank
         (LeftBranch t γdecided R φ)
-        (RightBranch t γdecided R φ)
+        (RightBranch t γdecided φ)
         p N n
 
 .
@@ -366,7 +366,7 @@ Proof.
   (* Create a piggy bank. This requires checking that the left branch holds. *)
   iMod (piggybank_create
                 (LeftBranch t γdecided R φ)
-                (RightBranch t γdecided R φ)
+                (RightBranch t γdecided φ)
               with "Htc [Hundecided Ht Hf]") as "#Hpiggy".
   { iExists _. eauto with iFrame. }
   (* Conclude. *)

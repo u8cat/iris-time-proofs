@@ -20,12 +20,12 @@ Implicit Type φ : val → iProp.
 Implicit Type γpaid : gname.
 
 Variable LeftBranch  : (* nc: *) nat → iProp.
-Variable RightBranch : (* nc: *) nat → iProp.
+Variable RightBranch :                 iProp.
 
 Definition PiggyBankInvariant γpaid nc : iProp :=
   ∃ ac,
       own γpaid (● MaxNat ac)
-    ∗ ((LeftBranch nc ∗ TC ac) ∨ (RightBranch nc ∗ ⌜ nc ≤ ac ⌝)).
+    ∗ ((LeftBranch nc ∗ TC ac) ∨ (RightBranch ∗ ⌜ nc ≤ ac ⌝)).
 
 Definition PiggyBank p N n : iProp :=
   ∃ γpaid nc,
@@ -152,11 +152,11 @@ Lemma piggybank_break p N E F :
    ={E}=∗
    ( ∃ nc,
       ▷ LeftBranch nc ∗ TC nc ∗ token' ∗
-     (▷ RightBranch nc -∗ token' ={E}=∗ token)
+     (▷ RightBranch -∗ token' ={E}=∗ token)
    ) ∨
    ( ∃ nc,
-      ▷ RightBranch nc ∗ token' ∗
-     (▷ RightBranch nc -∗ token' ={E}=∗ token)
+      ▷ RightBranch ∗ token' ∗
+     (▷ RightBranch -∗ token' ={E}=∗ token)
    ).
 Proof.
   intros.
@@ -175,7 +175,7 @@ Proof.
     exploit_white_bullet.
     (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ Hleq with "Hac") as "$".
-    (* Once the user performs a state change to [RightBranch nc],
+    (* Once the user performs a state change to [RightBranch],
        we will be able to close the invariant. *)
     iIntros "Hbranch Htoken".
     close_invariant ac; [| done ].
@@ -186,7 +186,7 @@ Proof.
   {
     (* We are in the right-hand branch of the conclusion. *)
     iRight. iExists nc. iFrame "Hbranch Htoken".
-    (* Once the user performs a state change to [RightBranch nc],
+    (* Once the user performs a state change to [RightBranch],
        we will be able to close the invariant. *)
     iIntros "Hbranch Htoken".
     close_invariant ac; [| done ].
