@@ -54,6 +54,13 @@ Definition ThunkStep p F t n R ψ : iProp :=
 
 .
 
+(* A payment into the proxy thunk is implemented simply as a payment into the
+   piggy bank; it is not propagated down as a payment into the underlying
+   thunk. Thus, we do *not* have the property that if the piggy bank has zero
+   debit then the underlying thunk has zero debit. We *do* have the property
+   that if the piggy bank has zero debit then forcing the piggy bank produces
+   enough credit to force the underlying thunk. *)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Local tactics, for clarity. *)
