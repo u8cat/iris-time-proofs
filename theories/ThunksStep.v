@@ -92,7 +92,7 @@ Local Lemma thunkstep_increase_debt p F t n1 n2 R ψ :
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
-  iPoseProof (piggy_bank_increase_debt with "Hpiggy") as "#Hpiggy'"; [eauto|].
+  iPoseProof (piggybank_increase_debt with "Hpiggy") as "#Hpiggy'"; [eauto|].
   construct_thunk.
 Qed.
 

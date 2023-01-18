@@ -4,21 +4,53 @@ From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 
+(* A piggy bank is a ghost concept: no code is involved. A piggy bank is a
+   place where one can accumulate time credits, by paying in several
+   increments, until a point in time where one decides to "force" (or "break")
+   the piggy bank and spend the time credits. *)
+
+(* A piggy bank is either forced or not yet forced. (The internal ghost cell
+   γforced keeps track of this information.) As long it is not forced, the
+   assertion [LeftBranch nc] holds, where [nc] is a certain number of time
+   credits that are deemed "necessary" in order to force the piggy bank. Once
+   it is forced, the assertion [RightBranch] holds. *)
+
+(* A piggy bank is shareable (that is, persistent). The predicate [PiggyBank]
+   carries a parameter [n] which represents a number of debits, that is, a
+   debt that must be paid before the piggy bank can be forced. Once the debt
+   is zero, the piggy bank can be forced. A piggy bank can be forced several
+   times. When it is forced for the first time, it performs an internal
+   transition from [LeftBranch nc] to [RightBranch]; if it is forced again,
+   it remains in the state [RightBranch]. *)
+
+(* This file defines the predicate [PiggyBank LeftBranch RightBranch P p N n]
+   and provides a number of reasoning rules for this predicate. *)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Context. *)
 
 Section PiggyBank.
 
-Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
-Context `{na_invG Σ}.
+Context `{timeCreditHeapG Σ}.        (* time credits are needed *)
+Context `{inG Σ (authR max_natUR)}.  (* camera for the ghost cell γpaid *)
+Context `{inG Σ (excl_authR boolO)}. (* camera for the ghost cell γforced *)
+Context `{na_invG Σ}.                (* non-atomic invariants are needed *)
 Notation iProp := (iProp Σ).
 
-Implicit Type n nc ac : nat.
-Implicit Type forced : bool.
-Implicit Type γforced γpaid : gname.
+(* The following parameters of the predicate [PiggyBank] are fixed throughout
+   this file. *)
+
+(* The assertion [LeftBranch nc] describes the state of the piggy bank when it
+   has not been forced yet. It is typically an implication of the form [TC nc
+   -∗ ...], that is, an assertion that needs [nc] time credits in order to be
+   exploited. *)
+
+(* The assertion [RightBranch] describes the state of the piggy bank after it
+   has been forced. *)
+
+(* The piggy bank internally involves an atomic invariant in the namespace [P]
+   and a non-atomic invariant in the pool [p] and namespace [N]. *)
 
 Variable LeftBranch  : (* nc: *) nat → iProp.
 Variable RightBranch :                 iProp.
@@ -26,9 +58,73 @@ Variable P           :             namespace.
 Variable p           :      na_inv_pool_name.
 Variable N           :             namespace.
 
+(* We typically use [n] for a number of debits, [nc] for a number of necessary
+   time credits, and [ac] a number of available time credits. We use [forced]
+   for a Boolean flag that determines whether the piggy bank has been forced.
+
+   The ghost cell [γforced] stores the Boolean flag [forced]. This ghost cell
+   is used to synchronize the two invariants and ensure that they both (and
+   only they) have access to [forced]. Two exclusive tokens [●E] and [◯E] are
+   used to keep track of the value of [forced].
+
+   The ghost cell [γpaid] keeps track of the number of time credits that have
+   been paid so far. It is a monotonic cell: its authoritative value [● ac]
+   increases over time. A persistent witness [◯ (nc - n)] guarantees that [ac]
+   is at least [nc - n], that is, [nc ≤ ac + n] holds. Thus, when the number
+   of debits [n] is zero, we get [nc ≤ ac], that is, the number of available
+   credits exceeds the number of necessary credits. This is the intuitive
+   reason why it is sound to force the piggy bank once its apparent debt is
+   zero. *)
+
+Implicit Type n nc ac : nat.
+Implicit Type forced : bool.
+Implicit Type γforced γpaid : gname.
+
 (* -------------------------------------------------------------------------- *)
 
 (* Definitions. *)
+
+(* The (ghost) operations that the piggy bank must support include [pay] and
+   [force]. We want [pay] to be an atomic operation: a ghost update. However,
+   we cannot view [force] as an atomic operation, because our intended use of
+   the piggy bank does not allow it. Our main intended use of the piggy bank
+   is the definition of thunks. Forcing a thunk is not an atomic operation: it
+   requires several steps of computation. The piggy bank must be forced at the
+   beginning of this operation, in order to obtain the necessary time credits,
+   but its invariant cannot be restored until the end of this operation. So,
+   breaking a piggy bank cannot be represented as single ghost update: it must
+   be represented as a pair of nested updates, [begin force] and [end force].
+   Between these updates, the piggy bank must not be forced, as it is not in a
+   valid state. Paying is safe at all times, though, including while the piggy
+   bank is being forced. *)
+
+(* One might expect the piggy bank to involve one invariant, stating that
+   either we are in the left branch and we have [ac] time credits at hand, or
+   we are in the right branch. A definition based on a single invariant is
+   possible indeed, but not would be satisfactory. Out of necessity, this
+   invariant would have to be a non-atomic invariant, because [force] is not
+   an atomic operation. As a result, [pay] would necessarily be forbidden
+   while the piggy bank is being forced. (That is, [pay] would require a
+   [na_own] token.)
+
+   We are able to avoid this limitation by using two distinct invariants. A
+   non-atomic invariant governs the state of the piggy bank: if the piggy bank
+   has not been forced yet, then [LeftBranch nc] holds, otherwise
+   [RightBranch] holds. An atomic invariant governs the time credits that have
+   been accumulated: if the piggy bank has not been forced yet, then [ac] time
+   credits are stored, otherwise no time credits are stored. (In the latter
+   case, we have [nc ≤ ac].)
+
+   Paying requires opening the atomic invariant only, so does not require a
+   [na_own] token. Forcing requires opening both invariants simultanesously,
+   so does require a [na_own] token.
+
+   The two invariants must agree on the status of the piggy bank: either
+   forced or not forced. To this end, they share the ghost cell [γforced]. One
+   invariant holds [●E forced], the other holds [◯E forced']. Opening both
+   invariants at once allows concluding [forced = forced'] and allows setting
+   [γforced] to a new value. Opening just one invariant allows reading
+   [γforced] but does not allow updating it. *)
 
 Local Definition PiggyBankNonAtomicInvariant γforced nc : iProp :=
   ∃ forced,
@@ -101,12 +197,13 @@ Local Ltac open_both_invariants :=
 Local Ltac case_analysis forced :=
   (* Perform case analysis on the Boolean value [forced]. *)
   destruct forced;
-  (* We want to handle the case [forced = false], so we swap the subgoals. *)
+  (* We want to handle the case [forced = false] first,
+     so we swap the subgoals. *)
   swap 1 2;
   (* Simplify the conditionals that depend on [forced]. *)
   simpl;
   (* If the atomic invariant is currently opened, simplify the hypothesis
-     Hac, which is either [▷ TC ac] or [▷ ⌜ nc ≤ ac ⌝]. *)
+     "Hac", which is either [▷ TC ac] or [▷ ⌜ nc ≤ ac ⌝]. *)
   [
     try iDestruct "Hac" as ">Hac"
   | try iDestruct "Hac" as ">%Hac"
@@ -126,7 +223,7 @@ Local Ltac exploit_white_bullet :=
 Local Ltac increase_black_bullet k :=
   iMod (auth_max_nat_update_incr _ _ k with "Hγpaid●") as "Hγpaid●".
 
-Local Ltac set_γforced b :=
+Local Ltac update_forced b :=
   iMod (update_forced _ _ b with "Hγforced● Hγforced◯")
     as "[Hγforced● Hγforced◯]".
 
@@ -158,7 +255,9 @@ Local Ltac construct_piggy :=
 
 (* -------------------------------------------------------------------------- *)
 
-(* Properties. *)
+(* The following public lemmas are the reasoning rules of the piggy bank.     *)
+
+(* The predicate [PiggyBank] is persistent. Thus, a piggy bank can be shared. *)
 
 Global Instance piggybank_persistent n :
   Persistent (PiggyBank n).
@@ -166,7 +265,10 @@ Proof using.
   exact _.
 Qed.
 
-Lemma piggy_bank_increase_debt n1 n2 :
+(* It is sound to increase the apparent debt (the number of debits) associated
+   with a piggy bank. *)
+
+Lemma piggybank_increase_debt n1 n2 :
   n1 ≤ n2 →
   PiggyBank n1 -∗
   PiggyBank n2.
@@ -177,14 +279,17 @@ Proof.
   construct_piggy.
 Qed.
 
+(* Creating a fresh piggy bank requires establishing [LeftBranch nc]. This
+   assertion is consumed, and the new piggy bank initially has [nc] debits. *)
+
 Lemma piggybank_create nc E :
   LeftBranch nc ={E}=∗
   PiggyBank nc.
 Proof.
   iIntros "Hleft".
-  (* Allocate the ghost cell γpaid. Its initial value is 0. *)
+  (* Allocate the ghost cell [γpaid]. Its initial value is 0. *)
   iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● #Hγpaid◯]".
-  (* Allocate the ghost cell γforced. Its initial value is [false]. *)
+  (* Allocate the ghost cell [γforced]. Its initial value is [false]. *)
   iMod (own_alloc (●E false ⋅ ◯E false)) as (γforced) "[Hγforced● Hγforced◯]".
   { apply excl_auth_valid. }
   (* Allocate the non-atomic invariant. *)
@@ -193,7 +298,7 @@ Proof.
     as "Hcontent".
   { construct_na_invariant. }
   iMod (na_inv_alloc with "Hcontent") as "Hnainv".
-  (* Note that we have 0 time credits. *)
+  (* We initially have 0 time credits at hand. *)
   iAssert (TC 0) as "Htc".
   { iApply zero_TC_now. }
   (* Allocate the atomic invariant. *)
@@ -205,14 +310,20 @@ Proof.
   construct_piggy.
 Qed.
 
+(* Paying consumes [k] time credits and decreases the piggy bank's debit
+   from [n] to [n-k]. It is a ghost update. *)
+
 Lemma piggybank_pay k E n :
   ↑P ⊆ E →
-  PiggyBank n -∗   TC k   ={E}=∗
+  PiggyBank n -∗
+  TC k ={E}=∗
   PiggyBank (n-k).
 Proof.
   intros.
   iIntros "#Hpiggy Hk".
   destruct_piggy.
+
+  (* Open the atomic invariant (and only this one). *)
   open_at_invariant forced.
 
   (* We learn [nc - n ≤ ac]. *)
@@ -231,9 +342,7 @@ Proof.
     (* We have [ac + k] time credits. *)
     iCombine "Hac Hk" as "Hac".
     (* The invariant can be closed. *)
-    (* TODO use [close_at_invariant] *)
-    iMod ("Hatclose" with "[Hγforced◯ Hγpaid● Hac]").
-    { construct_at_invariant. }
+    close_at_invariant.
     (* Our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [PiggyBank] assertion. *)
     construct_piggy.
@@ -241,39 +350,72 @@ Proof.
 
   (* Case: right branch. *)
   {
-    (* The invariant can be closed. In this case, no new time credits are
-       stored in the invariant. The extra payment is wasted. *)
+    (* In this case, no new time credits are stored in the invariant.
+       The payment is wasted. *)
     iClear "Hk".
-    (* TODO use [close_at_invariant] *)
-    iMod ("Hatclose" with "[Hγforced◯ Hγpaid●]").
-    { construct_at_invariant. }
+    (* The invariant can be closed. *)
+    close_at_invariant.
+    (* We conclude in the same way as above. *)
     construct_piggy.
   }
 
 Qed.
 
+(* Forcing (or breaking) the piggy bank is the most complex operation. It is
+   a ghost operation. As explained earlier, it is not an atomic operation,
+   so it is not described as a single update. Instead, it takes the form of
+   an update ([begin force]) whose conclusion is a disjunction of two
+   situations:
+
+   - either the piggy bank has not been forced yet, in which case we have
+     [LeftBranch nc] and [nc] time credits at hand; it is then up to the
+     user to (somehow) transition to [RightBranch], at which point we allow
+     the user to perform a second update ([end force]) which completes the
+     operation and restores the validity of the piggy bank;
+
+  - or the piggy bank has been forced already, in which case we have
+    [RightBranch]; it is then up to the user to perform whatever action is
+    desired, while preserving [RightBranch]; at which point we allow the
+    user to perform a second update ([end force]) which completes the
+    operation and restores the validity of the piggy bank.
+
+  Forcing the piggy bank requires the token [na_own p F]. While forcing is
+  in progress (that is, between the [begin force] and [end force] updates)
+  this token is replaced with the weaker token [na_own p (F ∖ ↑N)]. This
+  forbids forcing the piggy bank while it is already being forced. At the
+  end, the stronger token [na_own p F] re-appears.
+
+  Paying while the piggy bank is being forced is permitted. Indeed, paying
+  does not require a [na_own] token. *)
+
 Lemma piggybank_break E F :
+  (* The strong token and the weak token: *)
   let token := na_own p F in
   let token' := na_own p (F ∖ ↑N) in
+  (* Side conditions about masks: *)
   ↑P ⊆ E →
   ↑N ⊆ E →
   ↑N ⊆ F →
+  (* Forcing requires a piggy bank whose debt is zero.
+     It also requires [token]. *)
   PiggyBank 0 -∗
-  token
-   ={E}=∗
+  token ={E}=∗ (* begin force *)
+  (* As a result of this first update, the user obtains either the left
+     branch and an obligation to make a transition to the right branch: *)
    ( ∃ nc,
       ▷ LeftBranch nc ∗ TC nc ∗ token' ∗
-     (▷ RightBranch -∗ token' ={E}=∗ token)
+     (▷ RightBranch -∗ token' ={E}=∗ (* end force *) token)
    ) ∨
+   (* or the right branch and an obligation to remain in this branch: *)
    ( ∃ nc,
       ▷ RightBranch ∗ token' ∗
-     (▷ RightBranch -∗ token' ={E}=∗ token)
+     (▷ RightBranch -∗ token' ={E}=∗ (* end force *) token)
    ).
 Proof.
   intros.
   iIntros "#Hpiggy Htoken".
   destruct_piggy.
-  rewrite Nat.sub_0_r.
+  rewrite Nat.sub_0_r. (* nc - 0 = nc *)
 
   (* Open both invariants. *)
   open_both_invariants.
@@ -290,7 +432,7 @@ Proof.
     (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ Hleq with "Hac") as "$".
     (* Set γforced to [true]. *)
-    set_γforced true.
+    update_forced true.
     (* Close the atomic invariant now. *)
     close_at_invariant.
     (* Once the user performs a state change to [RightBranch],
@@ -307,7 +449,7 @@ Proof.
     (* Close the atomic invariant now. *)
     close_at_invariant.
     (* Once the user performs a state change to [RightBranch],
-       we will be able to close the invariant. *)
+       we will be able to close the non-atomic invariant. *)
     iModIntro.
     iIntros "Hbranch Htoken".
     close_na_invariant.
@@ -315,15 +457,27 @@ Proof.
 
 Qed.
 
+(* The following law may be viewed as more exotic and less essential than
+   the previous laws. It states that if the user is somehow able to prove
+   that the piggy bank cannot be in the left branch then the apparent debt
+   of the piggy bank can be reduced from [n] to zero. This information can
+   then be used to break the piggy bank without paying anything more. *)
+
 Lemma piggybank_discover_zero_debit n E F :
+  (* The token: *)
+  let token := na_own p F in
+  (* Side conditions about masks: *)
   ↑P ⊆ E →
   ↑N ⊆ E →
   ↑N ⊆ F →
+  (* A piggy bank with debit [n] and a token. *)
   PiggyBank n -∗
-  na_own p F -∗
+  token -∗
+  (* A proof that the piggy bank cannot be in its left branch. *)
   (∀ nc, ▷ LeftBranch nc -∗ ▷ False) ={E}=∗
+  (* As a result, the user gets a view of the piggy bank with zero debits. *)
   PiggyBank 0 ∗
-  na_own p F.
+  token.
 Proof.
   intros.
   iIntros "#Hpiggy Htoken Hcontradiction".
