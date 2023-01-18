@@ -121,6 +121,11 @@ Class BasicThunkAPI
      property conditionally, only in the special case where [n = 0] holds,
      may be possible, but leads to difficulties in the proof. *)
 
+  (* When a zero-debit thunk [Thunk p F t 0 R φ] has already been forced, so
+     [ThunkVal t v] is at hand, one might hope to be able to obtain [▷ □ φ v]
+     without executing any code, via a ghost update. We do not provide this
+     reasoning rule. An attempt runs into difficulties in the proof. *)
+
   thunk_force_forced p F t n R φ v F' :
     F ⊆ F' →
     TC_invariant -∗
