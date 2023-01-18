@@ -115,10 +115,10 @@ Proof.
     { set_solver. }
     done. }
 
-  { (* thunk_force_forced_weak *)
-    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post".
+  { (* thunk_force_forced *)
+    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp) Post".
     destruct_thunk.
-    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hp $HR]").
+    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Hp]").
     { set_solver. }
     done. }
 
