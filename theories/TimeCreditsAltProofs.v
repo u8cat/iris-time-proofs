@@ -263,7 +263,7 @@ Proof.
   (* finally, use the user-given specification: *)
   iModIntro.
     iExists (λ σ _ _, gen_heap_interp σ), (λ _, True%I). iFrame.
-  iSplitL ; first (iApply (Hspec with "Hinv Hγ◯") ; auto).
+  iSplitL ; first (iApply (Hspec with "Hinv [Hγ◯]") ; rewrite /TC; auto).
   (* it remains to prove that the interpretation of the final state, along
    * with the invariant, implies the inequality… *)
   iIntros "Hheap2". iExists _.

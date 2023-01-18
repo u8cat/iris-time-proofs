@@ -74,24 +74,57 @@ Section TickSpec.
 
   Context `{timeCreditHeapG Σ}.
 
-  Definition TC (n : nat) : iProp Σ :=
-    own γ (◯nat n).
+  (* We could define [TC n] simply as [own γ (◯nat n)]. We prefer the
+     slightly more complex definition [n = 0 ∨ own γ (◯nat n)] because
+     this gives us [⊢ TC 0] instead of [⊢ |==> TC 0], which is less
+     convenient. *)
 
-  (* Note: we can avoid the update modality by redefining TC like so:
-         Definition TC' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TC n. *)
+  Definition TC (n : nat) : iProp Σ :=
+    ⌜n = 0%nat⌝ ∨ own γ (◯nat n).
+
+  (* The use of this lemma is recommended: *)
+  Lemma zero_TC_now :
+    ⊢ TC 0.
+  Proof. iLeft. iPureIntro. reflexivity. Qed.
+
+  (* The following lemma is kept for backwards compatibility. *)
   Lemma zero_TC :
     ⊢ |==> TC 0.
-  Proof. apply own_unit. Qed.
+  Proof. iRight. iApply own_unit. Qed.
+
+  Local Lemma nat_op_zero m :
+    m ⋅ 0%nat = m.
+  Proof. eauto. Qed.
+
   Lemma TC_plus m n :
     TC (m + n) ≡ (TC m ∗ TC n)%I.
-  Proof. by rewrite /TC auth_frag_op own_op. Qed.
+  Proof.
+    rewrite /TC. iSplit.
+    + iIntros "[%Heqmn | (Hm & Hn)]".
+      - assert (m = 0%nat) by lia.
+        assert (n = 0%nat) by lia.
+        subst m n.
+        eauto.
+      - iFrame "Hm Hn".
+    + iIntros "([%Heqm | Hm] & [%Heqn | Hn])"; subst.
+      - iLeft. eauto.
+      - iRight. iFrame "Hn".
+      - iRight. rewrite Nat.add_0_r. iFrame "Hm".
+      - iRight. iCombine "Hm Hn" as "$".
+  Qed.
+
   Lemma TC_succ n :
     TC (S n) ≡ (TC 1%nat ∗ TC n)%I.
   Proof. by rewrite (eq_refl : S n = 1 + n)%nat TC_plus. Qed.
+
   Lemma TC_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
     TC n₁ -∗ TC n₂.
-  Proof. apply own_auth_nat_weaken. Qed.
+  Proof.
+    rewrite /TC.
+    iIntros (?) "[%Heqn1 | Hn1]".
+    + iLeft. eauto with lia.
+    + iRight. iApply (own_auth_nat_weaken with "Hn1"). eauto. Qed.
 
   Lemma TC_timeless n :
     Timeless (TC n).
@@ -118,7 +151,7 @@ Section TickSpec.
     TC_invariant -∗
     {{{ ▷ TC 1 }}} tick v @ s ; E {{{ RET v ; True }}}.
   Proof.
-    intros ?. iIntros "#Inv" (Ψ) "!# Hγ◯ HΨ".
+    intros ?. iIntros "#Inv" (Ψ) "!# Htc HΨ".
     iLöb as "IH".
     wp_lam.
     (* open the invariant, in order to read the value n of location ℓ: *)
@@ -126,7 +159,8 @@ Section TickSpec.
     iInv timeCreditN as (n) ">(Hℓ & Hγ●)" "InvClose".
     wp_load.
     (* deduce that n ≥ 1, because we hold a time credit: *)
-    iDestruct (own_auth_nat_le with "Hγ● Hγ◯") as %I.
+    iDestruct "Htc" as "[%Heq | Hγ◯]"; [ lia |].
+    iDestruct (own_auth_nat_le with "Hγ● Hγ◯") as "%I".
     (* close the invariant: *)
     iMod ("InvClose" with "[ Hℓ Hγ● ]") as "_" ; [ by auto with iFrame | iModIntro ].
     wp_let.
@@ -158,7 +192,9 @@ Section TickSpec.
         iMod ("InvClose" with "[ Hℓ Hγ● ]") as "_" ; [ by auto with iFrame | iModIntro ] ; clear dependent n.
         wp_if.
         (* conclude using the induction hypothesis: *)
-        iApply ("IH" with "Hγ◯ HΨ").
+        iApply ("IH" with "[Hγ◯] HΨ").
+        (* We must reconstruct one time credit out of Hγ◯. *)
+        rewrite /TC. eauto.
   Qed.
 
   Theorem tick_spec_simple v :
@@ -435,7 +471,7 @@ Section Soundness.
     (* finally, use the user-given specification: *)
     iExists (λ σ _, gen_heap_interp σ), (λ _, True%I). iFrame.
     iDestruct (own_auth_nat_weaken _ _ _ Ik with "Hγ◯") as "Hγ◯".
-    iApply (Hspec with "Hinv Hγ◯") ; auto.
+    iApply (Hspec with "Hinv [Hγ◯]"); rewrite /TC; auto.
   Qed.
 
   Theorem spec_tctranslation__adequate_and_bounded {Σ} m φ e :
