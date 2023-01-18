@@ -102,13 +102,12 @@ Qed.
 Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
   F1 ∪ ↑N ⊆ F →
   F1 ## ↑N →
-  TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F1 t n1 R φ -∗
   isUpdate n2 R φ ψ ={E}=∗
   ThunkStep p F t (n1 + n2) R ψ.
 Proof.
   intros.
-  iIntros "Htc #Hthunk Hupdate".
+  iIntros "#Hthunk Hupdate".
   (* Create a piggy bank whose initial debt is [n1 + n2].
      This requires checking that the left branch holds. *)
   iMod (piggybank_create
@@ -116,7 +115,7 @@ Proof.
                 (RightBranch t ψ)
                 (ThunkPayment t)
                 p N (n1 + n2)
-              with "Htc [Hupdate]") as "#Hpiggy".
+              with "[Hupdate]") as "#Hpiggy".
   { unfold LeftBranch. eauto. }
   (* Done. *)
   construct_thunk.

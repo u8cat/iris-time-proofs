@@ -65,14 +65,13 @@ Definition ReturnsThunk (φ : loc → iProp) (v : val) : iProp :=
   ∃ t, ⌜ v = #t ⌝ ∗ φ t.
 
 Lemma forward_debt p F1 F2 t1 n1 n2 R1 R2 φ m E :
-  TC 0 -∗ (* TODO remove *)
   Thunk p F1 t1  n1    R1 (ReturnsThunk (λ t2, Thunk p F2 t2  n2    R2 φ))
     ={E}=∗
   Thunk p F1 t1 (n1+m) R1 (ReturnsThunk (λ t2, Thunk p F2 t2 (n2-m) R2 φ)).
 Proof.
-  iIntros "Htc0 #Hthunk1".
+  iIntros "#Hthunk1".
   (* Apply the consequence rule to the first thunk. *)
-  iApply (thunk_consequence with "Htc0 Hthunk1").
+  iApply (thunk_consequence with "Hthunk1").
   iClear "Hthunk1".
   unfold ReturnsThunk.
   (* We must now establish the following update. *)

@@ -373,7 +373,7 @@ Proof.
   iMod (piggybank_create
                 (LeftBranch t γdecided R φ)
                 (RightBranch t γdecided φ)
-              with "Htc [Hundecided Ht Hf]") as "#Hpiggy".
+              with "[Hundecided Ht Hf]") as "#Hpiggy".
   { iExists _. eauto with iFrame. }
   (* Conclude. *)
   iApply "Post".

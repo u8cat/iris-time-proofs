@@ -162,11 +162,10 @@ Proof.
 Qed.
 
 Lemma piggybank_create p N nc E :
-  TC 0 -∗
   LeftBranch nc ={E}=∗
   PiggyBank p N nc.
 Proof.
-  iIntros "Htc Hleft".
+  iIntros "Hleft".
   (* Allocate the ghost cell γpaid. Its initial value is 0. *)
   iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● #Hγpaid◯]".
   (* Allocate the ghost cell γforced. Its initial value is [false]. *)
@@ -178,9 +177,12 @@ Proof.
     as "Hcontent".
   { construct_na_invariant. }
   iMod (na_inv_alloc with "Hcontent") as "Hnainv".
+  (* Note that we have 0 time credits. *)
+  iAssert (TC 0) as "Htc".
+  { iApply zero_TC_now. }
   (* Allocate the atomic invariant. *)
   iAssert (PiggyBankAtomicInvariant γforced γpaid nc)
-    with "[Hγforced◯ Hγpaid● Htc]" as "Hcontent".
+    with "[Hγforced◯ Hγpaid●]" as "Hcontent".
   { construct_at_invariant. }
   iMod (inv_alloc with "Hcontent") as "Hatinv".
   (* Done. *)

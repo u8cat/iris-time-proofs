@@ -72,15 +72,14 @@ Proof.
 Qed.
 
 Lemma thunk_consequence E p F t n1 n2 R φ ψ :
-  TC 0 -∗ (* TODO get rid of this? *)
   Thunk p F t n1 R φ -∗
   isUpdate n2 R φ ψ ={E}=∗
   Thunk p F t (n1 + n2) R ψ.
 Proof.
-  iIntros "Htc #Hthunk Hupdate".
+  iIntros "#Hthunk Hupdate".
   destruct_thunk.
   (* Wrap this thunk into a fresh ghost thunk. *)
-  iMod (thunkstep_consequence (N .@ (d+1)) with "Htc Hthunk Hupdate")
+  iMod (thunkstep_consequence (N .@ (d+1)) with "Hthunk Hupdate")
     as "Hthunk'".
   { reflexivity. }
   { eauto with lia. }
