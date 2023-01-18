@@ -14,7 +14,6 @@ Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
-Open Scope nat_scope.
 
 Implicit Type t : loc.
 

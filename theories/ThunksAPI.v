@@ -184,7 +184,6 @@ Section Consequences.
 
 Context `{BasicThunkAPI Σ Thunk}.
 Notation iProp := (iProp Σ).
-Open Scope nat_scope.
 
 (* -------------------------------------------------------------------------- *)
 
