@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI ThunksFull.
@@ -9,6 +9,7 @@ Section Examples.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -63,8 +64,7 @@ Qed.
 Definition ReturnsThunk (φ : loc → iProp) (v : val) : iProp :=
   ∃ t, ⌜ v = #t ⌝ ∗ φ t.
 
-Lemma forward_debt p F1 F2 t1 n1 n2 R2 φ m E :
-  let R1 := ThunkToken p F2 in
+Lemma forward_debt p F1 F2 t1 n1 n2 R1 R2 φ m E :
   TC 0 -∗ (* TODO remove *)
   Thunk p F1 t1  n1    R1 (ReturnsThunk (λ t2, Thunk p F2 t2  n2    R2 φ))
     ={E}=∗
@@ -78,9 +78,10 @@ Proof.
   (* We must now establish the following update. *)
   iIntros (v2) "HR1 Hm #Hv2".
   iDestruct "Hv2" as (t2) "(%Hv2 & Hthunk2)".
+  (* [R1] is not needed. *)
+  iFrame "HR1".
   (* We want to pay [m] credits on the thunk [t2]. *)
-  iMod (thunk_pay with "HR1 Hthunk2 Hm") as "[$ #Hthunk2']";
-    [ done | done |].
+  iMod (thunk_pay with "Hthunk2 Hm") as "#Hthunk2'"; [ done |].
   (* Done. *)
   eauto.
 Qed.

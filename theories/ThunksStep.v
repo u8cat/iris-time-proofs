@@ -1,5 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat PiggyBank.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
@@ -10,6 +11,7 @@ Section Step.
 
 Context `{BasicThunkAPI Σ Thunk}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
@@ -48,6 +50,7 @@ Definition ThunkStep p F t n R ψ : iProp :=
     ∗ PiggyBank
         (LeftBranch R φ ψ nc1 nc2)
         (RightBranch t ψ)
+        (ThunkPayment t)
         p N n
 
 .
@@ -111,6 +114,7 @@ Proof.
   iMod (piggybank_create
                 (LeftBranch R φ ψ n1 n2)
                 (RightBranch t ψ)
+                (ThunkPayment t)
                 p N (n1 + n2)
               with "Htc [Hupdate]") as "#Hpiggy".
   { unfold LeftBranch. eauto. }
@@ -135,7 +139,7 @@ Proof.
 
   (* Break the bank! *)
   iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
-    [ set_solver | set_solver |].
+    [ set_solver | set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)
@@ -224,20 +228,19 @@ Proof.
 
 Qed.
 
-Local Lemma thunkstep_pay p F F' E n k t R ψ :
-  F ⊆ F' →
-  F ⊆ E →
-  ThunkToken p F' -∗ ThunkStep p F t n R ψ -∗
+Local Lemma thunkstep_pay p F E n k t R ψ :
+  ↑ThunkPayment t ⊆ E →
+  ThunkStep p F t n R ψ -∗
   TC k ={E}=∗
-  ThunkToken p F'  ∗ ThunkStep p F t (n-k) R ψ.
+  ThunkStep p F t (n-k) R ψ.
 Proof.
   intros.
-  iIntros "Htoken #Hthunk Hk".
+  iIntros "#Hthunk Hk".
   destruct_thunk.
 
   (* Put the [k] credits into the piggy bank. *)
-  iMod (piggybank_pay _ _ k with "Htoken Hpiggy Hk") as "($ & #Hpiggy')";
-    [ set_solver | set_solver |].
+  iMod (piggybank_pay with "Hpiggy Hk") as "#Hpiggy'";
+    [ set_solver |].
 
   construct_thunk.
 Qed.

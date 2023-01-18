@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode ThunksBase.
@@ -139,12 +139,11 @@ Class BasicThunkAPI
 
   (* Like [force], paying requires the token [ThunkToken p F']. *)
 
-  thunk_pay p F n k t R φ E F' :
-    F ⊆ E →
-    F ⊆ F' →
-    ThunkToken p F' -∗ Thunk p F t n R φ -∗ TC k
+  thunk_pay p F n k t R φ E :
+    ↑ThunkPayment t ⊆ E →
+    Thunk p F t n R φ -∗ TC k
       ={E}=∗
-    ThunkToken p F'  ∗ Thunk p F t (n-k) R φ
+    Thunk p F t (n-k) R φ
   ;
 
 }.
@@ -159,6 +158,7 @@ Section BaseInstance.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -202,8 +202,8 @@ Proof.
   (* Split our credits. *)
   iDestruct "Hcredits" as "(Hn & Hcredits)".
   (* First, pay. *)
-  iMod (thunk_pay with "Hp Hthunk Hn") as "(Hp & #Hpaid)"; [ done | done |].
-  iClear "Hthunk". iRename "Hpaid" into "Hthunk".
+  iMod (thunk_pay with "Hthunk Hn") as "#Hthunk'"; eauto 2.
+  iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   rewrite Nat.sub_diag. (* n - n = 0 *)
   (* Then, force the thunk. *)
   iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done |].

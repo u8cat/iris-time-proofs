@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat PiggyBank.
 From iris_time Require Import ThunksCode.
@@ -21,6 +21,7 @@ Section Proofs.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -149,6 +150,9 @@ Local Definition RightBranch t γdecided φ : iProp :=
     ∗ t ↦ EVALUATEDV « v »
     ∗ □ φ v.
 
+Definition ThunkPayment t : namespace :=
+  nroot .@ "base_thunk_payment" .@ t.
+
 Definition BaseThunk p F t n R φ : iProp :=
 
   ∃ γdecided N,
@@ -157,6 +161,7 @@ Definition BaseThunk p F t n R φ : iProp :=
     ∗ PiggyBank
         (LeftBranch t γdecided R φ)
         (RightBranch t γdecided φ)
+        (ThunkPayment t)
         p N n
 
 .
@@ -199,7 +204,7 @@ Local Ltac construct_right_branch :=
   try iNext; iExists _; eauto with iFrame.
 
 Local Ltac construct_thunk :=
-  iExists _, _; eauto with iFrame.
+  try iModIntro; iExists _, _; eauto with iFrame.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -210,7 +215,7 @@ Local Lemma decide γdecided v :
 Proof.
   unfold ownUndecided, ownDecided.
   iIntros "Hγdecided".
-  iApply (own_update _ _ _ with "Hγdecided").
+  iApply (own_update with "Hγdecided").
   by apply cmra_update_exclusive.
 Qed.
 
@@ -284,6 +289,7 @@ Qed.
    forced; so a ghost thunk does not satisfy this law. *)
 
 Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
+  ↑ThunkPayment t ⊆ E →
   F ⊆ E →
   F ⊆ F' →
   BaseThunk p F t n R φ -∗ ThunkVal t v -∗ ThunkToken p F'
@@ -303,7 +309,7 @@ Proof.
   (* Exploit the fact that the piggy bank has zero debit. *)
   iMod (piggybank_discover_zero_debit with "Hpiggy Htoken []")
     as "(#Hpiggy0 & $)";
-    [ set_solver | set_solver | | iModIntro; construct_thunk ].
+    [ eassumption | set_solver | set_solver | | construct_thunk ].
 
   (* This requires us to prove that in the left-hand branch
      we are able to obtain a contradiction. *)
@@ -371,7 +377,6 @@ Proof.
   { iExists _. eauto with iFrame. }
   (* Conclude. *)
   iApply "Post".
-  iModIntro.
   construct_thunk.
 Qed.
 
@@ -394,7 +399,7 @@ Proof.
 
   (* Break the bank! *)
   iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
-    [ set_solver | set_solver |].
+    [ set_solver | set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)
@@ -449,18 +454,18 @@ Qed.
 
 (* This law is part of the basic thunk API. *)
 
-Lemma base_thunk_pay p F F' E n k t R φ :
-  F ⊆ E →
-  F ⊆ F' →
-  ThunkToken p F' -∗ BaseThunk p F t n R φ -∗   TC k   ={E}=∗
-  ThunkToken p F'  ∗ BaseThunk p F t (n-k) R φ.
+Lemma base_thunk_pay p F E n k t R φ :
+  ↑ThunkPayment t ⊆ E →
+  BaseThunk p F t n R φ -∗   TC k   ={E}=∗
+  BaseThunk p F t (n-k) R φ.
 Proof.
-  iIntros (? ?) "Htoken #Hthunk Hk".
+  intros.
+  iIntros "#Hthunk Hk".
   destruct_thunk.
 
   (* Put the [k] credits into the piggy bank. *)
-  iMod (piggybank_pay _ _ k with "Htoken Hpiggy Hk") as "($ & #Hpiggy')";
-    [ set_solver | set_solver |].
+  iMod (piggybank_pay with "Hpiggy Hk") as "#Hpiggy'";
+    [ set_solver |].
 
   construct_thunk.
 Qed.
@@ -487,11 +492,11 @@ Lemma base_thunk_force_forced_strong p F t n R φ v F' :
     «force #t»
   {{{ RET «v» ; □ φ v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
-  iIntros (?).
+  intros.
   iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
   (* Argue that this thunk has zero debits. *)
   iMod (confront_base_thunk_thunkval with "Hthunk Hval Htoken")
-    as "(#Hthunk' & Htoken)"; [ done | done |].
+    as "(#Hthunk' & Htoken)"; [ done | done | done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   (* Force the thunk. *)
   iApply (base_thunk_force with "Htickinv [$Hcredits $Hthunk $Htoken $HR]");

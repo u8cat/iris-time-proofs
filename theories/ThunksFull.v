@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI ThunksStep.
@@ -11,6 +11,7 @@ Section Full.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -124,13 +125,11 @@ Proof.
     done. }
 
   { (* thunk_pay *)
-    iIntros "Htoken #Hthunk Hk".
+    iIntros "#Hthunk Hk".
     destruct_thunk.
-    iMod (thunk_pay with "Htoken Hthunk Hk") as "(Htoken & Hthunk')".
-    { set_solver. }
+    iMod (thunk_pay with "Hthunk Hk") as "#Hthunk'".
     { set_solver. }
     iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
-    iFrame "Htoken".
     iModIntro.
     (* Pack existentials. *)
     iExists SomeThunk, _, _.
