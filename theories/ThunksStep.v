@@ -184,13 +184,13 @@ Proof.
     (* Allow a ghost update after we force this thunk. *)
     iApply wp_fupd.
     (* Force this thunk, which we know has been forced already.
-       The result must be [v]. We do not obtain [□ φ v], but
-       we do not need it. *)
-    iApply (thunk_force_forced_weak with "Htickinv [$Hcredits $Hthunk $Hval $Htoken $HR]").
+       The result must be [v]. *)
+    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Htoken]").
     { set_solver. }
     iNext.
     iDestruct "Hv" as "#Hv".
-    iIntros "(Htoken & HR)".
+    (* We do not need [□ φ v], which is fortunate, as we do not have it. *)
+    iIntros "Htoken".
     (* Close the invariant, whose right-hand side now holds. *)
     iMod ("Hclose" with "[] Htoken") as "Hqwd".
     { construct_right_branch. }
@@ -200,15 +200,15 @@ Proof.
 
 Qed.
 
-Local Lemma thunkstep_force_forced_weak p F t n R ψ v F' :
+Local Lemma thunkstep_force_forced p F t n R ψ v F' :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ ThunkStep p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC 11 ∗ ThunkStep p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
     «force #t»
-  {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
+  {{{ RET «v» ; ThunkToken p F' }}}.
 Proof.
   intros.
-  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
+  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Htoken) Post".
   destruct_thunk. iClear "Hpiggy".
 
   (* Remarkably, we do not even need the piggy bank. *)
@@ -217,13 +217,12 @@ Proof.
      and do not execute the ghost update, as we are not
      required to produce [□ ψ v]. *)
 
-  iApply (thunk_force_forced_weak
-    with "Htickinv [$Hcredits $Hthunk $Hval $Htoken $HR]");
+  (* Force the underlying thunk using the same law. *)
+  iApply (thunk_force_forced
+    with "Htickinv [$Hcredits $Hthunk $Hval $Htoken]");
     [ set_solver |].
 
-  (* Done. *)
   eauto.
-
 Qed.
 
 Local Lemma thunkstep_pay p F E n k t R ψ :
@@ -253,7 +252,7 @@ Proof.
   constructor.
   { eauto using thunkstep_increase_debt. }
   { eauto using thunkstep_force_spec. }
-  { eauto using thunkstep_force_forced_weak. }
+  { eauto using thunkstep_force_forced. }
   { eauto using thunkstep_pay. }
 Qed.
 

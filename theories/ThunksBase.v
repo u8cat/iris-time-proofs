@@ -452,6 +452,87 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+(* A different specification for [force] in the case where the thunk has been
+   forced already. *)
+
+(* In this case, the number of debits [n] is not required to be zero, and the
+   resource [R] is not required. Furthermore, the result value [v] is known
+   ahead of time. *)
+
+(* We are able to prove [□ φ v], but this property is not preserved at higher
+   levels (see ThunksAPI and ThunksStep). *)
+
+Lemma base_thunk_force_forced p F t n R φ v F' :
+  F ⊆ F' →
+  TC_invariant -∗
+  {{{ TC 11 ∗ BaseThunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
+    «force #t»
+  {{{ RET «v» ; □ φ v ∗ ThunkToken p F' }}}.
+Proof.
+  intros ?.
+  iIntros "#Htickinv" (Φ) "!# (? & #Hthunk & #Hval & Htoken) Post".
+
+  (* Argue that this thunk has zero debits. *)
+  iMod (confront_base_thunk_thunkval with "Hthunk Hval Htoken")
+    as "(#Hthunk' & Htoken)"; [ done | done | done |].
+  iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
+
+  destruct_thunk.
+  iApply wp_fupd.
+  wp_tick_lam.
+
+  (* Break the bank! *)
+  iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
+    [ set_solver | set_solver | set_solver |].
+
+  (* This places us in one of two situations: either the bank has never
+     been broken yet, or it has been broken before. *)
+  iDestruct "Hbank" as "[Hbank | Hbank]".
+
+  (* Case: the bank has never been broken. *)
+  {
+    iDestruct "Hbank" as (nc) "(Hbranch & _ & _ & _)".
+    destruct_left_branch.
+    (* This case is impossible. We repeat an argument that is already
+       found in the proof of [confront_base_thunk_thunkval]. Never mind. *)
+    iExFalso. iClear "Htickinv Hpiggy Post".
+    iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
+    (* Exploit the agreement of the meta tokens. *)
+    iDestruct (meta_agree with "Hmeta Hmeta2") as "%Heq".
+    subst γdecided2.
+    iClear "Hmeta2".
+    (* The contradiction follows from the fact that the ghost cell γdecided
+       cannot be both decided and undecided. *)
+    iDestruct (decided_xor_undecided with "Hundecided Hdecided")
+      as "%contradiction".
+    tauto.
+  }
+
+  (* Case: the bank has been broken already. *)
+  {
+    (* The piggy bank requires us to preserve the right branch of our
+       invariant. *)
+    iDestruct "Hbank" as (nc) "(Hbranch & Htoken & Hclose)".
+    rename v into v'.
+    destruct_right_branch.
+    (* [v] and [v'] must be the same value. *)
+    iDestruct (confront_thunkval_thunkval with "Hval [Hdecided]") as "%Heq".
+    { iExists _. iFrame "Hmeta Hdecided". }
+    subst v'.
+    (* We now step through the code. The right branch is taken. *)
+    wp_tick_load. wp_tick_match.
+    (* Establish the postcondition. *)
+    iApply "Post".
+    iFrame "Hv".
+    (* Close the invariant. *)
+    iApply ("Hclose" with "[Ht] Htoken").
+    construct_right_branch.
+  }
+
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
 (* This law is part of the basic thunk API. *)
 
 Lemma base_thunk_pay p F E n k t R φ :
@@ -468,64 +549,6 @@ Proof.
     [ set_solver |].
 
   construct_thunk.
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
-(* The special case of [force] where the thunk has been forced already. *)
-
-(* In this case, the resource [R] is not needed, so a stronger specification
-   could be given. Its proof would require duplicating the proof of [force],
-   or (better) generalizing the spec of [force] to cover both cases. We do
-   not do so because we have no use for this stronger specification. Indeed,
-   the construction that we have in mind (ThunksStep.v) does not need it and
-   does not preserve it. Forcing a ghost proxy thunk can require [R], even
-   if the underlying physical thunk has been forced already, because we
-   allow the ghost update to use [R]. *)
-
-(* In this strong statement, the postcondition mentions [□ φ v]. *)
-
-Lemma base_thunk_force_forced_strong p F t n R φ v F' :
-  F ⊆ F' →
-  TC_invariant -∗
-  {{{ TC 11 ∗ BaseThunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
-    «force #t»
-  {{{ RET «v» ; □ φ v ∗ ThunkToken p F' ∗ R }}}.
-Proof.
-  intros.
-  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
-  (* Argue that this thunk has zero debits. *)
-  iMod (confront_base_thunk_thunkval with "Hthunk Hval Htoken")
-    as "(#Hthunk' & Htoken)"; [ done | done | done |].
-  iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
-  (* Force the thunk. *)
-  iApply (base_thunk_force with "Htickinv [$Hcredits $Hthunk $Htoken $HR]");
-    [ done |].
-  iNext.
-  iIntros (v') "(#Hv' & #Hval' & Htoken & HR)".
-  (* Argue that the two values must be the same. *)
-  iPoseProof (confront_thunkval_thunkval with "Hval Hval'") as "%". subst v'.
-  (* Done. *)
-  iApply "Post". auto with iFrame.
-Qed.
-
-(* In this weak statement, the postcondition does not mention [□ φ v]. *)
-
-Lemma base_thunk_force_forced_weak p F t n R φ v F' :
-  F ⊆ F' →
-  TC_invariant -∗
-  {{{ TC 11 ∗ BaseThunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
-    «force #t»
-  {{{ RET «v» ; ThunkToken p F' ∗ R }}}.
-Proof.
-  iIntros (?).
-  iIntros "#Htickinv" (Φ) "!# (Hcredits & #Hthunk & #Hval & Htoken & HR) Post".
-  iApply (base_thunk_force_forced_strong with
-    "Htickinv [$Hcredits $Hthunk $Htoken $HR]"); [ done | done |].
-  iNext.
-  iIntros "(Hv & Htoken & HR)".
-  iClear "Hv". (* drop [□ φ v] *)
-  iApply "Post". eauto with iFrame.
 Qed.
 
 End Proofs.

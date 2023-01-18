@@ -116,19 +116,17 @@ Class BasicThunkAPI
   (* The value that is returned must be the value [v] predicted by the
      assertion [ThunkVal t v]. *)
 
-  (* This specification is weak: it does not guarantee [□ φ v]. *)
+  (* This specification is weak: it does not guarantee [□ φ v]. One cannot
+     hope to obtain this property when [n] is nonzero. Establishing this
+     property conditionally, only in the special case where [n = 0] holds,
+     may be possible, but leads to difficulties in the proof. *)
 
-  (* One could remark that, in this case, forcing does not require [R].
-     However, we do not need this stronger result, and establishing it
-     would require some duplication of proofs, so we do not offer this
-     guarantee. *)
-
-  thunk_force_forced_weak p F t n R φ v F' :
+  thunk_force_forced p F t n R φ v F' :
     F ⊆ F' →
     TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
+    {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
       «force #t»
-    {{{ RET «v» ; ThunkToken p F' ∗ R }}}
+    {{{ RET «v» ; ThunkToken p F' }}}
   ;
 
   (* The ghost operation [pay] allows paying for (part of) the cost of a
@@ -170,7 +168,17 @@ Proof.
   constructor.
   { eauto using base_thunk_increase_debt. }
   { eauto using base_thunk_force. }
-  { eauto using base_thunk_force_forced_weak. }
+  { (* The goal here is almost identical to [base_thunk_force_forced].
+       It differs in that we are not asked to prove [□ φ v], yet we
+       are actually able to prove it. *)
+    intros.
+    iIntros "#Htickinv" (Φ) "!# (Htc & #Hthunk & #Hval & Htoken) Post".
+    wp_apply (base_thunk_force_forced
+               with "Htickinv [$Htc $Hthunk $Hval $Htoken]"); [ done |].
+    iIntros "(#Hv & Htoken)".
+    iClear "Hv". (* Drop φ v *)
+    iApply "Post".
+    iFrame "Htoken". }
   { eauto using base_thunk_pay. }
 Qed.
 
