@@ -292,9 +292,13 @@ Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
   ↑ThunkPayment t ⊆ E →
   F ⊆ E →
   F ⊆ F' →
-  BaseThunk p F t n R φ -∗ ThunkVal t v -∗ ThunkToken p F'
+  BaseThunk p F t n R φ -∗
+  ThunkVal t v -∗
+  ThunkToken p F'
   ={E}=∗
-  BaseThunk p F t 0 R φ ∗                  ThunkToken p F'.
+  BaseThunk p F t 0 R φ ∗
+  ▷ □ φ v ∗
+  ThunkToken p F'.
 Proof.
   intros.
   iIntros "#Hthunk #Hval Htoken".
@@ -307,19 +311,28 @@ Proof.
   iClear "Hmeta2".
 
   (* Exploit the fact that the piggy bank has zero debit. *)
-  iMod (piggybank_discover_zero_debit with "Hpiggy Htoken []")
-    as "(#Hpiggy0 & $)";
-    [ eassumption | set_solver | set_solver | | construct_thunk ].
+  iMod (piggybank_discover_zero_debit with "Hpiggy Htoken [] []")
+    as "(#Hpiggy0 & $ & $)";
+    [ eassumption | set_solver | set_solver | | | construct_thunk ].
 
-  (* This requires us to prove that in the left-hand branch
+  (* Subgoal 1: we must prove that in the left branch
      we are able to obtain a contradiction. *)
-  iIntros (nc) "Hbranch".
-  destruct_left_branch.
-  (* The contradiction follows from the fact that the ghost cell γdecided
-     cannot be both decided and undecided. *)
-  iDestruct (decided_xor_undecided with "Hundecided Hdecided")
-    as "%contradiction".
-  tauto.
+  { iIntros (nc) "Hbranch".
+    destruct_left_branch.
+    (* The contradiction follows from the fact that the ghost cell γdecided
+       cannot be both decided and undecided. *)
+    iDestruct (decided_xor_undecided with "Hundecided Hdecided")
+      as "%contradiction".
+    tauto. }
+
+  (* Subgoal 2: we must prove that in the right branch
+     we are able to extract [□ φ v]. *)
+  { iIntros "Hbranch". iNext.
+    rename v into v'.
+    iRename "Hdecided" into "Hdecided'".
+    iDestruct "Hbranch" as (v) "(#Hdecided & _ & #Hv)".
+    iPoseProof (ownDecided_agree with "Hdecided Hdecided'") as "%Heq".
+    subst v'. eauto. }
 
 Qed.
 
@@ -474,12 +487,13 @@ Proof.
 
   (* Argue that this thunk has zero debits. *)
   iMod (confront_base_thunk_thunkval with "Hthunk Hval Htoken")
-    as "(#Hthunk' & Htoken)"; [ done | done | done |].
+    as "(#Hthunk' & #Hv & Htoken)"; [ done | done | done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
+  iClear "Hv". (* Not needed below; we rediscover it. *)
 
   destruct_thunk.
   iApply wp_fupd.
-  wp_tick_lam.
+  wp_tick_lam. simpl.
 
   (* Break the bank! *)
   iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
@@ -494,7 +508,9 @@ Proof.
     iDestruct "Hbank" as (nc) "(Hbranch & _ & _ & _)".
     destruct_left_branch.
     (* This case is impossible. We repeat an argument that is already
-       found in the proof of [confront_base_thunk_thunkval]. Never mind. *)
+       found in the proof of [confront_base_thunk_thunkval], and we have
+       already invoked this lemma above, so there is some redundancy here.
+       Never mind. This is not a big deal. *)
     iExFalso. iClear "Htickinv Hpiggy Post".
     iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
     (* Exploit the agreement of the meta tokens. *)

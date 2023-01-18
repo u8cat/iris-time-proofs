@@ -460,10 +460,10 @@ Qed.
 (* The following law may be viewed as more exotic and less essential than
    the previous laws. It states that if the user is somehow able to prove
    that the piggy bank cannot be in the left branch then the apparent debt
-   of the piggy bank can be reduced from [n] to zero. This information can
-   then be used to break the piggy bank without paying anything more. *)
+   of the piggy bank can be reduced from [n] to zero. Furthermore, it lets
+   the user extract persistent information out of the right branch. *)
 
-Lemma piggybank_discover_zero_debit n E F :
+Lemma piggybank_discover_zero_debit φ n E F :
   (* The token: *)
   let token := na_own p F in
   (* Side conditions about masks: *)
@@ -474,13 +474,16 @@ Lemma piggybank_discover_zero_debit n E F :
   PiggyBank n -∗
   token -∗
   (* A proof that the piggy bank cannot be in its left branch. *)
-  (∀ nc, ▷ LeftBranch nc -∗ ▷ False) ={E}=∗
-  (* As a result, the user gets a view of the piggy bank with zero debits. *)
-  PiggyBank 0 ∗
+  (∀ nc, ▷ LeftBranch nc -∗ ▷ False) -∗
+  (* An extractor of persistent information out of the right branch. *)
+  (▷ RightBranch -∗ ▷ □ φ) ={E}=∗
+  (* As a result, the user gets a view of the piggy bank with zero debits,
+     and obtains the persistent information □ φ. *)
+  PiggyBank 0 ∗ ▷ □ φ ∗
   token.
 Proof.
   intros.
-  iIntros "#Hpiggy Htoken Hcontradiction".
+  iIntros "#Hpiggy Htoken Hcontradiction Hextractor".
   destruct_piggy.
   open_both_invariants.
   case_analysis forced.
@@ -496,11 +499,14 @@ Proof.
   (* We have [nc ≤ ac]. We may create a ghost witness of this fact.
      This will allow us to argue that this piggy bank has debt zero. *)
   create_white_bullet.
+  (* Extract ▷ □ φ. *)
+  iPoseProof ("Hextractor" with "Hbranch") as "#Hφ".
   (* Close the atomic invariant. *)
   close_at_invariant.
   (* Close the non-atomic invariant. *)
   close_na_invariant.
   (* Done. *)
+  iFrame "Hφ".
   construct_piggy.
 
 Qed.
