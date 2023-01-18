@@ -1,11 +1,12 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl excl_auth agree csum.
-  (* TODO try Require Export *)
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 
 (* -------------------------------------------------------------------------- *)
+
+(* Context. *)
 
 Section PiggyBank.
 
@@ -15,17 +16,19 @@ Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 
-Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
 Implicit Type n nc ac : nat.
 Implicit Type forced : bool.
-Implicit Type R : iProp.
-Implicit Type φ : val → iProp.
 Implicit Type γforced γpaid : gname.
 
 Variable LeftBranch  : (* nc: *) nat → iProp.
 Variable RightBranch :                 iProp.
 Variable P           :             namespace.
+Variable p           :      na_inv_pool_name.
+Variable N           :             namespace.
+
+(* -------------------------------------------------------------------------- *)
+
+(* Definitions. *)
 
 Local Definition PiggyBankNonAtomicInvariant γforced nc : iProp :=
   ∃ forced,
@@ -38,11 +41,36 @@ Local Definition PiggyBankAtomicInvariant γforced γpaid nc : iProp :=
     ∗ own γpaid (● MaxNat ac)
     ∗ if negb forced then TC ac else  ⌜ nc ≤ ac ⌝.
 
-Definition PiggyBank p N n : iProp :=
+Definition PiggyBank n : iProp :=
   ∃ γforced γpaid nc,
       na_inv p N (PiggyBankNonAtomicInvariant γforced nc)
     ∗ inv P (PiggyBankAtomicInvariant γforced γpaid nc)
     ∗ own γpaid (◯ MaxNat (nc - n)).
+
+(* -------------------------------------------------------------------------- *)
+
+(* Local lemmas about the ghost cell γforced. *)
+
+Local Lemma agree_forced γforced forced forced' :
+  own γforced (●E forced) -∗
+  own γforced (◯E forced') -∗
+  ⌜ forced' = forced ⌝.
+Proof.
+  iIntros "Hγforced● Hγforced◯".
+  iDestruct (own_valid_2 with "Hγforced● Hγforced◯") as "%Hvalid".
+  iPureIntro. symmetry. eauto using excl_auth_agree_L.
+Qed.
+
+Local Lemma update_forced γforced forced forced' :
+  own γforced (●E forced) -∗
+  own γforced (◯E forced) ==∗
+  own γforced (●E forced') ∗
+  own γforced (◯E forced').
+Proof.
+  iIntros "Hγforced● Hγforced◯".
+  iMod (own_update_2 with "Hγforced● Hγforced◯") as "[$ $]"; [| done ].
+  eapply excl_auth_update.
+Qed.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -56,6 +84,19 @@ Local Ltac open_na_invariant :=
     as ">(Hcontent & Htoken & Hclose)";
     [set_solver | set_solver |];
   iDestruct "Hcontent" as (forced) "(>Hγforced● & Hbranch)".
+
+Local Ltac open_at_invariant forced :=
+  iMod (inv_acc with "Hatinv") as "[Hcontent Hatclose]"; [ done |];
+  iDestruct "Hcontent" as (forced ac) "(>Hγforced◯ & >Hγpaid● & Hac)".
+
+Local Ltac open_both_invariants :=
+  (* Open the two invariants. *)
+  open_na_invariant;
+  let forced' := fresh in
+  open_at_invariant forced';
+  (* The two invariants must agree on the value of the ghost cell γforced. *)
+  iDestruct (agree_forced with "Hγforced● Hγforced◯") as "%Hagree";
+  subst forced'.
 
 Local Ltac case_analysis forced :=
   (* Perform case analysis on the Boolean value [forced]. *)
@@ -85,6 +126,10 @@ Local Ltac exploit_white_bullet :=
 Local Ltac increase_black_bullet k :=
   iMod (auth_max_nat_update_incr _ _ k with "Hγpaid●") as "Hγpaid●".
 
+Local Ltac set_γforced b :=
+  iMod (update_forced _ _ b with "Hγforced● Hγforced◯")
+    as "[Hγforced● Hγforced◯]".
+
 Local Ltac construct_na_invariant :=
   try iNext; iExists _; iFrame "Hγforced●"; simpl; eauto.
 
@@ -113,47 +158,18 @@ Local Ltac construct_piggy :=
 
 (* -------------------------------------------------------------------------- *)
 
-(* Local lemmas about the ghost cell γforced. *)
-
-Local Lemma agree_forced γforced forced forced' :
-  own γforced (●E forced) -∗
-  own γforced (◯E forced') -∗
-  ⌜ forced' = forced ⌝.
-Proof.
-  iIntros "Hγforced● Hγforced◯".
-  iDestruct (own_valid_2 with "Hγforced● Hγforced◯") as "%Hvalid".
-  iPureIntro. symmetry. eauto using excl_auth_agree_L.
-Qed.
-
-Local Lemma update_forced γforced forced forced' :
-  own γforced (●E forced) -∗
-  own γforced (◯E forced) ==∗
-  own γforced (●E forced') ∗
-  own γforced (◯E forced').
-Proof.
-  iIntros "Hγforced● Hγforced◯".
-  iMod (own_update_2 with "Hγforced● Hγforced◯") as "[$ $]"; [| done ].
-  eapply excl_auth_update.
-Qed.
-
-Local Ltac set_γforced b :=
-  iMod (update_forced _ _ b with "Hγforced● Hγforced◯")
-    as "[Hγforced● Hγforced◯]".
-
-(* -------------------------------------------------------------------------- *)
-
 (* Properties. *)
 
-Global Instance piggybank_persistent p N n :
-  Persistent (PiggyBank p N n).
+Global Instance piggybank_persistent n :
+  Persistent (PiggyBank n).
 Proof using.
   exact _.
 Qed.
 
-Lemma piggy_bank_increase_debt p N n1 n2 :
+Lemma piggy_bank_increase_debt n1 n2 :
   n1 ≤ n2 →
-  PiggyBank p N n1 -∗
-  PiggyBank p N n2.
+  PiggyBank n1 -∗
+  PiggyBank n2.
 Proof.
   intros.
   iIntros "#Hpiggy".
@@ -161,9 +177,9 @@ Proof.
   construct_piggy.
 Qed.
 
-Lemma piggybank_create p N nc E :
+Lemma piggybank_create nc E :
   LeftBranch nc ={E}=∗
-  PiggyBank p N nc.
+  PiggyBank nc.
 Proof.
   iIntros "Hleft".
   (* Allocate the ghost cell γpaid. Its initial value is 0. *)
@@ -189,14 +205,10 @@ Proof.
   construct_piggy.
 Qed.
 
-Local Ltac open_at_invariant forced :=
-  iMod (inv_acc with "Hatinv") as "[Hcontent Hatclose]"; [ done |];
-  iDestruct "Hcontent" as (forced ac) "(>Hγforced◯ & >Hγpaid● & Hac)".
-
-Lemma piggybank_pay k p N E n :
+Lemma piggybank_pay k E n :
   ↑P ⊆ E →
-  PiggyBank p N n -∗   TC k   ={E}=∗
-  PiggyBank p N (n-k).
+  PiggyBank n -∗   TC k   ={E}=∗
+  PiggyBank (n-k).
 Proof.
   intros.
   iIntros "#Hpiggy Hk".
@@ -240,22 +252,13 @@ Proof.
 
 Qed.
 
-Local Ltac open_both_invariants :=
-  (* Open the two invariants. *)
-  open_na_invariant;
-  let forced' := fresh in
-  open_at_invariant forced';
-  (* The two invariants must agree on the value of the ghost cell γforced. *)
-  iDestruct (agree_forced with "Hγforced● Hγforced◯") as "%Hagree";
-  subst forced'.
-
-Lemma piggybank_break p N E F :
+Lemma piggybank_break E F :
   let token := na_own p F in
   let token' := na_own p (F ∖ ↑N) in
   ↑P ⊆ E →
   ↑N ⊆ E →
   ↑N ⊆ F →
-  PiggyBank p N 0 -∗
+  PiggyBank 0 -∗
   token
    ={E}=∗
    ( ∃ nc,
@@ -312,14 +315,14 @@ Proof.
 
 Qed.
 
-Lemma piggybank_discover_zero_debit p N n E F :
+Lemma piggybank_discover_zero_debit n E F :
   ↑P ⊆ E →
   ↑N ⊆ E →
   ↑N ⊆ F →
-  PiggyBank p N n -∗
+  PiggyBank n -∗
   na_own p F -∗
   (∀ nc, ▷ LeftBranch nc -∗ ▷ False) ={E}=∗
-  PiggyBank p N 0 ∗
+  PiggyBank 0 ∗
   na_own p F.
 Proof.
   intros.
