@@ -76,6 +76,18 @@ Proof.
     + specialize (IHg' g ltac:(lia)). set_solver.
 Qed.
 
+(* [gens_below_bound] is monotonic. *)
+
+Local Lemma gens_below_bound_mono g bound :
+  lies_below g bound →
+  gens_below_gen g ⊆ gens_below_bound bound.
+Proof.
+  intros Hg.
+  destruct bound.
+  + apply gens_below_gen_mono. cbn in Hg. lia.
+  + cbn. set_solver.
+Qed.
+
 (* If [g < g'] holds, then the namespace associated with [g] is contained
    in the union of namespaces [gens_below_gen g']. *)
 
@@ -88,6 +100,42 @@ Proof.
   { cbn. set_solver. }
   transitivity (gens_below_gen (S g)); auto.
   by apply gens_below_gen_mono.
+Qed.
+
+(* If [lies_below g bound] holds, then the namespace associated with [g] is
+   contained in the union of namespaces [gens_below_bound bound]. *)
+
+Local Lemma gen_ns_subseteq_gens_below_bound g bound :
+  lies_below g bound →
+  ↑gen_ns g ⊆ gens_below_bound bound.
+Proof.
+  intros. destruct bound.
+  { eauto using gen_ns_subseteq_gens_below_gen. }
+  { cbn. set_solver. }
+Qed.
+
+(* A splitting lemma that follows from [gens_below_bound_mono]. *)
+
+Local Lemma carve_out_gens_below_gen g bound :
+  lies_below g bound →
+  gens_below_bound bound =
+  gens_below_gen g ∪ (gens_below_bound bound ∖ gens_below_gen g).
+Proof.
+  intros Hg. apply union_difference_L. apply gens_below_bound_mono. auto.
+Qed.
+
+(* An inclusion lemma that follows from [gen_ns_subseteq_gens_below_bound].
+   If [g] lies below [bound] then the namespace associated with [g] is in
+   the union of the namespaces associated with the interval [g, bound). *)
+
+Local Lemma gen_ns_subseteq_interval g bound :
+  lies_below g bound →
+  ↑gen_ns g ⊆ gens_below_bound bound ∖ gens_below_gen g.
+Proof.
+  intros Hg.
+  apply subseteq_difference_r.
+  { eauto using gen_ns_disj_gens_below_gen. }
+  { eauto using gen_ns_subseteq_gens_below_bound. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -168,18 +216,11 @@ Section Gthunks.
   Proof using.
     intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & H & Hgens) HΦ".
     rewrite /own_gens_below_bound.
-    assert (gens_below_bound bound = gens_below_gen g ∪ (gens_below_bound bound ∖ gens_below_gen g)) as Hsplit_gens.
-    { apply union_difference_L. destruct bound.
-      + apply gens_below_gen_mono. cbn in Hg. lia.
-      + cbn. set_solver. }
-    rewrite Hsplit_gens. iDestruct (na_own_union with "Hgens") as "[Hgens Hthunk]".
+    rewrite (carve_out_gens_below_gen _ _ Hg).
+    iDestruct (na_own_union with "Hgens") as "[Hgens Hthunk]".
     { set_solver. }
-    assert (↑gen_ns g ⊆ gens_below_bound bound ∖ gens_below_gen g) as Hthunk.
-    { apply subseteq_difference_r. by apply gen_ns_disj_gens_below_gen. destruct bound.
-      + by apply gen_ns_subseteq_gens_below_gen.
-      + cbn. set_solver. }
     wp_apply (Thunks.force_spec _ p (gen_ns g) with "HtickInv [$TC $H $Hthunk $Hgens]").
-      by auto.
+    { eauto using gen_ns_subseteq_interval. }
     iIntros (?) "(? & ? & Hthunk & Hgens)". iApply "HΦ". iFrame.
     iDestruct (na_own_union with "[$Hgens $Hthunk]") as "?". set_solver. done.
   Qed.
