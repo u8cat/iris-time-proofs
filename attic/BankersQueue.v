@@ -75,6 +75,63 @@ Section StreamProofs.
   Notation iProp := (iProp Σ).
   Open Scope nat_scope.
 
+  Lemma untranslate_litv t :
+    #t = «#t»%V.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_pairv v1 v2 :
+    («v1», «v2»)%V  = « (v1, v2) »%V.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_pair e1 e2 :
+    (tick «e1», «e2»)%E  = « (e1, e2) »%E.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_injlv v :
+    (InjLV «v»)%V = «InjLV v»%V.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_injrv v :
+    (InjRV «v»)%V = «InjRV v»%V.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_injl e :
+    (InjL (tick «e»))%E = «InjL e»%E.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_injr e :
+    (InjR (tick «e»))%E = «InjR e»%E.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_lambda f x e :
+    RecV f x (translation e) =
+    translationV (RecV f x e).
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_app e1 e2 :
+    (tick «e1» «e2»)%E = «e1 e2»%E.
+  Proof. reflexivity. Qed.
+
+  Lemma untranslate_val v :
+    Val (translationV v) =
+    translation (Val v).
+  Proof. reflexivity. Qed.
+
+  Hint Rewrite
+    untranslate_pairv
+    untranslate_pair
+    untranslate_injlv
+    untranslate_injrv
+    untranslate_injl
+    untranslate_injr
+    untranslate_lambda
+    untranslate_app
+    untranslate_val
+  : untranslate.
+
+  Ltac untranslate :=
+    autorewrite with untranslate.
+
   Implicit Type t : loc.
   Implicit Type c l : val.
   Implicit Type x y z : val.
@@ -179,8 +236,7 @@ Section StreamProofs.
     rewrite [in TC 7](_ : 7 = 3 + 4); last lia.
     iDestruct "Htc" as "[Htc_create ?]".
     wp_tick_lam. wp_tick_let. wp_tick_closure.
-    rewrite (_ : (tick «create»%V _) = « create (λ: <>, InjR (x, #t))%V ») ;
-      last by unlock.
+    rewrite untranslate_litv. untranslate.
     wp_apply (create_spec p g with "[$] [$Htc_create Hstream]") ; last first.
     { iIntros (t') "Htthunk'". iApply "Post". simpl.
       iSplitR.
@@ -189,7 +245,7 @@ Section StreamProofs.
     }
     { iIntros "Htoken Htc" (Ψ) "Post".
       wp_tick_lam. wp_tick_pair. wp_tick_inj.
-      rewrite (_ : InjRV («x», #t) = « InjRV (x, #t) »%V) ; last done.
+      rewrite untranslate_litv. untranslate.
       iApply ("Post" with "[$]"). auto 6 with iFrame. }
   Qed.
 
@@ -249,8 +305,8 @@ Section StreamProofs.
       wp_tick_lam. wp_tick_let. wp_tick_match.
       do 2 (wp_tick_proj ; wp_tick_let).
       wp_tick_closure.
-      rewrite (_ : tick «create»%V _  = « create (λ: <>, c)%V ») ;
-        last by unlock.
+      rewrite (_ : tick «create»%V _  = « create (λ: <>, c)%V »);
+        last by (unlock).
       iDestruct "Htc" as "[Htc_force Htc]".
       wp_apply (create_spec p g _
         (λ c, isStreamCell g c ds ys)
@@ -262,11 +318,8 @@ Section StreamProofs.
       {
         iIntros (t) "#Hthunk".
         wp_tick_pair. wp_tick_inj.
-        rewrite (_ : InjRV («x», #t) = « InjRV (x, #t) »%V) ; last done.
-        rewrite (_ :
-          tick (tick « rev_append_list_to_cell » « ListV xs ») « InjRV (x, #t) »
-          = « rev_append_list_to_cell (ListV xs) (InjRV (x, #t)) »
-        ); last done.
+        rewrite untranslate_litv.
+        untranslate.
         wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[$] [] [$Htc_ind]").
         { iExists g, t. do 2 (iSplitR ; first done).
           rewrite unfold_isStream.
