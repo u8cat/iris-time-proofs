@@ -2,7 +2,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits ThunksCode Thunks.
+From iris_time Require Import TimeCredits ThunksCode ThunksBase Gthunks.
 Open Scope nat_scope.
 
 Section Stream.
@@ -72,6 +72,8 @@ Section StreamProofs.
   Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
   Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
   Context `{na_invG Σ}.
+  Notation iProp := (iProp Σ).
+  Open Scope nat_scope.
 
   Implicit Type t : loc.
   Implicit Type c l : val.
@@ -80,181 +82,137 @@ Section StreamProofs.
   Implicit Type d : nat.
   Implicit Type ds : list nat.
   Implicit Type g : nat.
-  Implicit Type p : na_inv_pool_name.
   Implicit Type E F : coPset.
 
-(*
-  Fixpoint isStream t ds xs : iProp Σ :=
-    match ds with
-    | []       => False
-    | d0 :: ds => ∃ p γv, Thunks.Thunk p t γv d0 emp (λ c, isStreamCell c ds xs)
-    end%I
-  with isStreamCell c xs ds :=
-    match xs with
-    | []      => ⌜c = NILV ∧ ds = []⌝
-    | x :: xs => ∃ t, ⌜c = CONSV x #t⌝ ∗ isStream t ds xs
-    end%I.
-*)
-(*
-  Fixpoint isStream p E t ds xs : iProp Σ :=
-    match ds, xs with
-    | d::[], []    =>  ∃ γv F, ⌜F ⊆ E⌝ ∗ ⌜set_infinite (E ∖ F)⌝
-                         ∗ Thunks.Thunk p t γv d (na_own p (E ∖ F)) (λ c,
-                             ⌜c = NILV⌝)
-    | d::ds, x::xs =>  ∃ γv F, ⌜F ⊆ E⌝ ∗ ⌜set_infinite (E ∖ F)⌝
-                         ∗ Thunks.Thunk p t γv d (na_own p (E ∖ F)) (λ c,
-                             ∃ t, ⌜c = CONSV x #t⌝ ∗ isStream p E t ds xs)
-    | _,     _     =>  False
-    end%I.
-*)
-(*
-  Fixpoint isStream p E t ds xs : iProp Σ :=
-    match ds, xs with
-    | d::[], [] =>
-                        ∃ γv F,
-                            ⌜F ⊆ E⌝ ∗ ⌜set_infinite (E ∖ F)⌝
-                          ∗ Thunks.Thunk p t γv d (na_own p (E ∖ F)) (λ c,
-                              ⌜c = NILV⌝)
-    | d::((_::_) as ds), x::xs =>
-                        ∃ γv F,
-                            ⌜F ⊆ E⌝ ∗ ⌜set_infinite (E ∖ F)⌝
-                          ∗ Thunks.Thunk p t γv d (na_own p (E ∖ F)) (λ c,
-                              ∃ t, ⌜c = CONSV x #t⌝ ∗ isStream p E t ds xs)
-    | _, _ =>  False
-    end%I.
-*)
+  Variable p : na_inv_pool_name.
 
-  Fixpoint streamGenN g :=
-    match g with
-    | 0    => nroot .@ "stream"
-    | S g' => streamGenN g' .@ 1
+  Fixpoint isStream g t ds xs : iProp :=
+    match ds with
+    | []    =>
+        False
+    | d :: ds =>
+        ⌜ length ds = length xs ⌝ ∗
+        Gthunk p g t d (λ c,
+          match xs with
+          | []      =>          ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
+          | x :: xs => ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗
+                                isStream g' t' ds xs
+          end)
+    end%I.
+
+  Definition isStreamCell g c ds xs : iProp :=
+    match xs with
+    | []      =>          ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
+    | x :: xs => ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗
+                          isStream g' t' ds xs
     end.
 
-  (* TODO: p variable de section *)
-  (* TODO: utiliser la feature d’Iris pour associer un γ à une adresse physique
-     cf gen_heap.v ("metadata")
-     il faut adapter wp_alloc dans heap_lang/lifting.v pour qu’il ne jette plus le meta_token
-     et adapter/étendre la tactique correspondante.
-
-  Search meta_token.
-  Search meta.
-     isThunk_ t ... := ∃ γ, meta t ⊤ γ ∗ isThunk γ t ...
-     isThunkVal idem
-  *)
-  (* TODO: API des thunks:
-     - cacher le [γ] des thunks (nouvelle API)
-     - prouver spec de [force] avec [ThunkVal] au lieu de [Thunk ∗ R]
-     - prouver que [ThunkVal v1 ∗ ThunkVal v2 -∗ ⌜v1 = v2⌝ (trivial avec la def)
-   *)
-
-  Fixpoint isStream p g t ds xs : iProp Σ := (
+  Lemma unfold_isStream g t ds xs :
+    isStream g t ds xs =
     match ds with
-    | []    =>  False
-    | d::ds =>
-        ∃ γt,
-(*           ⌜length ds = length xs⌝ *)
-          Thunks.Thunk p (streamGenN g .@ 0) γt t d (na_own p (⊤ ∖ ↑streamGenN g))
-            (λ c,
-              match xs with
-              | []    =>           ⌜c = NILV⌝
-              | x::xs =>  ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗ isStream p g' t' ds xs
-              end)
-    end
-  )%I.
-(*
-  Definition isStreamCell p E c ds xs :=
-    match ds, xs with
-    | [],           []    =>      ⌜c = NILV⌝
-    | (_::_ as ds), x::xs => ∃ t, ⌜c = CONSV x #t⌝ ∗ isStream p E t ds xs
-    | _,            _     => False
+    | []    =>
+        False
+    | d :: ds =>
+        ⌜ length ds = length xs ⌝ ∗
+        Gthunk p g t d (λ c, isStreamCell g c ds xs)
     end%I.
-*)
-  Definition isStreamCell p g c ds xs :=
-    match xs with
-    | []    =>          ⌜c = NILV (*∧ ds = []*)⌝
-    | x::xs => ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗ isStream p g' t' ds xs
-    end%I.
-
-  Lemma isStream_fold p g t ds xs :
-    isStream p g t ds xs =
-    (match ds with
-    | []    =>  False
-    | d::ds =>
-        ∃ γt,
-          Thunks.Thunk p (streamGenN g .@ 0) γt t d (na_own p (⊤ ∖ ↑streamGenN g))
-            (λ c, isStreamCell p g c ds xs)
-    end)%I.
-  Proof. destruct ds ; reflexivity. Qed.
-
-  Lemma isStream_fold' p g t d ds xs :
-    isStream p g t (d::ds) xs =
-    (∃ γt,
-      Thunks.Thunk p (streamGenN g .@ 0) γt t d (na_own p (⊤ ∖ ↑streamGenN g))
-        (λ c, isStreamCell p g c ds xs))%I.
-  Proof. reflexivity. Qed.
-
-  Global Instance isStream_persistent p g t ds xs :
-    Persistent (isStream p g t ds xs).
   Proof.
-    revert g ds ; induction xs ; destruct ds ; exact _.
+    destruct ds; reflexivity.
   Qed.
 
-  Global Instance isStreamCell_persistent p g c ds xs :
-    Persistent (isStreamCell p g c ds xs).
+  Ltac unfold_isStream :=
+    rewrite unfold_isStream.
+
+  Local Ltac deconstruct_stream :=
+    iDestruct "Hstream" as "(%Heq & #Hthunk)".
+
+  Global Instance isStream_persistent :
+    ∀ ds xs g t,
+    Persistent (isStream g t ds xs).
   Proof.
-    destruct xs ; exact _.
+    induction ds; destruct xs; exact _.
   Qed.
 
-  Lemma isStream_lengths p g t ds xs :
-    isStream p g t ds xs -∗ ⌜(length ds = 1 + length xs)%nat⌝.
-  Abort.
-
-  Definition isStream' p t ds xs : iProp Σ :=
-    ∃ g, isStream p g t ds xs.
-
-  Notation ThunkVal γt v := (own γt (Cinr $ to_agree v%V)).
-  Notation coStreamGenN g := (⊤ ∖ ↑streamGenN g%nat).
-
-  Lemma extract_spec p g t ds x xs :
-    TC_invariant -∗
-    {{{ TC 22 ∗ isStream p g t (0::ds) (x::xs) ∗ na_own p (coStreamGenN (g+1)) }}}
-    « extract #t »
-    {{{ g' t', RET («x», #t') ; (*⌜g' ≤ g⌝ ∗*) isStream p g' t' ds xs ∗ na_own p (coStreamGenN (g+1)) }}}.
+  Global Instance isStreamCell_persistent g c ds xs :
+    Persistent (isStreamCell g c ds xs).
   Proof.
-    iIntros "#?" (Φ) "!> (Htc & Ht & Htok) Post".
-    rewrite (_ : 22 = 11 + 11) ; last lia. iDestruct "Htc" as "[Htc_force ?]".
-    simpl. iDestruct "Ht" as (γt) "Ht".
-    wp_tick_lam.
-    assert (    na_own p (coStreamGenN (g+1))
-                 ⊣⊢ na_own p (coStreamGenN (g+1) ∖ coStreamGenN g)
-                  ∗ na_own p (coStreamGenN g)
-                  ∗ na_own p (↑(streamGenN g .@ 0)))
-      as Eq.
-      1:admit.
-    setoid_rewrite Eq.
-    iDestruct "Htok" as "(Htok_useless & Htok_tail & Htok_t)".
-    wp_apply (Thunks.force_spec with "[$] [$Htc_force $Ht $Htok_t $Htok_tail]") ; first done.
-    iIntros (c) "(_ & Hc & Htok_t & Htok_tail)" ; iDestruct "Hc" as (g' t') "(-> & #? & #?)".
-    wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let). wp_tick_pair.
-    iApply "Post". by iFrame "#∗".
-  Admitted.
+    destruct xs; exact _.
+  Qed.
 
-  Lemma cons_spec p g t ds x xs :
-    TC_invariant -∗
-    {{{ TC 7 ∗ isStream p g t ds xs }}}
-    « cons x #t »
-    {{{ t2, RET #t2 ; isStream p g t2 (3::ds) (x::xs) }}}.
+  Lemma isStream_length :
+    ∀ ds xs g t,
+    isStream g t ds xs -∗
+    ⌜(length ds = 1 + length xs)%nat⌝.
   Proof.
-    iIntros "#?" (Φ) "!> [Htc #Ht] Post".
-    rewrite [in TC 7](_ : 7 = 3 + 4) ; last lia. iDestruct "Htc" as "[Htc_create ?]".
+    destruct ds; destruct xs; intros; simpl; eauto 2;
+    iIntros "Hstream";
+    deconstruct_stream;
+    iPureIntro; lia.
+  Qed.
+
+  Lemma isStreamCell_length :
+    ∀ ds xs g c,
+    isStreamCell g c ds xs -∗
+    ⌜(length ds = length xs)%nat⌝.
+  Proof.
+    destruct xs; intros; simpl.
+    { iIntros "(_ & %Hds)". subst ds. eauto. }
+    { iIntros "Hcell".
+      iDestruct "Hcell" as (g' t') "(-> & %Hg'g & Hstream)". (* TODO share *)
+      iApply isStream_length. eauto. }
+  Qed.
+
+  (* TODO rename *)
+  Definition isStream' t ds xs : iProp :=
+    ∃ g, isStream g t ds xs.
+
+  Notation token g :=
+    (own_gens_below_bound p (Some (g + 1))).
+
+  Lemma cons_spec g t ds x xs :
+    TC_invariant -∗
+    {{{ TC 7 ∗ isStream g t ds xs }}}
+      « cons x #t »
+    {{{ t', RET #t' ; isStream g t' (3 :: ds) (x :: xs) }}}.
+  Proof.
+    iIntros "#?" (Φ) "!> [Htc #Hstream] Post".
+    rewrite [in TC 7](_ : 7 = 3 + 4); last lia.
+    iDestruct "Htc" as "[Htc_create ?]".
     wp_tick_lam. wp_tick_let. wp_tick_closure.
     rewrite (_ : (tick «create»%V _) = « create (λ: <>, InjR (x, #t))%V ») ;
       last by unlock.
-    wp_apply (Thunks.create_spec p with "[$] [$Htc_create Ht]") ; last first.
-    { iIntros (γt2 t2) "Ht2". iApply "Post". simpl. by auto with iFrame. }
-    { iIntros "? ?" (Ψ) "Post". wp_tick_lam. wp_tick_pair. wp_tick_inj.
+    wp_apply (create_spec p g with "[$] [$Htc_create Hstream]") ; last first.
+    { iIntros (t') "Htthunk'". iApply "Post". simpl.
+      iSplitR.
+      { iApply isStream_length. eauto. }
+      { eauto. }
+    }
+    { iIntros "Htoken Htc" (Ψ) "Post".
+      wp_tick_lam. wp_tick_pair. wp_tick_inj.
       rewrite (_ : InjRV («x», #t) = « InjRV (x, #t) »%V) ; last done.
-      iApply ("Post" with "[$]"). by auto 10 with iFrame. }
+      iApply ("Post" with "[$]"). auto 6 with iFrame. }
+  Qed.
+
+  Lemma extract_spec g t ds x xs :
+    TC_invariant -∗
+    {{{ TC 22 ∗ isStream g t (0 :: ds) (x :: xs) ∗ token g }}}
+      « extract #t »
+    {{{ g' t', RET («x», #t');
+        (* ⌜g' ≤ g⌝ TODO *)
+        isStream g' t' ds xs ∗ token g }}}.
+  Proof.
+    iIntros "#?" (Φ) "!> (Htc & Hstream & Htoken) Post".
+    rewrite (_ : 22 = 11 + 11) ; last lia.
+    iDestruct "Htc" as "[Htc_force ?]".
+    unfold_isStream.
+    deconstruct_stream.
+    wp_tick_lam.
+    wp_apply (force_spec with "[$] [$Htc_force $Hthunk $Htoken]").
+    { eauto with thunks. }
+    iIntros (c) "(_ & #Hc & Htoken)".
+    iDestruct "Hc" as (g' t') "(-> & #Hg'g & #Hstream)".
+    wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let). wp_tick_pair.
+    iApply "Post". iFrame "Htoken". eauto.
   Qed.
 
   Fixpoint ListV xs : val :=
@@ -262,42 +220,73 @@ Section StreamProofs.
     | []    =>  NILV
     | x::xs =>  CONSV x (ListV xs)
     end.
-  Definition isList l xs : iProp Σ :=
+
+  Definition isList l xs : iProp :=
     ⌜l = ListV xs⌝.
 
-  Lemma rev_append_list_to_cell_spec p g l xs c ds ys :
+  Lemma rev_append_list_to_cell_spec_aux g xs :
+    ∀ c ds ys ,
     TC_invariant -∗
-    {{{ TC (6 + 28 * length xs) ∗ isList l xs ∗ isStreamCell p g c ds ys }}}
-    « rev_append_list_to_cell l c »
-    {{{ c2, RET «c2» ; isStreamCell p g c2 (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
+    isStreamCell g c ds ys -∗
+    {{{ TC (6 + 28 * length xs) }}}
+      « rev_append_list_to_cell (ListV xs) c »
+    {{{ c', RET «c'» ;
+        isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
-    iIntros "#?" (Φ) "!> (Htc & -> & Hc) Post".
-    iInduction (xs) as [|x xs] "IH" forall (c ds ys).
+    induction xs as [|x xs]; intros c ds ys;
+    iIntros "#? #Hc" (Φ) "!> Htc Post".
+
+    (* Case: empty list. *)
     { wp_tick_lam. wp_tick_let. wp_tick_match. by iApply "Post". }
+
+    (* Case: nonempty list. *)
     {
+      iAssert (⌜ length ds = length ys ⌝)%I as "%Hlengths".
+      { iApply isStreamCell_length. eauto. }
+
       rewrite (_ : 6 + 28 * length (_::xs) = (6 + 28 * length xs) + 3 + 25); last (cbn;lia).
       iDestruct "Htc" as "[[Htc_ind Htc_create] Htc]".
-      wp_tick_lam. wp_tick_let. wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let).
+      wp_tick_lam. wp_tick_let. wp_tick_match.
+      do 2 (wp_tick_proj ; wp_tick_let).
       wp_tick_closure.
       rewrite (_ : tick «create»%V _  = « create (λ: <>, c)%V ») ;
         last by unlock.
       iDestruct "Htc" as "[Htc_force Htc]".
-      wp_apply (Thunks.create_spec p
-        (streamGenN g .@ 0) (_) (na_own p (⊤ ∖ ↑streamGenN g))
-        (λ c, isStreamCell p g c ds ys)
+      wp_apply (create_spec p g _
+        (λ c, isStreamCell g c ds ys)
         with "[$] [$Htc_create Htc_force Hc]").
-      { iIntros "_ Htok" (Ψ) "HΨ". wp_tick_lam.
-        iApply ("HΨ" with "Htok"). by iDestruct "Hc" as "#$". }
+      { unfold isAction.
+        iIntros "Htok _" (* TODO why do we drop credit? *) (Ψ) "HΨ".
+        wp_tick_lam.
+        iApply ("HΨ" with "Htok"). eauto. }
       {
-        iIntros (γt t) "Ht".
+        iIntros (t) "#Hthunk".
         wp_tick_pair. wp_tick_inj.
         rewrite (_ : InjRV («x», #t) = « InjRV (x, #t) »%V) ; last done.
-        wp_apply ("IH" $! _ (0::ds) (x::ys) with "[$Htc_ind] [Ht]").
-        { iExists g, t. do 2 (iSplitR ; first done). by iExists γt. }
-        { iIntros (c2) "Hc2". iApply "Post". iClear "#".
+        rewrite (_ :
+          tick (tick « rev_append_list_to_cell » « ListV xs ») « InjRV (x, #t) »
+          = « rev_append_list_to_cell (ListV xs) (InjRV (x, #t)) »
+        ); last done.
+        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[$] [] [$Htc_ind]").
+        { iExists g, t. do 2 (iSplitR ; first done).
+          rewrite unfold_isStream.
+          iSplitR; eauto. }
+        { iIntros (c') "#Hc'". iApply "Post".
           by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
       }
     }
+  Qed.
+
+  Lemma rev_append_list_to_cell_spec g l xs c ds ys :
+    TC_invariant -∗
+    {{{ TC (6 + 28 * length xs) ∗ isList l xs ∗ isStreamCell g c ds ys }}}
+      « rev_append_list_to_cell l c »
+    {{{ c', RET «c'» ;
+        isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
+  Proof.
+    iIntros "#?" (Φ) "!> (Htc & -> & #Hc) Post".
+    wp_apply (rev_append_list_to_cell_spec_aux with "[$] [$] [$]").
+    eauto.
   Qed.
 
 End StreamProofs.
