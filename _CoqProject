@@ -41,7 +41,6 @@ theories/thunks/ThunksStep.v
 theories/thunks/ThunksFull.v
 theories/thunks/ThunksExamples.v
 theories/thunks/ThunksSimple.v
-theories/thunks/Thunks.v
 theories/thunks/Gthunks.v
 
 # A persistent queue (Okasaki, 6.4.2).
