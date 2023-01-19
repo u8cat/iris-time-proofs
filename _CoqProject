@@ -8,6 +8,7 @@
 # The following warning is triggered by union_find/math/LibFunOrd.v
 -arg -w -arg -fragile-hint-constr
 
+# HeapLang.
 theories/heap_lang/lang.v
 theories/heap_lang/adequacy.v
 theories/heap_lang/lifting.v
@@ -16,6 +17,7 @@ theories/heap_lang/proofmode.v
 theories/heap_lang/tactics.v
 theories/heap_lang/lib/assert.v
 
+# Time credits and time receipts.
 theories/Auth_max_nat.v
 theories/Auth_nat.v
 theories/Base.v
@@ -24,25 +26,29 @@ theories/Examples.v
 theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v
-theories/PiggyBank.v
-theories/ThunksCode.v
-theories/ThunksAPI.v
-theories/ThunksBase.v
-theories/ThunksStep.v
-theories/ThunksFull.v
-theories/ThunksExamples.v
-theories/ThunksSimple.v
-theories/Thunks.v
-theories/Gthunks.v
 theories/TimeCredits.v
 theories/TimeCreditsAltProofs.v
 theories/TimeReceipts.v
 theories/Combined.v
 theories/Translation.v
 
+# Thunks.
+theories/thunks/PiggyBank.v
+theories/thunks/ThunksCode.v
+theories/thunks/ThunksAPI.v
+theories/thunks/ThunksBase.v
+theories/thunks/ThunksStep.v
+theories/thunks/ThunksFull.v
+theories/thunks/ThunksExamples.v
+theories/thunks/ThunksSimple.v
+theories/thunks/Thunks.v
+theories/thunks/Gthunks.v
+
+# A persistent queue (Okasaki, 6.4.2).
 theories/pqueue/Code.v
 theories/pqueue/Proof.v
 
+# The Union-Find algorithm and its complexity.
 theories/union_find/math/Ackermann.v
 theories/union_find/math/FilterTowardsInfinity.v
 theories/union_find/math/Filter.v
