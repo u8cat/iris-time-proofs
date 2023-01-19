@@ -50,6 +50,16 @@ Definition lies_below g bound : Prop :=
   | Some g' => g < g'
   end.
 
+(* [g] lies below its successor. *)
+
+Lemma lies_below_succ g :
+  lies_below g (Some (g + 1)).
+Proof.
+  simpl. lia.
+Qed.
+
+#[global] Hint Resolve lies_below_succ : thunks.
+
 (* If [g ≤ g'] holds, then the namespace associated with [g'] is disjoint
    with the union of namespaces [gens_below_gen g]. *)
 
