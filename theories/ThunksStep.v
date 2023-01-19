@@ -2,7 +2,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits Auth_max_nat PiggyBank.
+From iris_time Require Import TimeCredits PiggyBank.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 
 (* -------------------------------------------------------------------------- *)
@@ -13,6 +13,7 @@ Context `{BasicThunkAPI Σ Thunk}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Notation iProp := (iProp Σ).
+Open Scope nat_scope.
 
 Implicit Type p : na_inv_pool_name.
 Implicit Type N : namespace.
