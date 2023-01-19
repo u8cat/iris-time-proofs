@@ -17,6 +17,9 @@ Section Debits.
 
   Definition DebitInv γ Q : iProp Σ :=
     ∃ n, own γ (● MinNat' n) ∗ (TC n ==∗ □ Q). (* TODO: should probably be a fupd *)
+    (* TODO a different branch contains an attempt to change this definition:
+    ∃ n, own γ (● MinNat' n) ∗ ((⌜n ≠ 0⌝ ∗ (TC n ==∗ □ Q)) ∨ □ Q)
+       this allows fixing [force], but breaks [pay]. *)
   Definition Debit n Q : iProp Σ :=
     ∃ γ, inv debitN (DebitInv γ Q) ∗ own γ (◯ MinNat' n).
 
