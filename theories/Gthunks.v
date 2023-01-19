@@ -1,8 +1,9 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl excl_auth agree csum.
-From iris_time Require Import TimeCredits Auth_max_nat Thunks.
-From iris_time Require Import ThunksCode.
+From iris_time Require Import TimeCredits.
+From iris_time Require Import ThunksCode ThunksBase ThunksAPI ThunksFull.
+Open Scope nat_scope.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -43,7 +44,7 @@ Local Definition gens_below_bound bound : coPset :=
 
 (* [lies_below g bound] determines whether [g] is less than [bound]. *)
 
-Local Definition lies_below g bound : Prop :=
+Definition lies_below g bound : Prop :=
   match bound with
   | None => True
   | Some g' => g < g'
@@ -152,77 +153,94 @@ Section Gthunks.
 
   Implicit Type p : na_inv_pool_name.
   Implicit Type t : loc.
-  Implicit Type n m k : nat.
-  Implicit Type f : val.
 
   Definition own_gens_below_bound p bound :=
     na_own p (gens_below_bound bound).
+  (* TODO own_gens_below_bound is part of public spec;
+          shorter name needed *)
 
   Local Lemma own_gens_below_alloc :
     ⊢ |==> ∃ p, own_gens_below_bound p None.
   Proof using. iApply na_alloc. Qed.
 
   (* TODO parameterize with R *)
-  Definition Gthunk p g γ t n φ : iProp :=
-    Thunk p (gen_ns g) γ t n
-            (own_gens_below_bound p (Some g)) φ.
+  Definition Gthunk p g t n φ : iProp :=
+    let F := ↑(gen_ns g) in
+    let R := own_gens_below_bound p (Some g) in
+    Thunk p F t n R φ.
 
-  Global Instance Gthunk_persistent p g γ t n φ :
-    Persistent (Gthunk p g γ t n φ).
-  Proof using. exact _. Qed.
-
-  Lemma Gthunk_weaken p g γ t n₁ n₂ φ :
-    (n₁ ≤ n₂)%nat →
-    Gthunk p g γ t n₁ φ -∗
-    Gthunk p g γ t n₂ φ.
-  Proof using. iIntros (?) "H". by iApply Thunk_weaken. Qed.
-
-  Lemma Gthunk_consequence p g γ t n m φ ψ :
-    (∀ v, TC m -∗ φ v ={⊤}=∗ □ ψ v) -∗
-    Gthunk p g γ t  n    φ  ={∅}=∗
-    Gthunk p g γ t (n+m) ψ.
+  Global Instance Gthunk_persistent p g t n φ :
+    Persistent (Gthunk p g t n φ).
   Proof using.
-    iIntros "H1 H2".
-    iApply (Thunk_consequence with "[H1] H2").
-    iIntros (v) "Htc HR Hv".
+    exact _.
+  Qed.
+
+  Lemma Gthunk_weaken p g t n1 n2 φ :
+    n1 ≤ n2 →
+    Gthunk p g t n1 φ -∗
+    Gthunk p g t n2 φ.
+  Proof using.
+    iIntros (?) "Hthunk".
+    by iApply thunk_increase_debt.
+  Qed.
+
+  Lemma Gthunk_consequence p g t n1 n2 φ ψ E :
+    (∀ v, TC n2 -∗ □ φ v ={⊤}=∗ □ ψ v) -∗
+    Gthunk p g t  n1       φ  ={E}=∗
+    Gthunk p g t (n1 + n2) ψ.
+  Proof.
+    rewrite /Gthunk.
+    iIntros "Hupdate Hthunk".
+    iApply (thunk_consequence with "Hthunk [Hupdate]").
+    iIntros (v) "HR Htc Hv".
     iFrame "HR".
-    iApply ("H1" with "Htc").
+    iApply ("Hupdate" with "Htc").
     iAssumption.
   Qed.
 
-  Lemma Gthunk_pay E p g γ t n k φ :
-    ↑thunkPayN t ⊆ E →
-    TC k -∗ Gthunk p g γ t n φ ={E}=∗ Gthunk p g γ t (n-k) φ.
-  Proof using. iIntros (?) "H1 H2". by iMod (Thunk_pay with "H1 H2"). Qed.
-
-  Lemma create_spec p g n φ f :
-    TC_invariant -∗
-    {{{ TC 3 ∗ ( TC n -∗ own_gens_below_bound p (Some g) -∗
-                 ∀ ψ, (∀ v, own_gens_below_bound p (Some g) -∗ □ φ v -∗ ψ «v»%V) -∗
-                 WP «f #()» {{ ψ }} ) }}}
-    « create f »
-    {{{ γ t, RET #t ; Gthunk p g γ t n φ }}}.
+  Lemma Gthunk_pay k E p g t n φ :
+    ↑ThunkPayment t ⊆ E →
+    TC k -∗ Gthunk p g t n φ ={E}=∗ Gthunk p g t (n-k) φ.
   Proof using.
-    iIntros "#HtickInv" (Φ) "!# H Post".
-    by wp_apply (Thunks.create_spec with "HtickInv H").
+    rewrite /Gthunk.
+    iIntros (?) "Htc Hthunk".
+    by iMod (thunk_pay with "Hthunk Htc").
   Qed.
 
-  Lemma force_spec p g bound γ t φ :
-    lies_below g bound →
+  Lemma create_spec p g n φ f :
+    let token := own_gens_below_bound p (Some g) in
     TC_invariant -∗
-    {{{ TC 11 ∗ Gthunk p g γ t 0 φ ∗ own_gens_below_bound p bound }}}
+    {{{ TC 3 ∗ isAction f n token φ }}}
+      « create f »
+    {{{ t, RET #t ; Gthunk p g t n φ }}}.
+  Proof.
+    iIntros "#HtickInv" (Φ) "!# H Post".
+    by wp_apply (thunk_create with "HtickInv H").
+  Qed.
+
+  Lemma force_spec p g bound t φ :
+    lies_below g bound →
+    let token := own_gens_below_bound p bound in
+    TC_invariant -∗
+    {{{ TC 11 ∗ Gthunk p g t 0 φ ∗ token }}}
     « force #t »
-    {{{ v, RET «v» ; ThunkVal γ v ∗ □ φ v ∗ own_gens_below_bound p bound }}}.
+    {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
   Proof using.
-    intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & H & Hgens) HΦ".
+    rewrite /Gthunk.
+    intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & H & Htoken) Post".
     rewrite /own_gens_below_bound.
     rewrite (carve_out_gens_below_gen _ _ Hg).
-    iDestruct (na_own_union with "Hgens") as "[Hgens Hthunk]".
+    iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
     { set_solver. }
-    wp_apply (Thunks.force_spec _ p (gen_ns g) with "HtickInv [$TC $H $Hthunk $Hgens]").
+    (* Both tokens are required here. *)
+    wp_apply (thunk_force with "HtickInv [$TC $H $Htoken2 $Htoken1]").
     { eauto using gen_ns_subseteq_interval. }
-    iIntros (?) "(? & ? & Hthunk & Hgens)". iApply "HΦ". iFrame.
-    iDestruct (na_own_union with "[$Hgens $Hthunk]") as "?". set_solver. done.
+    (* Conclude. *)
+    iIntros (v) "(#Hv & #Hval & Htoken1 & Htoken2)".
+    iApply "Post". iFrame "Hv Hval".
+    iDestruct (na_own_union with "[$Htoken2 $Htoken1]") as "Htoken".
+    { set_solver. }
+    iFrame "Htoken".
   Qed.
 
 End Gthunks.

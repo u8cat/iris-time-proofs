@@ -1,9 +1,9 @@
 From stdpp Require Import list.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
-From iris_time Require Import TimeCredits Gthunks Auth_max_nat.
+From iris_time Require Import TimeCredits Gthunks.
 From iris_time.pqueue Require Import Code.
 
 Fixpoint list_val (l : list val) : val :=
@@ -15,11 +15,12 @@ Fixpoint list_val (l : list val) : val :=
 Section PQueue.
 
 Notation valO := (valO heap_lang).
-Context `{!timeCreditHeapG Σ}.
-Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γ *)
-Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
+Context `{timeCreditHeapG Σ}.
+Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
+Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
+Notation iProp := (iProp Σ).
 
 Context (p : na_inv_pool_name).
 
@@ -81,18 +82,18 @@ Definition thunk_debt (w fl rl : list val) : nat :=
 
 Definition is_queue_raw
   (q : val)
-  (l w fl rl : list val) : iProp Σ
+  (l w fl rl : list val) : iProp
 :=
-  ∃ (t : loc) (lenf lenr : nat) (γ : gname) (id : generation),
+  ∃ (t : loc) (lenf lenr : nat) (id : generation),
     ⌜q = (list_val w, #lenf, #t, #lenr, list_val rl)%V
      ∧ lenf = length fl
      ∧ lenr = length rl
      ∧ l = fl ++ reverse rl
      ∧ w `prefix_of` fl⌝ ∗
-    Gthunk p id γ t (thunk_debt w fl rl)
+    Gthunk p id t (thunk_debt w fl rl)
           (λ fv, ⌜fv = list_val fl⌝).
 
-Definition is_queue (q : val) (l : list val) : iProp Σ :=
+Definition is_queue (q : val) (l : list val) : iProp :=
   ∃ (w : list val) (fl rl: list val),
     is_queue_raw q l w fl rl ∗
     ⌜length rl ≤ length fl⌝ ∗
@@ -107,7 +108,7 @@ Lemma empty_spec :
   {{{ TC 10 }}}
     «empty #()»
   {{{ q, RET «q»; is_queue q nil }}}.
-Proof using.
+Proof.
   iIntros "#Htickinv !#" (Φ) "TC HΦ".
   wp_tick_lam. wp_tick_closure.
   rewrite (_: 8 = 4 + 4) //. iDestruct "TC" as "[TC1 TC]".
@@ -116,12 +117,12 @@ Proof using.
                           (λ flv', ⌜flv' = list_val nil⌝)%I
                           (λ: <>, list_val nil)%V
              with "[//] [$TC12 TC11]") as "S".
-  { iIntros "TC Hna" (ψ) "Hψ". wp_tick_lam.
+  { iIntros "Hna TC" (ψ) "Hψ". wp_tick_lam.
     by iApply ("Hψ" $! #()%V with "Hna"). }
-  rewrite -lock. (* XXX *) wp_apply "S". iIntros (γ t) "HT".
+  rewrite -lock. (* XXX *) wp_apply "S". iIntros (t) "HT".
   repeat wp_tick_pair. iApply ("HΦ" $! (#(), #0, #t, #0, #())%V).
   iExists _, _, _. iSplit.
-  { iExists _, 0, 0, _, 0. iFrame "HT". iPureIntro. by repeat split. }
+  { iExists _, 0, 0, 0. iFrame "HT". iPureIntro. by repeat split. }
   done.
 Qed.
 
@@ -136,7 +137,7 @@ Lemma checkw_spec q l w fl rl :
       ∗ ⌜w' = [] → fl = []⌝ }}}.
 Proof using.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
-  iDestruct "Hq" as (t ? ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
+  iDestruct "Hq" as (t ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
   wp_tick_lam.
   repeat (wp_tick_let; repeat wp_tick_proj).
   destruct w as [|? w'] eqn:Hw.
@@ -146,13 +147,13 @@ Proof using.
     iIntros (fv) "(TV & -> & Hgens)". repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val fl, #(length fl), #t, #(length rl), list_val rl)%V fl).
     iFrame "Hgens". iSplit.
-    { iExists _, _, _, _, _. iSplit; [done|]. iApply (Gthunk_weaken with "HT").
+    { iExists _, _, _, _. iSplit; [done|]. iApply (Gthunk_weaken with "HT").
       unfold thunk_debt; lia. }
     done. }
   { wp_tick_op. wp_tick_if. repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val (v::w'), #(length fl), #t, #(length rl), list_val rl)%V w).
     iFrame "Hgens". iSplit.
-    { iExists _, _, _, _, _. rewrite -Hw. iSplit; [subst w; done|].
+    { iExists _, _, _, _. rewrite -Hw. iSplit; [subst w; done|].
       iApply (Gthunk_weaken with "HT"). lia. }
     { iPureIntro. intros ->; inversion Hw. } }
 Qed.
@@ -170,9 +171,9 @@ Lemma check_spec q l w fl rl :
       ∗ ⌜length rl' ≤ length fl'⌝
       ∗ ⌜w' = [] → fl' = []⌝
       ∗ own_gens_below_bound p None }}}.
-Proof using.
+Proof.
   intros Hlen. iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
-  iDestruct "Hq" as (t ? ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
+  iDestruct "Hq" as (t ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
   wp_tick_lam.
   repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_op.
@@ -181,7 +182,7 @@ Proof using.
     rewrite (_: 92 = 44 + 48) //. iDestruct "TC" as "[TC1 TC]".
     wp_apply (checkw_spec (list_val w, #(length fl), #t, #(length rl), list_val rl)%V
                with "[//] [$TC1 $Hgens]").
-    { iExists _, _, _, _, _. iSplit. done. iFrame "HT". }
+    { iExists _, _, _, _. iSplit. done. iFrame "HT". }
     iIntros (q' w') "(Hq' & Hna & %)". iApply "HΦ". by iFrame. }
   { rewrite bool_decide_eq_false_2; [| lia]. wp_tick_if.
     rewrite (_: 92 = 11 + 81) //. iDestruct "TC" as "[TC1 TC]".
@@ -198,7 +199,7 @@ Proof using.
                             (λ flv', ⌜flv' = list_val (fl ++ reverse rl)⌝)%I
                             (λ: <>, append (list_val fl) (rev (list_val rl)))%V
                with "[//] [$TC1 TC2]") as "S".
-    { iIntros "TC Hgens" (ψ) "Hψ". wp_tick_lam.
+    { iIntros "Hgens TC" (ψ) "Hψ". wp_tick_lam.
       rewrite (_: 16 * length fl = 8 * length fl + 8 * length fl); [|lia].
       iDestruct "TC" as "[TCa TCr]". iDestruct "TC2" as "[TC2 TCrc]".
       iCombine "TCrc TCr" as "TCr".
@@ -208,12 +209,12 @@ Proof using.
       wp_apply (append_spec with "[//] [$TCa]").
       iIntros (l') "->". by iApply ("Hψ" with "Hgens"). }
     rewrite -lock. (* XXX *) wp_apply "S".
-    iIntros (? t') "#HT'". wp_tick_let. wp_tick_op. repeat wp_tick_pair.
+    iIntros (t') "#HT'". wp_tick_let. wp_tick_op. repeat wp_tick_pair.
     rewrite (_: 48 = 44 + 4) //. iDestruct "TC" as "[TC1 TC]".
     wp_apply (checkw_spec (list_val fl, #(length fl + length rl), #t', #0, #())%V
                           (fl ++ reverse rl) fl (fl ++ reverse rl) nil
                with "[//] [$TC1 $Hgens]").
-    { iExists _, (length fl + length rl), 0, _, 0. iSplit. iPureIntro. split.
+    { iExists _, (length fl + length rl), 0, 0. iSplit. iPureIntro. split.
       - repeat f_equal. lia.
       - rewrite app_length reverse_length app_nil_r. repeat split. by apply prefix_app_r.
       - iApply (Gthunk_weaken with "HT'"). rewrite /thunk_debt.
@@ -227,10 +228,10 @@ Lemma push_spec q l x :
   {{{ is_queue q l ∗ TC 170 ∗ own_gens_below_bound p None }}}
     «push q x»
   {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ own_gens_below_bound p None }}}.
-Proof using.
+Proof.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & % & %)".
-  iDestruct "Hqr" as (t ? ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
+  iDestruct "Hqr" as (t ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_pair. wp_tick_op. repeat wp_tick_pair.
   rewrite (_: 135 = 8 + 127) //. iDestruct "TC" as "[TC1 TC]".
@@ -240,7 +241,7 @@ Proof using.
                        (fl ++ reverse rl ++ [x]) w fl (x :: rl)
             with "[//] [$TC1 $Hgens]").
   { cbn; lia. }
-  { iExists _, (length fl), (length rl + 1), _, _. iSplit. iPureIntro. split.
+  { iExists _, (length fl), (length rl + 1), _. iSplit. iPureIntro. split.
     - repeat f_equal. lia.
     - repeat split; auto. cbn; lia. rewrite reverse_cons //.
     - iApply (Gthunk_weaken with "HT'"). cbn; lia. }
@@ -258,10 +259,10 @@ Lemma pop_spec q l :
       | x :: l' => ∃ q', ⌜r = SOMEV (x, q')%V⌝ ∗ is_queue q' l'
       end ∗
       own_gens_below_bound p None }}}.
-Proof using.
+Proof.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & %Hlen & %Hw)".
-  iDestruct "Hqr" as (t ? ? ? ns_id) "[(-> & -> & -> & -> & %Hpref) HT]".
+  iDestruct "Hqr" as (t ? ? ns_id) "[(-> & -> & -> & -> & %Hpref) HT]".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   destruct w as [|x w'] eqn:Hweq.
   { wp_tick_op. wp_tick_if. wp_tick_inj.
@@ -281,10 +282,10 @@ Proof using.
                             (λ flv, ⌜flv = list_val fl⌝)%I
                             (λ: <>, Snd (ThunksCode.force #t))%V
                with "[//] [$TC1 TC2]") as "S".
-    { iIntros "TC Hgens" (ψ) "Hψ". wp_tick_lam.
+    { iIntros "Hgens TC" (ψ) "Hψ". wp_tick_lam.
       rewrite (_: 28 = 12 + 16) //. iDestruct "TC2" as "[TC1 TC2]".
       iCombine "TC2 TC" as "TC".
-      iDestruct (Gthunk_pay _ _ _ _ _ _ (thunk_debt (x :: w') (x :: fl) rl)
+      iDestruct (Gthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
                             with "[TC] HT") as ">#HTpaid". done.
       { iApply (TC_weaken with "TC"). rewrite /thunk_debt.
         rewrite !(_: ∀ x l, length (x :: l) = S (length l)); [|done..]. lia. }
@@ -294,14 +295,14 @@ Proof using.
       wp_apply (force_spec with "[//] [$TC2 $HTpaid $Hgens]"). cbn; lia.
       iIntros (flv) "(_ & -> & Hgens)". rewrite /=. wp_tick_proj.
       by iApply ("Hψ" with "Hgens"). }
-    rewrite -lock. (* XXX *) wp_apply "S". iIntros (? t') "#HT'".
+    rewrite -lock. (* XXX *) wp_apply "S". iIntros (t') "#HT'".
     wp_tick_let. wp_tick_op. repeat wp_tick_pair.
     rewrite (_: 175 = 121 + 54) //. iDestruct "TC" as "[TC1 TC]".
     wp_apply (check_spec (list_val w', #(S (length fl) - 1), #t', #(length rl), list_val rl)%V
                          (fl ++ reverse rl) w' fl rl
                with "[//] [$TC1 $Hgens]").
     { cbn in Hlen; lia. }
-    { iExists _, _, _, _, _. iSplit. iPureIntro. repeat split; auto.
+    { iExists _, _, _, _. iSplit. iPureIntro. repeat split; auto.
       - repeat f_equal. lia.
       - iFrame "HT'". }
     iIntros (q' w'' fl' rl') "(Hq' & % & % & Hgens)".
