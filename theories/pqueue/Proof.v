@@ -83,7 +83,7 @@ Definition is_queue_raw
   (q : val)
   (l w fl rl : list val) : iProp Σ
 :=
-  ∃ (t : loc) (lenf lenr : nat) (γ : gname) (id : genid),
+  ∃ (t : loc) (lenf lenr : nat) (γ : gname) (id : generation),
     ⌜q = (list_val w, #lenf, #t, #lenr, list_val rl)%V
      ∧ lenf = length fl
      ∧ lenr = length rl
@@ -129,10 +129,10 @@ Qed.
    if [f] is empty. *)
 Lemma checkw_spec q l w fl rl :
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 44 ∗ own_gens_upto p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC 44 ∗ own_gens_below_bound p None }}}
     «checkw q»
   {{{ q' w', RET «q'»;
-      is_queue_raw q' l w' fl rl ∗ own_gens_upto p None
+      is_queue_raw q' l w' fl rl ∗ own_gens_below_bound p None
       ∗ ⌜w' = [] → fl = []⌝ }}}.
 Proof using.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
@@ -163,13 +163,13 @@ Qed.
 Lemma check_spec q l w fl rl :
   length rl ≤ length fl + 1 →
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 121 ∗ own_gens_upto p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC 121 ∗ own_gens_below_bound p None }}}
     «check q»
   {{{ q' w' fl' rl', RET «q'»;
       is_queue_raw q' l w' fl' rl'
       ∗ ⌜length rl' ≤ length fl'⌝
       ∗ ⌜w' = [] → fl' = []⌝
-      ∗ own_gens_upto p None }}}.
+      ∗ own_gens_below_bound p None }}}.
 Proof using.
   intros Hlen. iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (t ? ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
@@ -224,9 +224,9 @@ Qed.
 
 Lemma push_spec q l x :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 170 ∗ own_gens_upto p None }}}
+  {{{ is_queue q l ∗ TC 170 ∗ own_gens_below_bound p None }}}
     «push q x»
-  {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ own_gens_upto p None }}}.
+  {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ own_gens_below_bound p None }}}.
 Proof using.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & % & %)".
@@ -250,14 +250,14 @@ Qed.
 
 Lemma pop_spec q l :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 250 ∗ own_gens_upto p None }}}
+  {{{ is_queue q l ∗ TC 250 ∗ own_gens_below_bound p None }}}
     «pop q»
   {{{ r, RET «r»;
       match l with
       | nil => ⌜r = NONEV⌝
       | x :: l' => ∃ q', ⌜r = SOMEV (x, q')%V⌝ ∗ is_queue q' l'
       end ∗
-      own_gens_upto p None }}}.
+      own_gens_below_bound p None }}}.
 Proof using.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & %Hlen & %Hw)".
