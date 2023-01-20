@@ -47,6 +47,9 @@ theories/thunks/Gthunks.v
 theories/pqueue/Code.v
 theories/pqueue/Proof.v
 
+# Lazy streams.
+theories/streams/Streams.v
+
 # The Union-Find algorithm and its complexity.
 theories/union_find/math/Ackermann.v
 theories/union_find/math/FilterTowardsInfinity.v
