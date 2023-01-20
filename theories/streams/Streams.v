@@ -132,6 +132,32 @@ Section StreamProofs.
   Ltac untranslate :=
     autorewrite with untranslate.
 
+  (* [divide H] destructs the Iris hypothesis [H] and names the two
+     hypotheses thus obtained [H] and [H']. This is typically useful
+     when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
+
+  Ltac divide H :=
+    let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
+    iDestruct H as ipat.
+
+  (* [pay_out_of H] destructs the Iris hypothesis [H], which must be
+     of the form [TC k], into two hypotheses [TC (k - ?cost)] and
+     [TC ?cost], where [?cost] is a fresh metavariable. The proof
+     obligation [?cost <= k] is scheduled last, so it can be proved
+     after [?cost] has been instantiated. *)
+
+  Ltac pay_out_of H :=
+    match goal with
+    |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+      let cost := fresh "cost" in
+      evar (cost : nat);
+      let Hcost := fresh "Hcost" in
+      assert (Hcost: cost ≤ k); first last; [
+      rewrite [in TC k] (_ : k = (k - cost) + cost); [
+      unfold cost; clear Hcost; divide H | lia ]
+      |]
+    end.
+
   Definition debit := nat.
   Definition debits := list debit.
 
@@ -503,8 +529,14 @@ Section StreamProofs.
 
   (* The tick translation of [lazy e] involves two ticks. *)
 
-  Lemma translate_lazy e :
+  Lemma translate_lazy_expr e :
     « lazy e » = tick « create » (tick (Lam <> «e»)).
+  Proof.
+    reflexivity.
+  Qed.
+
+  Lemma translate_lazy_val c :
+    « lazy c » = tick «create»%V (tick (Lam <> « c »%V)).
   Proof.
     reflexivity.
   Qed.
@@ -520,11 +552,12 @@ Section StreamProofs.
     {{{ TC 4 }}}
       « lazy e »
     {{{ t, RET #t ; isStream g t ((1 + k) :: ds) xs }}}.
+    (* TODO might wish to pay 5 up front and only have [k] debits *)
   Proof.
     iIntros (Hlen) "#He".
     construct_texan_triple "Htc".
     (* The tick translation of [lazy e] involves two ticks. *)
-    rewrite translate_lazy.
+    rewrite translate_lazy_expr.
     (* We pay one credit for the second tick, which is executed first. *)
     wp_tick_closure.
     (* Then, we recognize an application of [create]. *)
@@ -539,6 +572,35 @@ Section StreamProofs.
     (* There remain [k] credits, which allow executing [e]. *)
     wp_apply ("He" with "Htc").
     iIntros (c) "#Hc".
+    iApply ("Post" with "Htoken"). iFrame "Hc".
+  Qed.
+
+  Lemma lazy_val_spec g c ds xs :
+    length ds = length xs →
+    isStreamCell g c ds xs -∗
+    TC_invariant -∗
+    {{{ TC 5 }}}
+      « lazy c »
+    {{{ t, RET #t ; isStream g t (0 :: ds) xs }}}.
+  Proof.
+    iIntros (Hlen) "#Hc".
+    construct_texan_triple "Htc".
+    (* The tick translation of [lazy e] involves two ticks. *)
+    rewrite translate_lazy_expr.
+    (* We pay one credit for the second tick, which is executed first. *)
+    wp_tick_closure.
+    (* Then, we recognize an application of [create]. *)
+    untranslate.
+    (* We pay 3 credits for [create], and keep one credit. *)
+    iDestruct "Htc" as "(H1 & H3)".
+    wp_apply (create_spec with "[$] [$H3 H1]"); last first.
+    { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
+    (* We now examine the cost of this action. *)
+    construct_action.
+    (* We have wisely stored one credit, which pays for the call to the
+       constant function that returns [c]. *)
+    wp_tick_lam.
+    (* Done. *)
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
 
@@ -594,39 +656,13 @@ Section StreamProofs.
     note_length_equality.
     wp_tick_lam. wp_tick_let.
     rewrite untranslate_litv. untranslate.
-    rewrite -translate_lazy.
+    rewrite -translate_lazy_expr.
     wp_apply (lazy_spec with "[#] [$] [$Htc]"); last first.
     { iIntros (t') "Hstream'".
       iApply "Post". iFrame. }
     { iApply (CONS_spec with "[$] [$]"). }
     { eauto. }
   Qed.
-
-  (* [divide H] destructs the Iris hypothesis [H] and names the two
-     hypotheses thus obtained [H] and [H']. This is typically useful
-     when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
-
-  Ltac divide H :=
-    let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
-    iDestruct H as ipat.
-
-  (* [pay_out_of H] destructs the Iris hypothesis [H], which must be
-     of the form [TC k], into two hypotheses [TC (k - ?cost)] and
-     [TC ?cost], where [?cost] is a fresh metavariable. The proof
-     obligation [?cost <= k] is scheduled last, so it can be proved
-     after [?cost] has been instantiated. *)
-
-  Ltac pay_out_of H :=
-    match goal with
-    |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
-      let cost := fresh "cost" in
-      evar (cost : nat);
-      let Hcost := fresh "Hcost" in
-      assert (Hcost: cost ≤ k); first last; [
-      rewrite (_ : k = (k - cost) + cost); [
-      unfold cost; clear Hcost; divide H | lia ]
-      |]
-    end.
 
   Lemma extract_spec g t ds x xs :
     isStream g t (0 :: ds) (x :: xs) -∗
@@ -670,7 +706,7 @@ Section StreamProofs.
     ∀ xs c ds ys ,
     isStreamCell g c ds ys -∗
     TC_invariant -∗
-    {{{ TC (6 + 28 * length xs) }}}
+    {{{ TC (6 + 19 * length xs) }}}
       « rev_append (ListV xs) c »
     {{{ c', RET «c'» ;
         isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
@@ -680,50 +716,47 @@ Section StreamProofs.
     construct_texan_triple "Htc".
 
     (* Case: the list is empty. *)
-    { wp_tick_lam. wp_tick_let. wp_tick_match. iApply "Post". iFrame "Hc". }
+    { simpl.
+      wp_tick_lam. wp_tick_let. wp_tick_match.
+      iApply "Post". iFrame "Hc". }
 
     (* Case: the list is nonempty. *)
     {
       note_length_equality.
-      rewrite (_ : 6 + 28 * length (_ :: xs) = (6 + 28 * length xs) + 3 + 25);
+      rewrite (_ : 6 + 19 * length (_ :: xs) = (6 + 19 * length xs) + 19);
         last (cbn; lia).
-      iDestruct "Htc" as "[[Htc_ind Htc_create] Htc]".
+      iDestruct "Htc" as "[Hrest Htc]".
       wp_tick_lam. wp_tick_let. wp_tick_match.
       do 2 (wp_tick_proj ; wp_tick_let).
-      wp_tick_closure.
-      rewrite (_ : tick «create»%V _  = « create (λ: <>, c)%V »);
-        last by (unlock).
-      iDestruct "Htc" as "[Htc_force Htc]".
-      wp_apply (create_spec p g _
-        (λ c, isStreamCell g c ds ys)
-        with "[$] [$Htc_create Htc_force Hc]").
-      { unfold isAction.
-        iIntros "Htok _" (* TODO why do we drop credit? *) (Ψ) "HΨ".
-        wp_tick_lam.
-        iApply ("HΨ" with "Htok"). eauto. }
+      rewrite -translate_lazy_val.
+      pay_out_of "Htc".
+      wp_apply (lazy_val_spec with "[$Hc] [$] [$Htc']").
+      { eassumption. }
       {
         iIntros (t) "#Hthunk".
         wp_tick_pair. wp_tick_inj.
-        rewrite untranslate_litv.
-        untranslate.
-        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Htc_ind]").
-        { iExists g, t. do 2 (iSplitR ; first done).
-          rewrite unfold_isStream.
-          iSplitR; eauto. }
+        rewrite untranslate_litv. untranslate.
+        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Hrest]").
+        { construct_stream_cell. }
         { iIntros (c') "#Hc'". iApply "Post".
           by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
       }
+      (* Side condition. *)
+      lia.
     }
   Qed.
 
   Lemma rev_append_spec g l xs c ds ys :
+    isList l xs -∗
+    isStreamCell g c ds ys -∗
     TC_invariant -∗
-    {{{ TC (6 + 28 * length xs) ∗ isList l xs ∗ isStreamCell g c ds ys }}}
+    {{{ TC (6 + 19 * length xs) }}}
       « rev_append l c »
     {{{ c', RET «c'» ;
         isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
-    iIntros "#?" (Φ) "!> (Htc & -> & #Hc) Post".
+    iIntros "%Hxs #Hc". subst.
+    construct_texan_triple "Htc".
     wp_apply (rev_append_spec_aux with "[$] [$] [$]").
     eauto.
   Qed.
