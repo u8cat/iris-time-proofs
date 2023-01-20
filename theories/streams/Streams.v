@@ -40,7 +40,7 @@ Definition cons : val := (* : val → stream → stream *)
 Definition extract : val := (* : stream → val × stream *)
   λ: "xs",
     match: force "xs" with
-      NIL              => #()
+      NIL              => #() (* this case must not happen *)
     | CONS ("x", "xs") => ("x", "xs")
     end.
 
@@ -597,26 +597,59 @@ Section StreamProofs.
     { eauto. }
   Qed.
 
+  (* [divide H] destructs the Iris hypothesis [H] and names the two
+     hypotheses thus obtained [H] and [H']. This is typically useful
+     when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
+
+  Ltac divide H :=
+    let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
+    iDestruct H as ipat.
+
+  (* [pay_out_of H] destructs the Iris hypothesis [H], which must be
+     of the form [TC k], into two hypotheses [TC (k - ?cost)] and
+     [TC ?cost], where [?cost] is a fresh metavariable. The proof
+     obligation [?cost <= k] is scheduled last, so it can be proved
+     after [?cost] has been instantiated. *)
+
+  Ltac pay_out_of H :=
+    match goal with
+    |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+      let cost := fresh "cost" in
+      evar (cost : nat);
+      let Hcost := fresh "Hcost" in
+      assert (Hcost: cost ≤ k); first last; [
+      rewrite (_ : k = (k - cost) + cost); [
+      unfold cost; clear Hcost; divide H | lia ]
+      |]
+    end.
+
   Lemma extract_spec g t ds x xs :
+    isStream g t (0 :: ds) (x :: xs) -∗
     TC_invariant -∗
-    {{{ TC 22 ∗ isStream g t (0 :: ds) (x :: xs) ∗ token g }}}
+    {{{ TC 22 ∗ token g }}}
       « extract #t »
     {{{ g' t', RET («x», #t');
         (* ⌜g' ≤ g⌝ TODO *)
         isStream g' t' ds xs ∗ token g }}}.
   Proof.
-    iIntros "#?" (Φ) "!> (Htc & Hstream & Htoken) Post".
-    rewrite (_ : 22 = 11 + 11) ; last lia.
-    iDestruct "Htc" as "[Htc_force ?]".
-    unfold_isStream.
-    deconstruct_stream.
+    iIntros "#Hstream".
+    construct_texan_triple "(Htc & Htoken)".
+    unfold_isStream. deconstruct_stream. (* TODO group? *)
     wp_tick_lam.
-    wp_apply (force_spec with "[$] [$Htc_force $Hthunk $Htoken]").
+    (* Force the thunk [t]. *)
+    pay_out_of "Htc".
+    wp_apply (force_spec with "[$] [$Htc' $Hthunk $Htoken]").
     { eauto with thunks. }
     iIntros (c) "(_ & #Hc & Htoken)".
-    iDestruct "Hc" as (g' t') "(-> & #Hg'g & #Hstream)".
-    wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let). wp_tick_pair.
+    deconstruct_stream_cell.
+    (* Match on the resulting cell. The second branch must be taken. *)
+    wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let).
+    (* Construct a pair. *)
+    wp_tick_pair.
+    (* Conclude. *)
     iApply "Post". iFrame "Htoken". eauto.
+    (* Side conditions. *)
+    lia.
   Qed.
 
   Fixpoint ListV xs : val :=
