@@ -44,7 +44,7 @@ Definition extract : val := (* : stream → val × stream *)
     | CONS ("x", "xs") => ("x", "xs")
     end.
 
-Definition rev_append_list_to_cell : val := (* : list → cell → cell *)
+Definition rev_append : val := (* : list → cell → cell *)
   rec: "rev_append" "xs" "ys" :=
     match: "xs" with
       NIL              => "ys"
@@ -53,7 +53,7 @@ Definition rev_append_list_to_cell : val := (* : list → cell → cell *)
 
 Definition rev : val := (* : list → stream *)
   λ: "xs",
-    lazy (rev_append_list_to_cell "xs" NIL).
+    lazy (rev_append "xs" NIL).
 
 Definition append : val := (* : stream → stream → stream *)
   rec: "append" "xs" "ys" :=
@@ -661,27 +661,27 @@ Section StreamProofs.
   Definition isList l xs : iProp :=
     ⌜l = ListV xs⌝.
 
-  Lemma rev_append_list_to_cell_spec_aux g xs :
-    ∀ c ds ys ,
-    TC_invariant -∗
+  Lemma rev_append_spec_aux g :
+    ∀ xs c ds ys ,
     isStreamCell g c ds ys -∗
+    TC_invariant -∗
     {{{ TC (6 + 28 * length xs) }}}
-      « rev_append_list_to_cell (ListV xs) c »
+      « rev_append (ListV xs) c »
     {{{ c', RET «c'» ;
         isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
     induction xs as [|x xs]; intros c ds ys;
-    iIntros "#? #Hc" (Φ) "!> Htc Post".
+    iIntros "#Hc";
+    construct_texan_triple "Htc".
 
-    (* Case: empty list. *)
-    { wp_tick_lam. wp_tick_let. wp_tick_match. by iApply "Post". }
+    (* Case: the list is empty. *)
+    { wp_tick_lam. wp_tick_let. wp_tick_match. iApply "Post". iFrame "Hc". }
 
-    (* Case: nonempty list. *)
+    (* Case: the list is nonempty. *)
     {
-      iAssert (⌜ length ds = length ys ⌝)%I as "%Hlengths".
-      { iApply isStreamCell_length. eauto. }
-
-      rewrite (_ : 6 + 28 * length (_::xs) = (6 + 28 * length xs) + 3 + 25); last (cbn;lia).
+      note_length_equality.
+      rewrite (_ : 6 + 28 * length (_ :: xs) = (6 + 28 * length xs) + 3 + 25);
+        last (cbn; lia).
       iDestruct "Htc" as "[[Htc_ind Htc_create] Htc]".
       wp_tick_lam. wp_tick_let. wp_tick_match.
       do 2 (wp_tick_proj ; wp_tick_let).
@@ -701,7 +701,7 @@ Section StreamProofs.
         wp_tick_pair. wp_tick_inj.
         rewrite untranslate_litv.
         untranslate.
-        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[$] [] [$Htc_ind]").
+        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Htc_ind]").
         { iExists g, t. do 2 (iSplitR ; first done).
           rewrite unfold_isStream.
           iSplitR; eauto. }
@@ -711,15 +711,15 @@ Section StreamProofs.
     }
   Qed.
 
-  Lemma rev_append_list_to_cell_spec g l xs c ds ys :
+  Lemma rev_append_spec g l xs c ds ys :
     TC_invariant -∗
     {{{ TC (6 + 28 * length xs) ∗ isList l xs ∗ isStreamCell g c ds ys }}}
-      « rev_append_list_to_cell l c »
+      « rev_append l c »
     {{{ c', RET «c'» ;
         isStreamCell g c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
     iIntros "#?" (Φ) "!> (Htc & -> & #Hc) Post".
-    wp_apply (rev_append_list_to_cell_spec_aux with "[$] [$] [$]").
+    wp_apply (rev_append_spec_aux with "[$] [$] [$]").
     eauto.
   Qed.
 
