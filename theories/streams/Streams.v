@@ -501,6 +501,14 @@ Section StreamProofs.
   Local Ltac construct_action :=
     iIntros "Htoken Htc" (ψ) "Post".
 
+  (* The tick translation of [lazy e] involves two ticks. *)
+
+  Lemma translate_lazy e :
+    « lazy e » = tick « create » (tick (Lam <> «e»)).
+  Proof.
+    reflexivity.
+  Qed.
+
   (* Evaluating [lazy e], where the expression [e] consumes [k] time credits
      and must produce a stream cell, costs 4 credits now and returns a stream
      whose front cell has k+1 debits. *)
@@ -516,8 +524,7 @@ Section StreamProofs.
     iIntros (Hlen) "#He".
     construct_texan_triple "Htc".
     (* The tick translation of [lazy e] involves two ticks. *)
-    rewrite (_ : « lazy e » = tick « create » (tick (Lam <> «e»)) );
-      last reflexivity.
+    rewrite translate_lazy.
     (* We pay one credit for the second tick, which is executed first. *)
     wp_tick_closure.
     (* Then, we recognize an application of [create]. *)
@@ -587,9 +594,7 @@ Section StreamProofs.
     note_length_equality.
     wp_tick_lam. wp_tick_let.
     rewrite untranslate_litv. untranslate.
-    (* TODO make this a lemma? *)
-    rewrite (_ : tick « create » (tick (Lam <> « CONS x #t »)) =
-                 « lazy (CONS x #t) » ); last reflexivity.
+    rewrite -translate_lazy.
     wp_apply (lazy_spec with "[#] [$] [$Htc]"); last first.
     { iIntros (t') "Hstream'".
       iApply "Post". iFrame. }
