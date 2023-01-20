@@ -542,35 +542,42 @@ Section StreamProofs.
   Qed.
 
   (* Evaluating [lazy e], where the expression [e] consumes [k] time credits
-     and must produce a stream cell, costs 4 credits now and returns a stream
-     whose front cell has k+1 debits. *)
+     and must produce a stream cell, costs 5 credits now and returns a stream
+     whose front cell has k debits. *)
+
+  (* We could prove a slightly more precise spec, stating that the cost is
+     4 credits now and that the front cell has [k+1] debits. The simpler
+     specification seems preferable and is just as useful in practice. *)
+
+  Definition isLazyCell k g ds xs e : iProp :=
+    TC k -∗ ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ ψ «c»%V) -∗ WP «e» {{ ψ }}.
 
   Lemma lazy_spec g e ds xs k :
     length ds = length xs →
-    {{{ TC k }}} «e» {{{ c, RET «c» ; isStreamCell g c ds xs }}} -∗
     TC_invariant -∗
-    {{{ TC 4 }}}
+    {{{ TC 5 ∗ isLazyCell k g ds xs e }}}
       « lazy e »
-    {{{ t, RET #t ; isStream g t ((1 + k) :: ds) xs }}}.
-    (* TODO might wish to pay 5 up front and only have [k] debits *)
+    {{{ t, RET #t ; isStream g t (k :: ds) xs }}}.
   Proof.
-    iIntros (Hlen) "#He".
-    construct_texan_triple "Htc".
+    iIntros (Hlen).
+    construct_texan_triple "(Htc & He)".
     (* The tick translation of [lazy e] involves two ticks. *)
     rewrite translate_lazy_expr.
     (* We pay one credit for the second tick, which is executed first. *)
     wp_tick_closure.
     (* Then, we recognize an application of [create]. *)
     untranslate.
-    (* We pay 3 credits for it. *)
-    wp_apply (create_spec with "[$] [$Htc]"); last first.
+    (* We pay 3 credits for [create], and keep one credit. *)
+    iDestruct "Htc" as "(H1 & H3)".
+    wp_apply (create_spec with "[$] [$H3 H1 He]"); last first.
     { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
     (* We now examine the cost of this action. *)
     construct_action.
-    (* We pay one credit to call the constant function that returns [c]. *)
-    wp_tick_lam.
+    (* We have wisely stored one credit, which pays for the call to the
+       constant function that returns [c]. *)
+    wp_tick_lam. iClear "H1".
     (* There remain [k] credits, which allow executing [e]. *)
-    wp_apply ("He" with "Htc").
+    iApply ("He" with "Htc").
     iIntros (c) "#Hc".
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
@@ -635,21 +642,25 @@ Section StreamProofs.
 
   Lemma nil_spec g :
     TC_invariant -∗
-    {{{ TC 4 }}}
+    {{{ TC 6 }}}
       « nil »
-    {{{ t, RET #t ; isStream g t (2 :: []) [] }}}.
+    {{{ t, RET #t ; isStream g t (0 :: []) [] }}}.
   Proof.
     construct_texan_triple "Htc".
-    wp_apply (lazy_spec _ _ [] [] 1 with "[#] [$] [$Htc]"); eauto 2.
-    iApply (NIL_spec with "[$]").
+    iDestruct "Htc" as "(H1 & H5)".
+    wp_apply (lazy_spec _ _ [] [] 0 with "[$] [$H5 H1]"); eauto 2.
+    (* TODO make this a lemma: *)
+    iIntros "_" (ψ) "Post".
+    iApply (NIL_spec with "[$] [$H1]").
+    eauto.
   Qed.
 
   Lemma cons_spec g t ds x xs :
     isStream g t ds xs -∗
     TC_invariant -∗
-    {{{ TC 7 }}}
+    {{{ TC 8 }}}
       « cons x #t »
-    {{{ t', RET #t' ; isStream g t' (3 :: ds) (x :: xs) }}}.
+    {{{ t', RET #t' ; isStream g t' (2 :: ds) (x :: xs) }}}.
   Proof.
     iIntros "#Hstream".
     construct_texan_triple "Htc".
@@ -657,10 +668,11 @@ Section StreamProofs.
     wp_tick_lam. wp_tick_let.
     rewrite untranslate_litv. untranslate.
     rewrite -translate_lazy_expr.
-    wp_apply (lazy_spec with "[#] [$] [$Htc]"); last first.
-    { iIntros (t') "Hstream'".
-      iApply "Post". iFrame. }
-    { iApply (CONS_spec with "[$] [$]"). }
+    wp_apply (lazy_spec with "[$] [$Htc]"); last first.
+    { iIntros (t') "Hstream'". iApply "Post". iFrame. }
+    { (* TODO make this a lemma: *)
+      iIntros "Htc" (ψ) "Post".
+      iApply (CONS_spec with "[$] [$] [$]"). eauto. }
     { eauto. }
   Qed.
 
