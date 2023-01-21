@@ -20,8 +20,14 @@ Notation "'match:' e0 'with' 'NIL' => e1 | 'CONS' ( x , xs ) => e2 'end'" :=
   (e0, e1, x, xs, e2 at level 200, only parsing) : expr_scope.
 
 Definition lazy e := (create (Lam <>%bind e))%E.
-(* TODO make lazy opaque and prove a lemma allowing substitutions to
-   go down into it? *)
+
+Lemma subst_lazy x v e :
+  subst x v (lazy e) = lazy (subst x v e).
+Proof.
+  reflexivity.
+Qed.
+
+Opaque lazy.
 
 (*
 type 'a stream =
@@ -77,9 +83,17 @@ Section StreamProofs.
   Notation iProp := (iProp Σ).
   Open Scope nat_scope.
 
+  (* This lemma cannot be used in a rewriting database; that would
+     lead to divergence. *)
   Lemma untranslate_litv t :
     #t = «#t»%V.
   Proof. reflexivity. Qed.
+
+  Lemma untranslate_subst_litv x t e :
+    subst x #t e = subst x «#t»%V e.
+  Proof.
+    reflexivity.
+  Qed.
 
   Lemma untranslate_pairv v1 v2 :
     («v1», «v2»)%V  = « (v1, v2) »%V.
@@ -134,6 +148,19 @@ Section StreamProofs.
   Ltac untranslate :=
     autorewrite with untranslate.
 
+  Hint Rewrite
+    untranslate_subst_litv (* TODO should be used only outside translation *)
+    subst_lazy
+  : push_subst.
+
+  Hint Rewrite
+    <- translation_subst
+  : push_subst.
+
+  Ltac push_subst :=
+    repeat progress (autorewrite with push_subst; simpl subst).
+    (* TODO not quite right, see above *)
+
   (* [divide H] destructs the Iris hypothesis [H] and names the two
      hypotheses thus obtained [H] and [H']. This is typically useful
      when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
@@ -174,6 +201,8 @@ Section StreamProofs.
 
   Variable p : na_inv_pool_name.
 
+  (* TODO re-think the inequality g' ≤ g *)
+  (* we want every thunk in the stream to have level g' ≤ g *)
   Fixpoint isStream g t ds xs : iProp :=
     match ds with
     | []    =>
@@ -517,10 +546,10 @@ Section StreamProofs.
     { eauto using stream_forward_debt. }
   Qed.
 
-  Local Ltac note_length_equality :=
+  Local Ltac note_length_equality H :=
     first [
-      iPoseProof (isStreamCell_length with "Hc") as "%"
-    | iPoseProof (isStream_length with "Hstream") as "%"
+      iPoseProof (isStreamCell_length with H) as "%"
+    | iPoseProof (isStream_length with H) as "%"
     ].
 
   Local Ltac construct_stream H :=
@@ -551,17 +580,24 @@ Section StreamProofs.
      4 credits now and that the front cell has [k+1] debits. The simpler
      specification seems preferable and is just as useful in practice. *)
 
+  (* The expression [e] receives the token [token (g-1)] and must return it.
+     Thus, it is allowed earlier to force thunks in previous generations, but
+     not thunks in the same generation as itself or in newer generations. *)
+
   Definition isLazyCell k g ds xs e : iProp :=
-    TC k -∗ ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ ψ «c»%V) -∗ WP «e» {{ ψ }}.
+    TC k -∗ token (g-1) -∗
+    ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ token (g-1) -∗ ψ «c»%V) -∗
+    WP «e» {{ ψ }}.
 
   Lemma lazy_spec g e ds xs k :
+    g > 0 →
     length ds = length xs →
     TC_invariant -∗
     {{{ TC 5 ∗ isLazyCell k g ds xs e }}}
       « lazy e »
     {{{ t, RET #t ; isStream g t (k :: ds) xs }}}.
   Proof.
-    iIntros (Hlen).
+    iIntros (Hg Hlen).
     construct_texan_triple "(Htc & He)".
     (* The tick translation of [lazy e] involves two ticks. *)
     rewrite translate_lazy_expr.
@@ -579,8 +615,11 @@ Section StreamProofs.
        constant function that returns [c]. *)
     wp_tick_lam. iClear "H1".
     (* There remain [k] credits, which allow executing [e]. *)
-    iApply ("He" with "Htc").
-    iIntros (c) "#Hc".
+    (* We have the required token. *)
+    rewrite   [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
+    iApply ("He" with "Htc Htoken").
+    rewrite - [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
+    iIntros (c) "#Hc Htoken".
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
 
@@ -643,38 +682,49 @@ Section StreamProofs.
   Qed.
 
   Lemma nil_spec g :
+    g > 0 →
     TC_invariant -∗
     {{{ TC 6 }}}
       « nil »
     {{{ t, RET #t ; isStream g t (0 :: []) [] }}}.
   Proof.
+    intros Hg.
     construct_texan_triple "Htc".
     iDestruct "Htc" as "(H1 & H5)".
     wp_apply (lazy_spec _ _ [] [] 0 with "[$] [$H5 H1]"); eauto 2.
     (* TODO make this a lemma: *)
-    iIntros "_" (ψ) "Post".
+    rewrite /isLazyCell.
+    iIntros "_ Htoken" (ψ) "Post".
     iApply (NIL_spec with "[$] [$H1]").
-    eauto.
+    iNext.
+    iIntros (c) "Hc".
+    iApply ("Post" with "Hc Htoken").
   Qed.
 
   Lemma cons_spec g t ds x xs :
+    g > 0 →
     isStream g t ds xs -∗
     TC_invariant -∗
     {{{ TC 8 }}}
       « cons x #t »
     {{{ t', RET #t' ; isStream g t' (2 :: ds) (x :: xs) }}}.
   Proof.
+    intros Hg.
     iIntros "#Hstream".
     construct_texan_triple "Htc".
-    note_length_equality.
+    note_length_equality "Hstream".
     wp_tick_lam. wp_tick_let.
-    rewrite untranslate_litv. untranslate.
-    rewrite -translate_lazy_expr.
+    push_subst.
     wp_apply (lazy_spec with "[$] [$Htc]"); last first.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
     { (* TODO make this a lemma: *)
-      iIntros "Htc" (ψ) "Post".
-      iApply (CONS_spec with "[$] [$] [$]"). eauto. }
+      rewrite /isLazyCell.
+      iIntros "Htc Htoken" (ψ) "Post".
+      iApply (CONS_spec with "[$] [$] [$]").
+      iNext.
+      iIntros (c) "Hc".
+      iApply ("Post" with "Hc Htoken"). }
+    { eauto. }
     { eauto. }
   Qed.
 
@@ -736,27 +786,27 @@ Section StreamProofs.
 
     (* Case: the list is nonempty. *)
     {
-      note_length_equality.
+      note_length_equality "Hc".
       rewrite (_ : 6 + 19 * length (_ :: xs) = (6 + 19 * length xs) + 19);
         last (cbn; lia).
       iDestruct "Htc" as "[Hrest Htc]".
+      (* Step. *)
       wp_tick_lam. wp_tick_let. wp_tick_match.
       do 2 (wp_tick_proj ; wp_tick_let).
-      rewrite -translate_lazy_val.
+      push_subst.
+      (* The next redex is [lazy c]. *)
       pay_out_of "Htc".
       wp_apply (lazy_val_spec with "[$Hc] [$] [$Htc']").
       { eassumption. }
-      {
-        iIntros (t) "#Hthunk".
-        wp_tick_pair. wp_tick_inj.
-        rewrite untranslate_litv. untranslate.
-        wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Hrest]").
-        { construct_stream_cell. }
-        { iIntros (c') "#Hc'". iApply "Post".
-          by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
-      }
-      (* Side condition. *)
-      lia.
+      2: lia.
+      (* Continue stepping. *)
+      iIntros (t) "#Hthunk".
+      wp_tick_pair. wp_tick_inj.
+      rewrite untranslate_litv. untranslate.
+      wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Hrest]").
+      { construct_stream_cell. }
+      { iIntros (c') "#Hc'". iApply "Post".
+        by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
     }
   Qed.
 
@@ -782,6 +832,7 @@ Section StreamProofs.
   Qed.
 
   Lemma rev_spec g l xs ds ys :
+    g > 0 →
     isList l xs -∗
     TC_invariant -∗
     {{{ TC (13 + 19 * length xs) }}}
@@ -789,13 +840,12 @@ Section StreamProofs.
     {{{ t, RET «#t» ;
         isStream g t (repeat 0 (1 + length xs)) (List.rev xs) }}}.
   Proof.
+    intros Hg.
     simpl repeat.
     iIntros "#Hl".
     construct_texan_triple "Htc".
     (* We pay 1 credit here. *)
-    wp_tick_lam.
-    rewrite untranslate_litv. untranslate.
-    rewrite -translate_lazy_expr. untranslate.
+    wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
     pay_out_of "Htc".
     wp_apply (lazy_spec with "[$] [$Htc' Htc]"); last first.
@@ -803,17 +853,127 @@ Section StreamProofs.
       iApply "Post". iFrame "Hstream". }
     (* Side conditions. *)
     2: rewrite repeat_length rev_length //.
+    2: exact Hg.
     2: lia.
     (* Examine the body of this suspension. *)
-    iIntros "_" (ψ) "Post".
+    rewrite /isLazyCell.
+    iIntros "_ Htoken" (ψ) "Post".
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
     (* The call [rev_append l NILV] consumes the remaining credits. *)
     rewrite untranslate_litv. untranslate.
     wp_apply (rev_append_spec with "[$Hl] [] [$] [$Htc]").
     { iApply NILV_spec. }
-    rewrite !app_nil_r. eauto.
+    rewrite !app_nil_r.
+    iIntros (c') "Hc'".
+    iApply ("Post" with "Hc' Htoken").
   Qed.
+
+  Definition A := 11.
+  Definition B := 11.
+  Opaque A. Opaque B.
+
+  Fixpoint debit_append ds1 ds2 :=
+    match ds1, ds2 with
+    | [], _
+    | _, [] =>
+        (* These cases cannot occur. *)
+        ds1 ++ ds2
+    | [d1], d2 :: ds2 =>
+        (A + d1 + B + d2) :: ds2
+    | d1 :: ds1, _ =>
+        (A + d1) :: debit_append ds1 ds2
+    end.
+
+(* TODO
+  Definition debit_append ds1 ds2 :=
+    let ds1 := map (λ d, A + d) ds1 in
+    match List.rev ds1, ds2 with
+    | [], _
+    | _, [] =>
+        (* This cannot happen. The two lists must be nonempty. *)
+        ds1 ++ ds2
+    | d1 :: ds1, d2 :: ds2 =>
+        List.rev ds1 ++ [d1 + B + d2] ++ ds2
+    end.
+ *)
+
+  Lemma debits_induction P :
+    (∀ d, P [d]) →
+    (∀ d ds, length ds > 0 → P ds → P (d :: ds)) ->
+    ∀ ds, length ds > 0 → P ds.
+  Proof.
+    intros Hbase Hstep.
+    induction ds as [| d ds ]; [ simpl; lia | intros _ ].
+    destruct ds as [| d' ds ].
+    { apply Hbase. }
+    { apply Hstep; [ simpl; lia |].
+      apply IHds; simpl; lia. }
+  Qed.
+
+  Lemma append_spec g t1 t2 ds1 ds2 xs1 xs2 :
+    isStream g t1 ds1 xs1 -∗
+    isStream g t2 ds2 xs2 -∗
+    TC_invariant -∗
+    {{{ TC 8 }}}
+      « append #t1 #t2 »
+    {{{ t, RET «#t» ;
+        isStream (g + 1) t (debit_append ds1 ds2) (xs1 ++ xs2) }}}.
+  Proof.
+    (* First, extract length information. *)
+    iIntros "#Hstream1 #Hstream2".
+    note_length_equality "Hstream1".
+    note_length_equality "Hstream2".
+    assert (Hlen1: length ds1 > 0) by lia.
+    (* Move the hypotheses back into the goal. *)
+    iStopProof.
+    repeat match goal with h: length _ = _ |- _ => revert h end.
+    revert ds2 t1 t2 g xs1 xs2.
+    (* Reason by induction on [ds1]. *)
+    pattern ds1.
+    eapply debits_induction; [| | exact Hlen1 ]; clear ds1 Hlen1.
+
+    (* Case: [ds1] is a singleton list. *)
+    {
+      intros d1 ds2 t1 t2 g xs1 xs2.
+      intros Hlen1 Hlen2.
+      (* The list [xs1] must be empty. *)
+      assert (xs1 = []); [| subst xs1; clear Hlen1 ].
+      { destruct xs1; [ eauto |]. simpl in Hlen1. lia. }
+      rewrite app_nil_l.
+      (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
+      destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia |].
+      assert (Hlen: length ds2 = length xs2); [| clear Hlen2 ].
+      { simpl in Hlen2. lia. }
+      (* We are in business. *)
+      iIntros "(#Hstream1 & #Hstream2)".
+      construct_texan_triple "Htc".
+      (* Step. We pay 3 credits here. *)
+      wp_tick_lam. wp_tick_let.
+      (* TODO [push_subst] should be used here,
+         but does not work as desired: *)
+      rewrite !untranslate_subst_litv.
+      rewrite -!translation_subst.
+      rewrite !subst_lazy.
+      simpl subst.
+      (* [lazy (...)] costs 5 credits. *)
+      pay_out_of "Htc".
+      wp_apply (lazy_spec with "[$] [$Htc']"); last first.
+      { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
+      2: eauto.
+      2: lia.
+      2: lia.
+      clear cost.
+      (* Now, examine the body of the suspension. *)
+      rewrite /isLazyCell.
+      rewrite (_ : g + 1 - 1 = g); last lia.
+      iIntros "Htc Htoken" (ψ) "Post".
+      (* The code forces [t1], enters the first branch, then forces [t2]. *)
+      (* TODO the goal does not yet have the desired shape:
+              << force #t1 >> in an evaluation context *)
+      (* pay_out_of "Htc".
+      wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]"). *)
+  Abort.
 
   (* TODO create a layer where the parameter [g] disappears, if possible *)
   (* what about the parameter [p]? *)
