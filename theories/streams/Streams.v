@@ -20,6 +20,8 @@ Notation "'match:' e0 'with' 'NIL' => e1 | 'CONS' ( x , xs ) => e2 'end'" :=
   (e0, e1, x, xs, e2 at level 200, only parsing) : expr_scope.
 
 Definition lazy e := (create (Lam <>%bind e))%E.
+(* TODO make lazy opaque and prove a lemma allowing substitutions to
+   go down into it? *)
 
 (*
 type 'a stream =
@@ -771,6 +773,46 @@ Section StreamProofs.
     construct_texan_triple "Htc".
     wp_apply (rev_append_spec_aux with "[$] [$] [$]").
     eauto.
+  Qed.
+
+  Lemma NILV_spec g :
+    ⊢ isStreamCell g NILV [] [].
+  Proof.
+    iIntros. simpl. eauto.
+  Qed.
+
+  Lemma rev_spec g l xs ds ys :
+    isList l xs -∗
+    TC_invariant -∗
+    {{{ TC (13 + 19 * length xs) }}}
+      « rev l »
+    {{{ t, RET «#t» ;
+        isStream g t (repeat 0 (1 + length xs)) (List.rev xs) }}}.
+  Proof.
+    simpl repeat.
+    iIntros "#Hl".
+    construct_texan_triple "Htc".
+    (* We pay 1 credit here. *)
+    wp_tick_lam.
+    rewrite untranslate_litv. untranslate.
+    rewrite -translate_lazy_expr. untranslate.
+    (* [lazy (...)] costs 5 credits. *)
+    pay_out_of "Htc".
+    wp_apply (lazy_spec with "[$] [$Htc' Htc]"); last first.
+    { iIntros (t) "Hstream".
+      iApply "Post". iFrame "Hstream". }
+    (* Side conditions. *)
+    2: rewrite repeat_length rev_length //.
+    2: lia.
+    (* Examine the body of this suspension. *)
+    iIntros "_" (ψ) "Post".
+    (* Evaluate NIL, consuming 1 credit. *)
+    wp_tick_inj.
+    (* The call [rev_append l NILV] consumes the remaining credits. *)
+    rewrite untranslate_litv. untranslate.
+    wp_apply (rev_append_spec with "[$Hl] [] [$] [$Htc]").
+    { iApply NILV_spec. }
+    rewrite !app_nil_r. eauto.
   Qed.
 
   (* TODO create a layer where the parameter [g] disappears, if possible *)
