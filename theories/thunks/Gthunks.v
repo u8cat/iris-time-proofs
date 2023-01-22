@@ -254,4 +254,22 @@ Section Gthunks.
     iFrame "Htoken".
   Qed.
 
+  Lemma pay_force_spec p g bound t d φ :
+    lies_below g bound →
+    let token := own_gens_below_bound p bound in
+    TC_invariant -∗
+    {{{ TC (11 + d) ∗ Gthunk p g t d φ ∗ token }}}
+    « force #t »
+    {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
+  Proof.
+    intros Hg.
+    iIntros "#HtickInv" (Φ) "!# ((Htc1 & Htc2) & #Hthunk & Htoken) Post".
+    iMod (Gthunk_pay with "Htc2 Hthunk") as "#Hthunk'"; [ done |].
+    iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
+    wp_apply (force_spec with "[$] [$Htc1 Hthunk $Htoken]").
+    { done. }
+    { rewrite Nat.sub_diag. iFrame "Hthunk". }
+    eauto.
+  Qed.
+
 End Gthunks.
