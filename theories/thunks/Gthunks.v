@@ -52,8 +52,9 @@ Definition lies_below g bound : Prop :=
 
 (* [g] lies below its successor. *)
 
-Lemma lies_below_succ g :
-  lies_below g (Some (g + 1)).
+Lemma lies_below_succ g' g :
+  g' ≤ g →
+  lies_below g' (Some (g + 1)).
 Proof.
   simpl. lia.
 Qed.
