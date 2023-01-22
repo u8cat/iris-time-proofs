@@ -944,6 +944,13 @@ Section StreamProofs.
       simpl length. rewrite IH. lia. }
   Qed.
 
+  Lemma translate_case e0 e1 e2 :
+    « Case e0 e1 e2 » =
+    Case (tick $ « e0 »)
+          (tick_case_branch (Lam <> « e1 »))
+          (tick_case_branch (Lam <> « e2 »)).
+    Proof. reflexivity. Qed.
+
   Lemma append_spec g t1 t2 ds1 ds2 xs1 xs2 :
     isStream g t1 ds1 xs1 -∗
     isStream g t2 ds2 xs2 -∗
@@ -997,10 +1004,12 @@ Section StreamProofs.
       rewrite (_ : g + 1 - 1 = g); last lia.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
-      (* TODO the goal does not yet have the desired shape:
-              « force #t1 » in an evaluation context *)
-      (* pay_out_of "Htc".
-      wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]"). *)
+      (* TODO The goal does have the desired shape, namely
+              « force #t1 » in an evaluation context,
+              but the tactic wp_apply does not recognize this. *)
+      rewrite translate_case.
+      pay_out_of "Htc".
+      wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]").
       admit.
     }
 
