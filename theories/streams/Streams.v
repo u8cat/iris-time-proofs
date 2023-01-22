@@ -743,12 +743,12 @@ Section StreamProofs.
   Proof.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
-    unfold_isStream. deconstruct_stream. (* TODO group? *)
     wp_tick_lam.
-    (* Force the thunk [t]. *)
+    (* Force the stream [t]. *)
     pay_out_of "Htc".
-    wp_apply (force_spec with "[$] [$Htc' $Hthunk $Htoken]").
-    { eauto with thunks. }
+    wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]"); [ done |].
+    2: lia.
+    iClear "Hstream".
     iIntros (c) "(_ & #Hc & Htoken)".
     deconstruct_stream_cell.
     (* Match on the resulting cell. The second branch must be taken. *)
@@ -757,8 +757,6 @@ Section StreamProofs.
     wp_tick_pair.
     (* Conclude. *)
     iApply "Post". iFrame "Htoken". eauto.
-    (* Side conditions. *)
-    lia.
   Qed.
 
   Fixpoint ListV xs : val :=
@@ -1009,7 +1007,7 @@ Section StreamProofs.
               but the tactic wp_apply does not recognize this. *)
       rewrite translate_case.
       pay_out_of "Htc".
-      wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]").
+      wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]").
       admit.
     }
 
