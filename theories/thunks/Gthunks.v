@@ -61,6 +61,14 @@ Qed.
 
 #[global] Hint Resolve lies_below_succ : thunks.
 
+Lemma leq_lies_below g' g bound :
+  g' ≤ g →
+  lies_below g bound →
+  lies_below g' bound.
+Proof.
+  destruct bound; simpl; lia.
+Qed.
+
 (* If [g ≤ g'] holds, then the namespace associated with [g'] is disjoint
    with the union of namespaces [gens_below_gen g]. *)
 
@@ -177,9 +185,16 @@ Section Gthunks.
 
   (* TODO parameterize with R *)
   Definition Gthunk p g t n φ : iProp :=
-    let F := ↑(gen_ns g) in
-    let R := own_gens_below_bound p (Some g) in
+    ∃ g', ⌜ g' ≤ g ⌝ ∗
+    let F := ↑(gen_ns g') in
+    let R := own_gens_below_bound p (Some g') in
     Thunk p F t n R φ.
+
+  Local Ltac deconstruct_thunk :=
+    iDestruct "Hthunk" as (g') "(% & Hthunk)".
+
+  Local Ltac construct_thunk g' :=
+    iExists g'; iSplitR; [ eauto with lia |].
 
   Global Instance Gthunk_persistent p g t n φ :
     Persistent (Gthunk p g t n φ).
@@ -193,7 +208,20 @@ Section Gthunks.
     Gthunk p g t n2 φ.
   Proof using.
     iIntros (?) "Hthunk".
+    deconstruct_thunk.
+    construct_thunk g'.
     by iApply thunk_increase_debt.
+  Qed.
+
+  Lemma gthunk_covariant_in_g p g1 g2 t n φ :
+    g1 ≤ g2 →
+    Gthunk p g1 t n φ -∗
+    Gthunk p g2 t n φ.
+  Proof.
+    iIntros (?) "Hthunk".
+    deconstruct_thunk.
+    construct_thunk g'.
+    done.
   Qed.
 
   Lemma Gthunk_consequence p g t n1 n2 φ ψ E :
@@ -201,22 +229,23 @@ Section Gthunks.
     Gthunk p g t  n1       φ  ={E}=∗
     Gthunk p g t (n1 + n2) ψ.
   Proof.
-    rewrite /Gthunk.
     iIntros "Hupdate Hthunk".
-    iApply (thunk_consequence with "Hthunk [Hupdate]").
-    iIntros (v) "HR Htc Hv".
-    iFrame "HR".
-    iApply ("Hupdate" with "Htc").
-    iAssumption.
+    deconstruct_thunk.
+    iMod (thunk_consequence with "Hthunk [Hupdate]").
+    { iIntros (v) "$ Htc Hv".
+      iApply ("Hupdate" with "Htc").
+      iAssumption. }
+    iModIntro. construct_thunk g'. done.
   Qed.
 
   Lemma Gthunk_pay k E p g t n φ :
     ↑ThunkPayment t ⊆ E →
     TC k -∗ Gthunk p g t n φ ={E}=∗ Gthunk p g t (n-k) φ.
   Proof using.
-    rewrite /Gthunk.
     iIntros (?) "Htc Hthunk".
-    by iMod (thunk_pay with "Hthunk Htc").
+    deconstruct_thunk.
+    iMod (thunk_pay with "Hthunk Htc"); [ done |].
+    iModIntro. construct_thunk g'. done.
   Qed.
 
   Lemma create_spec p g n φ f :
@@ -226,8 +255,10 @@ Section Gthunks.
       « create f »
     {{{ t, RET #t ; Gthunk p g t n φ }}}.
   Proof.
-    iIntros "#HtickInv" (Φ) "!# H Post".
-    by wp_apply (thunk_create with "HtickInv H").
+    iIntros "#?" (Φ) "!# H Post".
+    wp_apply (thunk_create with "[$] H"); [ done |].
+    iIntros (t) "Hthunk".
+    iApply "Post". construct_thunk g. done.
   Qed.
 
   Lemma force_spec p g bound t φ :
@@ -238,14 +269,15 @@ Section Gthunks.
     « force #t »
     {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
   Proof using.
-    rewrite /Gthunk.
-    intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & H & Htoken) Post".
+    intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & Hthunk & Htoken) Post".
+    deconstruct_thunk.
+    assert (Hg': lies_below g' bound) by eauto using leq_lies_below.
     rewrite /own_gens_below_bound.
-    rewrite (carve_out_gens_below_gen _ _ Hg).
+    rewrite (carve_out_gens_below_gen _ _ Hg').
     iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
     { set_solver. }
     (* Both tokens are required here. *)
-    wp_apply (thunk_force with "HtickInv [$TC $H $Htoken2 $Htoken1]").
+    wp_apply (thunk_force with "HtickInv [$TC $Hthunk $Htoken2 $Htoken1]").
     { eauto using gen_ns_subseteq_interval. }
     (* Conclude. *)
     iIntros (v) "(#Hv & #Hval & Htoken1 & Htoken2)".
