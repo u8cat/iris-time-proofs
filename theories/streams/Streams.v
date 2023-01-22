@@ -889,6 +889,16 @@ Section StreamProofs.
         (A + d1) :: debit_append ds1 ds2
     end.
 
+  Lemma debit_append_step d1 ds1 d2 ds2 :
+    length ds1 > 0 →
+    debit_append (d1 :: ds1) (d2 :: ds2) =
+    (A + d1) :: debit_append ds1 (d2 :: ds2).
+  Proof.
+    intro Hlen1.
+    destruct ds1 as [| d1' ds1' ]; [ simpl in Hlen1; lia |].
+    reflexivity.
+  Qed.
+
 (* TODO
   Definition debit_append ds1 ds2 :=
     let ds1 := map (λ d, A + d) ds1 in
@@ -913,6 +923,25 @@ Section StreamProofs.
     { apply Hbase. }
     { apply Hstep; [ simpl; lia |].
       apply IHds; simpl; lia. }
+  Qed.
+
+  Lemma length_debit_append :
+    ∀ ds1,
+    length ds1 > 0 →
+    ∀ d2 ds2,
+    length (debit_append ds1 (d2 :: ds2)) = length ds1 + length ds2.
+  Proof.
+    (* Reason by induction on [ds1]. *)
+    intros ds1 Hlen1. pattern ds1.
+    eapply debits_induction; [ | | exact Hlen1 ]; clear ds1 Hlen1.
+
+    (* Case: [ds1] is a singleton list. *)
+    { intros d1 d2 ds2. reflexivity. }
+
+    (* Case: [ds1] not a singleton list. *)
+    { intros d1 ds1 Hlen1 IH d2 ds2.
+      rewrite debit_append_step; last exact Hlen1.
+      simpl length. rewrite IH. lia. }
   Qed.
 
   Lemma append_spec g t1 t2 ds1 ds2 xs1 xs2 :
@@ -947,14 +976,14 @@ Section StreamProofs.
       rewrite app_nil_l.
       (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
       destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia |].
-      assert (Hlen: length ds2 = length xs2); [| clear Hlen2 ].
-      { simpl in Hlen2. lia. }
+      assert (Hlen: length ds2 = length xs2);
+        [ simpl in Hlen2; lia | clear Hlen2 ].
+      rename Hlen into Hlen2.
       (* We are in business. *)
       iIntros "(#Hstream1 & #Hstream2)".
       construct_texan_triple "Htc".
       (* Step. We pay 3 credits here. *)
-      wp_tick_lam. wp_tick_let.
-      push_subst.
+      wp_tick_lam. wp_tick_let. push_subst.
       (* [lazy (...)] costs 5 credits. *)
       pay_out_of "Htc".
       wp_apply (lazy_spec with "[$] [$Htc']"); last first.
@@ -972,6 +1001,44 @@ Section StreamProofs.
               « force #t1 » in an evaluation context *)
       (* pay_out_of "Htc".
       wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]"). *)
+      admit.
+    }
+
+    (* Case: [ds1] is not a singleton list. *)
+    {
+      intros d1 ds1 ? IH ds2 t1 t2 g xs1 xs2.
+      intros Hlen1 Hlen2.
+      (* The list [xs1] must be nonempty: rename it [x1 :: xs1]. *)
+      destruct xs1 as [| x1 xs1 ]; [ simpl in Hlen1; lia |].
+      (* Simplify some hypotheses. *)
+      assert (Hlen: length ds1 = 1 + length xs1);
+        [ simpl in Hlen1; lia |
+          clear Hlen1; rename Hlen into Hlen1 ].
+      (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
+      destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia |].
+      assert (Hlen: length ds2 = length xs2);
+        [ simpl in Hlen2; lia | clear Hlen2 ].
+      rename Hlen into Hlen2.
+      (* Simplify the goal. *)
+      rewrite debit_append_step; last eassumption.
+      (* We are in business. *)
+      iIntros "(#Hstream1 & #Hstream2)".
+      construct_texan_triple "Htc".
+      (* Step. We pay 3 credits here. *)
+      wp_tick_lam. wp_tick_let. push_subst.
+      (* [lazy (...)] costs 5 credits. *)
+      pay_out_of "Htc".
+      wp_apply (lazy_spec with "[$] [$Htc']"); last first.
+      { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
+      2: simpl; rewrite length_debit_append ?app_length; lia.
+      2: lia.
+      2: lia.
+      clear cost.
+      (* Now, examine the body of the suspension. *)
+      rewrite /isLazyCell.
+      rewrite (_ : g + 1 - 1 = g); last lia.
+      iIntros "Htc Htoken" (ψ) "Post".
+
   Abort.
 
   (* TODO create a layer where the parameter [g] disappears, if possible *)
