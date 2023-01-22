@@ -220,6 +220,9 @@ Section StreamProofs.
      the level of every suspension in the stream. In other words,
      the token [token g] allows forcing the entire stream. *)
 
+  (* TODO could the existential quantification over g' be moved
+     into Gthunk? *)
+
   Fixpoint isStream g t ds xs : iProp :=
     match ds with
     | []    =>
@@ -262,6 +265,32 @@ Section StreamProofs.
     (* TODO unfold_isStream in Hstream *)
     iDestruct "Hstream" as (g') "(% & % & #Hthunk)".
 
+  Local Ltac construct_stream H :=
+    unfold_isStream; iExists _; iFrame H; iPureIntro; eauto with lia.
+
+  Local Ltac deconstruct_nil_cell :=
+    iDestruct "Hc" as "(-> & %)".
+
+  Local Ltac deconstruct_cons_cell :=
+    iDestruct "Hc" as (t') "(-> & #Hstream)".
+
+  Local Ltac pure_conjunct :=
+    iSplitR; [ solve [ eauto ] |].
+
+  Local Lemma transport_list_eq_nil ds1 ds2 :
+    length ds1 = length ds2 →
+    ds1 = [] →
+    ds2 = [].
+  Proof.
+    destruct ds1; destruct ds2; simpl; congruence.
+  Qed.
+
+  Local Ltac construct_nil_cell :=
+    iPureIntro; eauto using transport_list_eq_nil.
+
+  Local Ltac construct_cons_cell :=
+    iExists _; pure_conjunct; eauto.
+
   Lemma unfold_isStream_contradictory g t xs :
     isStream g t [] xs = False%I.
   Proof.
@@ -292,28 +321,47 @@ Section StreamProofs.
     iPureIntro; lia.
   Qed.
 
-  Local Lemma transport_list_eq_nil ds1 ds2 :
-    length ds1 = length ds2 →
-    ds1 = [] →
-    ds2 = [].
+  Lemma isStream_covariant :
+    ∀ ds g1 g2 t xs E,
+    g1 ≤ g2 →
+    isStream g1 t ds xs ={E}=∗
+    isStream g2 t ds xs.
   Proof.
-    destruct ds1; destruct ds2; simpl; congruence.
+    induction ds as [| d ds ]; intros; iIntros "Hstream".
+    { rewrite unfold_isStream_contradictory.
+      iDestruct "Hstream" as "%". tauto. }
+    unfold_isStream. deconstruct_stream.
+    (* Apply the consequence rule to adjust the postcondition of this
+       thunk. *)
+    iMod (Gthunk_consequence _ _ _ _ 0 with "[] Hthunk") as "Hthunk'";
+      last first.
+    { rewrite Nat.add_0_r. iModIntro. construct_stream "Hthunk'". }
+    iClear "Hthunk".
+    (* Then, reason by cases on [xs], and use the induction hypothesis. *)
+    iIntros (c) "_ #Hc".
+    destruct xs as [| x xs ].
+    { deconstruct_nil_cell. construct_nil_cell. }
+    { deconstruct_cons_cell.
+      construct_cons_cell.
+      iMod (IHds with "Hstream") as "#?"; [ eassumption |].
+      eauto with iFrame. }
   Qed.
 
-  Local Ltac deconstruct_nil_cell :=
-    iDestruct "Hc" as "(-> & %)".
-
-  Local Ltac deconstruct_cons_cell :=
-    iDestruct "Hc" as (t') "(-> & #Hstream)".
-
-  Local Ltac pure_conjunct :=
-    iSplitR; [ solve [ eauto ] |].
-
-  Local Ltac construct_nil_cell :=
-    iPureIntro; eauto using transport_list_eq_nil.
-
-  Local Ltac construct_cons_cell :=
-    iExists _; pure_conjunct; eauto.
+  Lemma isStreamCell_covariant :
+    ∀ ds g1 g2 c xs E,
+    g1 ≤ g2 →
+    isStreamCell g1 c ds xs ={E}=∗
+    isStreamCell g2 c ds xs.
+  Proof.
+    intros. iIntros "#Hc".
+    (* Reason by cases on [xs] and use the previous lemma. *)
+    destruct xs as [| x xs ].
+    { deconstruct_nil_cell. construct_nil_cell. }
+    { deconstruct_cons_cell.
+      construct_cons_cell.
+      iMod (isStream_covariant with "Hstream") as "#?"; [ eassumption |].
+      eauto with iFrame. }
+  Qed.
 
   Lemma isStreamCell_length :
     ∀ ds xs g c,
@@ -591,9 +639,6 @@ Section StreamProofs.
       iPoseProof (isStreamCell_length with H) as "%"
     | iPoseProof (isStream_length with H) as "%"
     ].
-
-  Local Ltac construct_stream H :=
-    unfold_isStream; iExists _; iFrame H; iPureIntro; eauto.
 
   Local Ltac construct_action :=
     iIntros "Htoken Htc" (ψ) "Post".
@@ -1042,14 +1087,17 @@ Section StreamProofs.
       (* Enter the first branch, consuming 3 credits. *)
       unfold B. divide_credit "Htc" (11 + d2) 3.
       wp_tick_match. iClear "Htc'".
+      (* Allow a ghost update after forcing [t2]. *)
+      iApply wp_fupd.
       (* Force [t2]. *)
       rewrite (untranslate_litv t2). untranslate.
       wp_apply (stream_pay_force with "[#] [$] [$Htc $Htoken]").
       { iFrame "Hstream2". }
       iIntros (c) "(_ & #Hc & Htoken)".
+      (* Promote the first cell of the second list from level [g] to [g+1]. *)
+      iMod (isStreamCell_covariant _ g (g+1) with "Hc") as "#Hc'"; first lia.
       (* Conclude. *)
-      iApply ("Post" with "Hc Htoken").
-      admit.
+      iApply ("Post" with "Hc' Htoken").
     }
 
     (* Case: [ds1] is not a singleton list. *)
