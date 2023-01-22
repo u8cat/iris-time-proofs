@@ -191,6 +191,16 @@ Section StreamProofs.
       |]
     end.
 
+  (* A low-tech tactic: look for the hypothesis H and split it using
+     the two arguments provided by the user. *)
+
+  Ltac divide_credit H k1 k2 :=
+    match goal with
+    |- context[environments.Esnoc _ (INamed "Htc") (TC ?k)] =>
+      rewrite [in TC k] (_ : k = k1 + k2); [| lia ];
+      divide H
+    end.
+
   Definition debit := nat.
   Definition debits := list debit.
 
@@ -277,8 +287,11 @@ Section StreamProofs.
     iPureIntro; lia.
   Qed.
 
-  Local Ltac deconstruct_stream_cell :=
-    iDestruct "Hc" as (g' t') "(-> & %Hg'g & Hstream)".
+  Local Ltac deconstruct_nil_cell :=
+    iDestruct "Hc" as "(-> & %Hds)".
+
+  Local Ltac deconstruct_cons_cell :=
+    iDestruct "Hc" as (g' t') "(-> & %Hg'g & #Hstream)".
 
   Local Ltac pure_conjunct :=
     iSplitR; [ solve [ eauto ] |].
@@ -291,11 +304,9 @@ Section StreamProofs.
     isStreamCell g c ds xs -∗
     ⌜(length ds = length xs)%nat⌝.
   Proof.
-    destruct xs; intros; simpl.
-    { iIntros "(_ & %Hds)". subst ds. eauto. }
-    { iIntros "Hc".
-      deconstruct_stream_cell.
-      iApply isStream_length. eauto. }
+    destruct xs; intros; iIntros "Hc".
+    { deconstruct_nil_cell. subst ds. eauto. }
+    { deconstruct_cons_cell. iApply isStream_length. eauto. }
   Qed.
 
   (* Forcing a stream. *)
@@ -319,7 +330,23 @@ Section StreamProofs.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     unfold_isStream. deconstruct_stream.
-    wp_apply (force_spec with "[#] [$Htc $Hthunk $Htoken]"); eauto with thunks.
+    wp_apply (force_spec with "[$] [$Htc $Hthunk $Htoken]");
+      first eauto with thunks.
+    iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
+  Qed.
+
+  Lemma stream_pay_force g t d ds xs :
+    isStream g t (d :: ds) xs -∗
+    TC_invariant -∗
+    {{{ TC (11 + d) ∗ token g }}}
+      « force #t »
+    {{{ c, RET «c» ; ThunkVal t c ∗ isStreamCell g c ds xs ∗ token g }}}.
+  Proof.
+    iIntros "#Hstream".
+    construct_texan_triple "(Htc & Htoken)".
+    unfold_isStream. deconstruct_stream.
+    wp_apply (pay_force_spec with "[$] [$Htc $Hthunk $Htoken]");
+      first eauto with thunks.
     iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
   Qed.
 
@@ -466,7 +493,7 @@ Section StreamProofs.
       iApply (isStreamCell_nil with "Hc").
       eauto. }
     (* Case: the list is nonempty. *)
-    { deconstruct_stream_cell.
+    { deconstruct_cons_cell.
       (* Exploit the induction hypothesis. *)
       iMod (IH with "Hstream Hslack") as "#Hstream'"; iModIntro.
       construct_stream_cell. }
@@ -745,12 +772,11 @@ Section StreamProofs.
     construct_texan_triple "(Htc & Htoken)".
     wp_tick_lam.
     (* Force the stream [t]. *)
-    pay_out_of "Htc".
+    divide_credit "Htc" 10 11.
     wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]"); [ done |].
-    2: lia.
     iClear "Hstream".
     iIntros (c) "(_ & #Hc & Htoken)".
-    deconstruct_stream_cell.
+    deconstruct_cons_cell.
     (* Match on the resulting cell. The second branch must be taken. *)
     wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let).
     (* Construct a pair. *)
@@ -797,10 +823,9 @@ Section StreamProofs.
       do 2 (wp_tick_proj ; wp_tick_let).
       push_subst.
       (* The next redex is [lazy c]. *)
-      pay_out_of "Htc".
+      divide_credit "Htc" 2 5.
       wp_apply (lazy_val_spec with "[$Hc] [$] [$Htc']").
       { eassumption. }
-      2: lia.
       (* Continue stepping. *)
       iIntros (t) "#Hthunk".
       wp_tick_pair. wp_tick_inj.
@@ -849,14 +874,13 @@ Section StreamProofs.
     (* We pay 1 credit here. *)
     wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
-    pay_out_of "Htc".
+    divide_credit "Htc" (7 + 19 * length xs) 5.
     wp_apply (lazy_spec with "[$] [$Htc' Htc]"); last first.
     { iIntros (t) "Hstream".
       iApply "Post". iFrame "Hstream". }
     (* Side conditions. *)
     2: rewrite repeat_length rev_length //.
     2: exact Hg.
-    2: lia.
     (* Examine the body of this suspension. *)
     rewrite /isLazyCell.
     iIntros "_ Htoken" (ψ) "Post".
@@ -872,8 +896,7 @@ Section StreamProofs.
   Qed.
 
   Definition A := 11.
-  Definition B := 11.
-  Opaque A. Opaque B.
+  Definition B := 14.
 
   Fixpoint debit_append ds1 ds2 :=
     match ds1, ds2 with
@@ -990,24 +1013,35 @@ Section StreamProofs.
       (* Step. We pay 3 credits here. *)
       wp_tick_lam. wp_tick_let. push_subst.
       (* [lazy (...)] costs 5 credits. *)
-      pay_out_of "Htc".
-      wp_apply (lazy_spec with "[$] [$Htc']"); last first.
+      wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       2: eauto.
       2: lia.
-      2: lia.
-      clear cost.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
       rewrite (_ : g + 1 - 1 = g); last lia.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
+      (* Force [t1]. *)
       (* TODO The goal does have the desired shape, namely
               « force #t1 » in an evaluation context,
               but the tactic wp_apply does not recognize this. *)
       rewrite translate_case.
-      pay_out_of "Htc".
-      wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]").
+      divide_credit "Htc" (B + d2) (A + d1).
+      wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
+      { iFrame "Hstream1". }
+      iIntros (c) "(_ & #Hc & Htoken)".
+      deconstruct_nil_cell.
+      (* Enter the first branch, consuming 3 credits. *)
+      unfold B. divide_credit "Htc" (11 + d2) 3.
+      wp_tick_match. iClear "Htc'".
+      (* Force [t2]. *)
+      rewrite (untranslate_litv t2). untranslate.
+      wp_apply (stream_pay_force with "[#] [$] [$Htc $Htoken]").
+      { iFrame "Hstream2". }
+      iIntros (c) "(_ & #Hc & Htoken)".
+      (* Conclude. *)
+      iApply ("Post" with "Hc Htoken").
       admit.
     }
 
@@ -1034,13 +1068,10 @@ Section StreamProofs.
       (* Step. We pay 3 credits here. *)
       wp_tick_lam. wp_tick_let. push_subst.
       (* [lazy (...)] costs 5 credits. *)
-      pay_out_of "Htc".
-      wp_apply (lazy_spec with "[$] [$Htc']"); last first.
+      wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       2: simpl; rewrite length_debit_append ?app_length; lia.
       2: lia.
-      2: lia.
-      clear cost.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
       rewrite (_ : g + 1 - 1 = g); last lia.
