@@ -89,8 +89,12 @@ Section StreamProofs.
     #t = «#t»%V.
   Proof. reflexivity. Qed.
 
+  (* This lemma is limited to an expression of the form «e» so as to
+     guarantee that it is used only outside the translation brackets,
+     never inside them. Indeed, translation brackets must never be
+     nested. *)
   Lemma untranslate_subst_litv x t e :
-    subst x #t e = subst x «#t»%V e.
+    subst x #t «e» = subst x «#t»%V «e».
   Proof.
     reflexivity.
   Qed.
@@ -149,7 +153,7 @@ Section StreamProofs.
     autorewrite with untranslate.
 
   Hint Rewrite
-    untranslate_subst_litv (* TODO should be used only outside translation *)
+    untranslate_subst_litv
     subst_lazy
   : push_subst.
 
@@ -950,12 +954,7 @@ Section StreamProofs.
       construct_texan_triple "Htc".
       (* Step. We pay 3 credits here. *)
       wp_tick_lam. wp_tick_let.
-      (* TODO [push_subst] should be used here,
-         but does not work as desired: *)
-      rewrite !untranslate_subst_litv.
-      rewrite -!translation_subst.
-      rewrite !subst_lazy.
-      simpl subst.
+      push_subst.
       (* [lazy (...)] costs 5 credits. *)
       pay_out_of "Htc".
       wp_apply (lazy_spec with "[$] [$Htc']"); last first.
@@ -970,7 +969,7 @@ Section StreamProofs.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
       (* TODO the goal does not yet have the desired shape:
-              << force #t1 >> in an evaluation context *)
+              « force #t1 » in an evaluation context *)
       (* pay_out_of "Htc".
       wp_apply (force_spec with "[$] [$Htc' Hstream1 $Htoken]"). *)
   Abort.
