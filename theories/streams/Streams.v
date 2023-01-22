@@ -215,22 +215,17 @@ Section StreamProofs.
 
   Variable p : na_inv_pool_name.
 
-  (* We want every thunk in the stream to have some level [g']
-     such that [g' ≤ g] holds. Thus, [g] is an upper bound for
-     the level of every suspension in the stream. In other words,
-     the token [token g] allows forcing the entire stream. *)
-
-  (* TODO could the existential quantification over g' be moved
-     into Gthunk? *)
+  (* We want every thunk in the stream to have level [g].
+     (This means level at most [g], since [Gthunk] is covariant in [g].)
+     Thus, the token [token g] allows forcing the entire stream. *)
 
   Fixpoint isStream g t ds xs : iProp :=
     match ds with
     | []    =>
         False
     | d :: ds =>
-        ∃ g', ⌜g' ≤ g⌝ ∗
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g' t d (λ c,
+        Gthunk p g t d (λ c,
           match xs with
           | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
           | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ isStream g t' ds xs
@@ -249,9 +244,8 @@ Section StreamProofs.
     | []    =>
         False
     | d :: ds =>
-        ∃ g', ⌜g' ≤ g⌝ ∗
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g' t d (λ c, isStreamCell g c ds xs)
+        Gthunk p g t d (λ c, isStreamCell g c ds xs)
     end%I.
   Proof.
     destruct ds; reflexivity.
@@ -263,10 +257,10 @@ Section StreamProofs.
   (* Deconstruct a hypothesis Hstream: isStream g t (d :: ds) xs. *)
   Local Ltac deconstruct_stream :=
     (* TODO unfold_isStream in Hstream *)
-    iDestruct "Hstream" as (g') "(% & % & #Hthunk)".
+    iDestruct "Hstream" as "(% & #Hthunk)".
 
   Local Ltac construct_stream H :=
-    unfold_isStream; iExists _; iFrame H; iPureIntro; eauto with lia.
+    unfold_isStream; iFrame H; iPureIntro; eauto with lia.
 
   Local Ltac deconstruct_nil_cell :=
     iDestruct "Hc" as "(-> & %)".
@@ -335,7 +329,10 @@ Section StreamProofs.
        thunk. *)
     iMod (Gthunk_consequence _ _ _ _ 0 with "[] Hthunk") as "Hthunk'";
       last first.
-    { rewrite Nat.add_0_r. iModIntro. construct_stream "Hthunk'". }
+    { rewrite Nat.add_0_r. iModIntro.
+      iPoseProof (gthunk_covariant_in_g with "Hthunk'") as "#Hthunk''".
+      { eassumption. }
+      construct_stream "Hthunk''". }
     iClear "Hthunk".
     (* Then, reason by cases on [xs], and use the induction hypothesis. *)
     iIntros (c) "_ #Hc".
@@ -570,9 +567,7 @@ Section StreamProofs.
     intros slack xs g t E (? & Hsub) ?.
     iIntros "#Hstream Hslack".
     unfold_isStream. deconstruct_stream.
-    unfold_isStream. iExists g'.
-    iAssert (⌜ g' ≤ g ⌝)%I as "$".
-    { iPureIntro. assumption. }
+    unfold_isStream.
     assert (length ds1 = length ds2) by eauto using subdebits_length.
     iAssert (⌜ length ds2 = length xs ⌝)%I as "$".
     { iPureIntro. congruence. }
