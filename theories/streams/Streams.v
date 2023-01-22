@@ -215,27 +215,29 @@ Section StreamProofs.
 
   Variable p : na_inv_pool_name.
 
-  (* TODO re-think the inequality g' ≤ g *)
-  (* we want every thunk in the stream to have level g' ≤ g *)
+  (* We want every thunk in the stream to have some level [g']
+     such that [g' ≤ g] holds. Thus, [g] is an upper bound for
+     the level of every suspension in the stream. In other words,
+     the token [token g] allows forcing the entire stream. *)
+
   Fixpoint isStream g t ds xs : iProp :=
     match ds with
     | []    =>
         False
     | d :: ds =>
+        ∃ g', ⌜g' ≤ g⌝ ∗
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g t d (λ c,
+        Gthunk p g' t d (λ c,
           match xs with
-          | []      =>          ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
-          | x :: xs => ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗
-                                isStream g' t' ds xs
+          | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
+          | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ isStream g t' ds xs
           end)
     end%I.
 
   Definition isStreamCell g c ds xs : iProp :=
     match xs with
-    | []      =>          ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
-    | x :: xs => ∃ g' t', ⌜c = CONSV x #t'⌝ ∗ ⌜g' ≤ g⌝ ∗
-                          isStream g' t' ds xs
+    | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
+    | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ isStream g t' ds xs
     end.
 
   Lemma unfold_isStream g t ds xs :
@@ -244,8 +246,9 @@ Section StreamProofs.
     | []    =>
         False
     | d :: ds =>
+        ∃ g', ⌜g' ≤ g⌝ ∗
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g t d (λ c, isStreamCell g c ds xs)
+        Gthunk p g' t d (λ c, isStreamCell g c ds xs)
     end%I.
   Proof.
     destruct ds; reflexivity.
@@ -254,8 +257,10 @@ Section StreamProofs.
   Ltac unfold_isStream :=
     rewrite unfold_isStream.
 
+  (* Deconstruct a hypothesis Hstream: isStream g t (d :: ds) xs. *)
   Local Ltac deconstruct_stream :=
-    iDestruct "Hstream" as "(%Heq & #Hthunk)".
+    (* TODO unfold_isStream in Hstream *)
+    iDestruct "Hstream" as (g') "(% & % & #Hthunk)".
 
   Lemma unfold_isStream_contradictory g t xs :
     isStream g t [] xs = False%I.
@@ -287,17 +292,28 @@ Section StreamProofs.
     iPureIntro; lia.
   Qed.
 
+  Local Lemma transport_list_eq_nil ds1 ds2 :
+    length ds1 = length ds2 →
+    ds1 = [] →
+    ds2 = [].
+  Proof.
+    destruct ds1; destruct ds2; simpl; congruence.
+  Qed.
+
   Local Ltac deconstruct_nil_cell :=
-    iDestruct "Hc" as "(-> & %Hds)".
+    iDestruct "Hc" as "(-> & %)".
 
   Local Ltac deconstruct_cons_cell :=
-    iDestruct "Hc" as (g' t') "(-> & %Hg'g & #Hstream)".
+    iDestruct "Hc" as (t') "(-> & #Hstream)".
 
   Local Ltac pure_conjunct :=
     iSplitR; [ solve [ eauto ] |].
 
-  Local Ltac construct_stream_cell :=
-    iExists _, _; do 2 pure_conjunct; eauto.
+  Local Ltac construct_nil_cell :=
+    iPureIntro; eauto using transport_list_eq_nil.
+
+  Local Ltac construct_cons_cell :=
+    iExists _; pure_conjunct; eauto.
 
   Lemma isStreamCell_length :
     ∀ ds xs g c,
@@ -454,22 +470,14 @@ Section StreamProofs.
     intuition eauto with lia.
   Qed.
 
-  Local Lemma transport_list_eq_nil ds1 ds2 :
-    length ds1 = length ds2 →
-    ds1 = [] →
-    ds2 = [].
-  Proof.
-    destruct ds1; destruct ds2; simpl; congruence.
-  Qed.
-
   Local Lemma isStreamCell_nil g c ds1 ds2 :
     length ds1 = length ds2 →
     isStreamCell g c ds1 [] -∗
     isStreamCell g c ds2 [].
   Proof.
-    unfold isStreamCell.
-    iIntros (?) "(%Hc & %Hds1)".
-    eauto using transport_list_eq_nil.
+    intros. iIntros "Hc".
+    deconstruct_nil_cell.
+    construct_nil_cell.
   Qed.
 
   Local Ltac mv H' H :=
@@ -496,7 +504,7 @@ Section StreamProofs.
     { deconstruct_cons_cell.
       (* Exploit the induction hypothesis. *)
       iMod (IH with "Hstream Hslack") as "#Hstream'"; iModIntro.
-      construct_stream_cell. }
+      construct_cons_cell. }
   Qed.
 
   Lemma stream_forward_debt :
@@ -513,12 +521,13 @@ Section StreamProofs.
     try solve [ tauto | eauto 3 ].
     intros slack xs g t E (? & Hsub) ?.
     iIntros "#Hstream Hslack".
-    do 2 unfold_isStream.
-    iDestruct "Hstream" as "(%Hlength & #Hthunk)".
+    unfold_isStream. deconstruct_stream.
+    unfold_isStream. iExists g'.
+    iAssert (⌜ g' ≤ g ⌝)%I as "$".
+    { iPureIntro. assumption. }
     assert (length ds1 = length ds2) by eauto using subdebits_length.
-    iAssert (⌜ length ds2 = length xs ⌝)%I as "Hll".
+    iAssert (⌜ length ds2 = length xs ⌝)%I as "$".
     { iPureIntro. congruence. }
-    iFrame "Hll". iClear "Hll".
     (* Two cases arise. If [d1] is less than [d2], then we want to use the
        consequence rule to increase the apparent debt of the first thunk and
        gain more slack that can be used to pay subsequent thunks. On the other
@@ -584,7 +593,7 @@ Section StreamProofs.
     ].
 
   Local Ltac construct_stream H :=
-    unfold_isStream; pure_conjunct; iFrame H.
+    unfold_isStream; iExists _; iFrame H; iPureIntro; eauto.
 
   Local Ltac construct_action :=
     iIntros "Htoken Htc" (ψ) "Post".
@@ -638,7 +647,7 @@ Section StreamProofs.
     untranslate.
     (* We pay 3 credits for [create], and keep one credit. *)
     iDestruct "Htc" as "(H1 & H3)".
-    wp_apply (create_spec with "[$] [$H3 H1 He]"); last first.
+    wp_apply (create_spec p g with "[$] [$H3 H1 He]"); last first.
     { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
     (* We now examine the cost of this action. *)
     construct_action.
@@ -709,7 +718,7 @@ Section StreamProofs.
     wp_tick_inj.
     rewrite untranslate_litv. untranslate.
     iApply "Post".
-    construct_stream_cell.
+    construct_cons_cell.
   Qed.
 
   Lemma nil_spec g :
@@ -764,9 +773,7 @@ Section StreamProofs.
     TC_invariant -∗
     {{{ TC 22 ∗ token g }}}
       « extract #t »
-    {{{ g' t', RET («x», #t');
-        (* ⌜g' ≤ g⌝ TODO *)
-        isStream g' t' ds xs ∗ token g }}}.
+    {{{ t', RET («x», #t'); isStream g t' ds xs ∗ token g }}}.
   Proof.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
@@ -831,7 +838,7 @@ Section StreamProofs.
       wp_tick_pair. wp_tick_inj.
       rewrite untranslate_litv. untranslate.
       wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Hrest]").
-      { construct_stream_cell. }
+      { construct_cons_cell. }
       { iIntros (c') "#Hc'". iApply "Post".
         by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
     }
