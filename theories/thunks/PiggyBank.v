@@ -363,30 +363,33 @@ Qed.
 
 (* Forcing (or breaking) the piggy bank is the most complex operation. It is
    a ghost operation. As explained earlier, it is not an atomic operation,
-   so it is not described as a single update. Instead, it takes the form of
-   an update ([begin force]) whose conclusion is a disjunction of two
-   situations:
+   so it is not described as a single update. Instead, it is described as an
+   update whose conclusion involves an update. These two updates mark the
+   beginning and end of the operation.
 
-   - either the piggy bank has not been forced yet, in which case we have
-     [LeftBranch nc] and [nc] time credits at hand; it is then up to the
-     user to (somehow) transition to [RightBranch], at which point we allow
-     the user to perform a second update ([end force]) which completes the
-     operation and restores the validity of the piggy bank;
+   Forcing the piggy bank requires the token [na_own p F]. While forcing is
+   in progress (that is, in between the two updates), this token is replaced
+   with the weaker token [na_own p (F ∖ ↑N)]. This forbids forcing the piggy
+   bank while it is already being forced. At the end, the stronger token
+   [na_own p F] re-appears.
 
-  - or the piggy bank has been forced already, in which case we have
-    [RightBranch]; it is then up to the user to perform whatever action is
-    desired, while preserving [RightBranch]; at which point we allow the
-    user to perform a second update ([end force]) which completes the
-    operation and restores the validity of the piggy bank.
+   The conclusion of the first update is a conjunction of three items:
 
-  Forcing the piggy bank requires the token [na_own p F]. While forcing is
-  in progress (that is, between the [begin force] and [end force] updates)
-  this token is replaced with the weaker token [na_own p (F ∖ ↑N)]. This
-  forbids forcing the piggy bank while it is already being forced. At the
-  end, the stronger token [na_own p F] re-appears.
+   + a disjunction of two situations: either the piggy bank has not been
+     forced yet, in which case we have [LeftBranch nc] and [nc] time credits
+     at hand; or the piggy bank has been forced already, in which case we
+     have [RightBranch];
 
-  Paying while the piggy bank is being forced is permitted. Indeed, paying
-  does not require a [na_own] token. *)
+   + a degraded token;
+
+   + a second update, which transforms the degraded token back into the
+     original token (thus making the piggy bank usable again), and which
+     requires [RightBranch]. Thus, regardless of which state the piggy bank
+     was in at the beginning, the user must (somehow) leave it in the right
+     branch.
+
+   Paying while the piggy bank is being forced is permitted. Indeed, paying
+   does not require a [na_own] token. *)
 
 Lemma piggybank_break E F :
   (* The strong token and the weak token: *)
@@ -404,7 +407,9 @@ Lemma piggybank_break E F :
   ∃ nc,
    (* either the left branch [LeftBranch nc] together with [nc] time
       credits, or the right branch [RightBranch]; *)
-   ((▷ LeftBranch nc ∗ TC nc) ∨ ▷ RightBranch) ∗ token' ∗
+   ((▷ LeftBranch nc ∗ TC nc) ∨ ▷ RightBranch) ∗
+   (* a degraded token; *)
+   token' ∗
    (* and a second update, which must be used to recover the original
       token, and can therefore be viewed as an obligation to leave
       the piggy bank in the right branch: *)
