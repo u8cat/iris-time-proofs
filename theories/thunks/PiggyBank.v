@@ -465,7 +465,7 @@ Qed.
    of the piggy bank can be reduced from [n] to zero. Furthermore, it lets
    the user extract persistent information out of the right branch. *)
 
-Lemma piggybank_discover_zero_debit φ n E F :
+Lemma piggybank_peek φ n E F :
   (* The token: *)
   let token := na_own p F in
   (* Side conditions about masks: *)

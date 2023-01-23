@@ -311,8 +311,9 @@ Proof.
   subst γdecided2.
   iClear "Hmeta2".
 
-  (* Exploit the fact that the piggy bank has zero debit. *)
-  iMod (piggybank_discover_zero_debit with "Hpiggy Htoken [] []")
+  (* Prove that the piggy bank must be in its right branch and must
+     have zero debit. *)
+  iMod (piggybank_peek with "Hpiggy Htoken [] []")
     as "(#Hpiggy0 & $ & $)";
     [ eassumption | set_solver | set_solver | | | construct_thunk ].
 
