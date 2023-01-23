@@ -265,8 +265,9 @@ Section StreamProofs.
   Local Ltac deconstruct_nil_cell :=
     iDestruct "Hc" as "(-> & %)".
 
-  Local Ltac deconstruct_cons_cell :=
-    iDestruct "Hc" as (t') "(-> & #Hstream)".
+  Local Ltac deconstruct_cons_cell t' Hstream :=
+    let ipat := eval cbv in ( "(-> & #" ++ Hstream ++ ")")%string in
+    iDestruct "Hc" as (t') ipat.
 
   Local Ltac pure_conjunct :=
     iSplitR; [ solve [ eauto ] |].
@@ -338,7 +339,7 @@ Section StreamProofs.
     iIntros (c) "_ #Hc".
     destruct xs as [| x xs ].
     { deconstruct_nil_cell. construct_nil_cell. }
-    { deconstruct_cons_cell.
+    { deconstruct_cons_cell t' "Hstream".
       construct_cons_cell.
       iMod (IHds with "Hstream") as "#?"; [ eassumption |].
       eauto with iFrame. }
@@ -354,7 +355,7 @@ Section StreamProofs.
     (* Reason by cases on [xs] and use the previous lemma. *)
     destruct xs as [| x xs ].
     { deconstruct_nil_cell. construct_nil_cell. }
-    { deconstruct_cons_cell.
+    { deconstruct_cons_cell t' "Hstream".
       construct_cons_cell.
       iMod (isStream_covariant with "Hstream") as "#?"; [ eassumption |].
       eauto with iFrame. }
@@ -367,7 +368,7 @@ Section StreamProofs.
   Proof.
     destruct xs; intros; iIntros "Hc".
     { deconstruct_nil_cell. subst ds. eauto. }
-    { deconstruct_cons_cell. iApply isStream_length. eauto. }
+    { deconstruct_cons_cell t' "Hstream". iApply isStream_length. eauto. }
   Qed.
 
   (* Forcing a stream. *)
@@ -546,7 +547,7 @@ Section StreamProofs.
       iApply (isStreamCell_nil with "Hc").
       eauto. }
     (* Case: the list is nonempty. *)
-    { deconstruct_cons_cell.
+    { deconstruct_cons_cell t' "Hstream".
       (* Exploit the induction hypothesis. *)
       iMod (IH with "Hstream Hslack") as "#Hstream'"; iModIntro.
       construct_cons_cell. }
@@ -823,7 +824,7 @@ Section StreamProofs.
     wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]"); [ done |].
     iClear "Hstream".
     iIntros (c) "(_ & #Hc & Htoken)".
-    deconstruct_cons_cell.
+    deconstruct_cons_cell t' "Hstream'".
     (* Match on the resulting cell. The second branch must be taken. *)
     wp_tick_match. do 2 (wp_tick_proj ; wp_tick_let).
     (* Construct a pair. *)
@@ -942,8 +943,8 @@ Section StreamProofs.
     iApply ("Post" with "Hc' Htoken").
   Qed.
 
-  Definition A := 11.
-  Definition B := 14.
+  Definition A := 30.
+  Definition B := 11.
 
   Fixpoint debit_append ds1 ds2 :=
     match ds1, ds2 with
@@ -1074,19 +1075,19 @@ Section StreamProofs.
               « force #t1 » in an evaluation context,
               but the tactic wp_apply does not recognize this. *)
       rewrite translate_case.
-      divide_credit "Htc" (B + d2) (A + d1).
+      unfold A; divide_credit "Htc" (19 + (B + d2)) (11 + d1).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
       { iFrame "Hstream1". }
       iIntros (c) "(_ & #Hc & Htoken)".
       deconstruct_nil_cell.
       (* Enter the first branch, consuming 3 credits. *)
-      unfold B. divide_credit "Htc" (11 + d2) 3.
-      wp_tick_match. iClear "Htc'".
+      wp_tick_match.
       (* Allow a ghost update after forcing [t2]. *)
       iApply wp_fupd.
       (* Force [t2]. *)
       rewrite (untranslate_litv t2). untranslate.
-      wp_apply (stream_pay_force with "[#] [$] [$Htc $Htoken]").
+      divide_credit "Htc" 16 (B + d2).
+      wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
       { iFrame "Hstream2". }
       iIntros (c) "(_ & #Hc & Htoken)".
       (* Promote the first cell of the second list from level [g] to [g+1]. *)
@@ -1126,8 +1127,37 @@ Section StreamProofs.
       rewrite /isLazyCell.
       rewrite (_ : g + 1 - 1 = g); last lia.
       iIntros "Htc Htoken" (ψ) "Post".
-
-  Abort.
+      (* The code forces [t1], enters the second branch, and returns a CONS
+         cell. *)
+      (* Force [t1]. *)
+      rewrite translate_case.
+      unfold A; divide_credit "Htc" (19) (11 + d1).
+      wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
+      { iFrame "Hstream1". }
+      iIntros (c) "(_ & #Hc & Htoken)".
+      iClear (t1) "Hstream1".
+      deconstruct_cons_cell t1 "Hstream1".
+      (* Enter the first second, consuming 3 credits. *)
+      wp_tick_match.
+      do 2 (wp_tick_proj ; wp_tick_let).
+      (* Untranslate with care. TODO *)
+      rewrite (untranslate_litv t1) (untranslate_litv t2).
+      rewrite !untranslate_val !untranslate_app.
+      (* Use the induction hypothesis. *)
+      divide_credit "Htc" 2 8.
+      wp_apply (IH with "[#] [$] [$Htc']"); [| | eauto |].
+      { exact Hlen1. }
+      { simpl. lia. }
+      iClear (t1 t2) "Hstream1 Hstream2".
+      iIntros (t') "#Hstream'".
+      untranslate.
+      (* Build a CONS cell. *)
+      wp_apply (CONS_spec with "[$Hstream'] [$] [$Htc]").
+      iIntros (c) "#Hc".
+      (* Conclude. *)
+      iApply ("Post" with "Hc Htoken").
+    }
+  Qed.
 
   (* TODO create a layer where the parameter [g] disappears, if possible *)
   (* what about the parameter [p]? *)
