@@ -135,7 +135,7 @@ Local Definition PiggyBankAtomicInvariant γforced γpaid nc : iProp :=
   ∃ forced ac,
       own γforced (◯E forced)
     ∗ own γpaid (● MaxNat ac)
-    ∗ if negb forced then TC ac else  ⌜ nc ≤ ac ⌝.
+    ∗ if negb forced then TC ac else ⌜ nc ≤ ac ⌝.
 
 Definition PiggyBank n : iProp :=
   ∃ γforced γpaid nc,
