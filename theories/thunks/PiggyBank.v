@@ -399,18 +399,16 @@ Lemma piggybank_break E F :
   (* Forcing requires a piggy bank whose debt is zero.
      It also requires [token]. *)
   PiggyBank 0 -∗
-  token ={E}=∗ (* begin force *)
-  (* As a result of this first update, the user obtains either the left
-     branch and an obligation to make a transition to the right branch: *)
-   ( ∃ nc,
-      ▷ LeftBranch nc ∗ TC nc ∗ token' ∗
-     (▷ RightBranch -∗ token' ={E}=∗ (* end force *) token)
-   ) ∨
-   (* or the right branch and an obligation to remain in this branch: *)
-   ( ∃ nc,
-      ▷ RightBranch ∗ token' ∗
-     (▷ RightBranch -∗ token' ={E}=∗ (* end force *) token)
-   ).
+  token ={E}=∗
+  (* As a result of this first update, the user obtains: *)
+  ∃ nc,
+   (* either the left branch [LeftBranch nc] together with [nc] time
+      credits, or the right branch [RightBranch]; *)
+   ((▷ LeftBranch nc ∗ TC nc) ∨ ▷ RightBranch) ∗ token' ∗
+   (* and a second update, which must be used to recover the original
+      token, and can therefore be viewed as an obligation to leave
+      the piggy bank in the right branch: *)
+   (▷ RightBranch -∗ token' ={E}=∗ token).
 Proof.
   intros.
   iIntros "#Hpiggy Htoken".
@@ -420,37 +418,41 @@ Proof.
   (* Open both invariants. *)
   open_both_invariants.
 
+  (* Part of the goal can be met. *)
+  iExists nc.
+  iFrame "Htoken".
+
   (* Perform case analysis. *)
   case_analysis forced.
 
   (* Case: left branch. *)
   {
-    (* We are in the left-hand branch of the conclusion. *)
-    iLeft. iExists nc. iFrame "Hbranch Htoken".
     (* The number of debits is zero, so we learn [nc ≤ ac]. *)
     exploit_white_bullet.
     (* Therefore, we have the necessary time credits at hand. *)
-    iDestruct (TC_weaken _ _ Hleq with "Hac") as "$".
+    iDestruct (TC_weaken _ _ Hleq with "Hac") as "Htc".
     (* Set γforced to [true]. *)
     update_forced true.
     (* Close the atomic invariant now. *)
-    close_at_invariant.
+    close_at_invariant. iModIntro.
+    (* We are in the left-hand branch of the disjunction. *)
+    iSplitL "Hbranch Htc".
+    { iLeft. iFrame "Hbranch Htc". }
     (* Once the user performs a state change to [RightBranch],
        we will be able to close the non-atomic invariant. *)
-    iModIntro.
     iIntros "Hbranch Htoken".
     close_na_invariant.
   }
 
   (* Case: right branch. This case is trivial. *)
   {
-    (* We are in the right-hand branch of the conclusion. *)
-    iRight. iExists nc. iFrame "Hbranch Htoken".
     (* Close the atomic invariant now. *)
-    close_at_invariant.
+    close_at_invariant. iModIntro.
+    (* We are in the right-hand branch of the disjunction. *)
+    iSplitL "Hbranch".
+    { iRight. iFrame "Hbranch". }
     (* Once the user performs a state change to [RightBranch],
        we will be able to close the non-atomic invariant. *)
-    iModIntro.
     iIntros "Hbranch Htoken".
     close_na_invariant.
   }

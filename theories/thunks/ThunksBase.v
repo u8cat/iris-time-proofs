@@ -412,19 +412,19 @@ Proof.
   wp_tick_lam.
 
   (* Break the bank! *)
-  iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
+  iMod (piggybank_break with "Hpiggy Htoken")
+    as (nc) "(Hbank & Htoken & Hclose)";
     [ set_solver | set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)
-  iDestruct "Hbank" as "[Hbank | Hbank]".
+  iDestruct "Hbank" as "[(Hbranch & Hnc) | Hbranch]".
 
   (* Case: the bank has never been broken. *)
   {
     (* The piggy bank gives us [nc] time credits as well as the ability
        to close the bank's invariant, provided we are able to establish
        the right branch of our invariant. *)
-    iDestruct "Hbank" as (nc) "(Hbranch & Hnc & Htoken & Hclose)".
     destruct_left_branch.
     (* We now step through the code. The left branch is taken. *)
     wp_tick_load. wp_tick_match.
@@ -448,7 +448,6 @@ Proof.
   {
     (* The piggy bank requires us to preserve the right branch of our
        invariant. *)
-    iDestruct "Hbank" as (nc) "(Hbranch & Htoken & Hclose)".
     destruct_right_branch.
     (* We now step through the code. The right branch is taken. *)
     wp_tick_load. wp_tick_match.
@@ -497,16 +496,16 @@ Proof.
   wp_tick_lam. simpl.
 
   (* Break the bank! *)
-  iMod (piggybank_break with "Hpiggy Htoken") as "Hbank";
+  iMod (piggybank_break with "Hpiggy Htoken")
+    as (nc) "(Hbank & Htoken & Hclose)";
     [ set_solver | set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)
-  iDestruct "Hbank" as "[Hbank | Hbank]".
+  iDestruct "Hbank" as "[(Hbranch & Hnc) | Hbranch]".
 
   (* Case: the bank has never been broken. *)
   {
-    iDestruct "Hbank" as (nc) "(Hbranch & _ & _ & _)".
     destruct_left_branch.
     (* This case is impossible. We repeat an argument that is already
        found in the proof of [confront_base_thunk_thunkval], and we have
@@ -529,7 +528,6 @@ Proof.
   {
     (* The piggy bank requires us to preserve the right branch of our
        invariant. *)
-    iDestruct "Hbank" as (nc) "(Hbranch & Htoken & Hclose)".
     rename v into v'.
     destruct_right_branch.
     (* [v] and [v'] must be the same value. *)
