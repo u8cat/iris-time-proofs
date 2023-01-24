@@ -5,6 +5,28 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode ThunksBase.
 
+(* The construction of the predicate [Thunk] is in three layers: base thunks,
+   proxy thunks, and thunks. These layers are described in the files
+   ThunksBase.v, ThunksStep.v, and ThunksFull.v. *)
+
+(* This file defines an API (that is, a set of reasoning rules) that are common
+   to all three layers. This API is used in the construction as follows:
+
+   + in the beginning, we prove that the predicate [BaseThunk] satisfies
+     this API;
+
+   + then, we prove that if we are given a predicate [SomeThunk] that satisfies
+     this API, then on top of it, we are able to define a predicate
+     [ProxyThunk SomeThunk] that also satisfies this API.
+
+   + finally, by iterating this construction an arbitrary number of times, we
+     build the predicate [Thunk], which satisfies this API and also enjoys the
+     desired creation and consequence rules. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Prologue. *)
+
 Section API.
 
 Notation valO := (valO heap_lang).
@@ -14,13 +36,14 @@ Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
+(* -------------------------------------------------------------------------- *)
+
 (* The parameters of the public predicate [Thunk p F t n R φ] are:
 
-    - p: a non-atomic-invariant pool
+    - p, F: a non-atomic-invariant pool and a mask; the token
+            [ThunkToken p F] is required to force this thunk
 
-    - F: a mask
-
-    - t: the physical location of the thunk
+    - t: a memory location; the physical location of the thunk
 
     - n: the apparent remaining debt,
          that is, the number of debits associated with this thunk
@@ -28,7 +51,8 @@ Open Scope nat_scope.
     - R: a resource that is required, but not consumed,
          when the thunk is forced
 
-    - φ: the postcondition of this thunk is □φ
+    - φ: a postcondition; the value v produced by forcing this thunk
+         satisfies [□ φ v].
 
  *)
 
@@ -43,7 +67,9 @@ Implicit Type φ : val → iProp.
 
 Implicit Type v : val.
 
-(* The basic thunk API. *)
+(* -------------------------------------------------------------------------- *)
+
+(* The common thunk API. *)
 
 Class BasicThunkAPI
 
