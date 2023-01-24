@@ -164,7 +164,7 @@ Lemma thunk_create_spec p nc φ f :
   TC_invariant -∗
   {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; φ v }}} ) }}}
   «create f»
-  {{{ (t : loc), RET #t ; Thunk p t nc φ }}}.
+  {{{ (t : loc), RET «#t» ; Thunk p t nc φ }}}.
 Proof.
   iIntros "#Htickinv" (Φ) "!# [? Hf] Post".
   iMod (auth_max_nat_alloc 0) as (γ) "[Hγ● Hγ◯]".

@@ -25,7 +25,7 @@ Lemma create_thunk_forcing_thunk p N1 F2 t2 n2 R φ :
   TC_invariant -∗
   {{{ TC 3 ∗ Thunk p F2 t2 n2 R φ }}}
     « create (λ: <>, force #t2)%V »
-  {{{ t1, RET #t1 ;
+  {{{ t1, RET «#t1» ;
       Thunk p (↑N1) t1 (12+n2) (ThunkToken p F2 ∗ R)
             (λ v, ThunkVal t2 v ∗ □ φ v)
   }}}.

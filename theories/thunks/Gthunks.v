@@ -253,7 +253,7 @@ Section Gthunks.
     TC_invariant -∗
     {{{ TC 3 ∗ isAction f n token φ }}}
       « create f »
-    {{{ t, RET #t ; Gthunk p g t n φ }}}.
+    {{{ t, RET «#t» ; Gthunk p g t n φ }}}.
   Proof.
     iIntros "#?" (Φ) "!# H Post".
     wp_apply (thunk_create with "[$] H"); [ done |].
