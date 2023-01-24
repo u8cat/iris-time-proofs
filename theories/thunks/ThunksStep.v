@@ -44,6 +44,18 @@ Implicit Type v : val.
 Definition isUpdate n R φ ψ : iProp :=
   ∀ v, R -∗ TC n -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v.
 
+(* The predicate [ProxyThunk] involves a piggy bank whose branches are defined
+   as follows:
+
+   - in the left branch, the proxy thunk has not been forced yet: the ghost
+     update still exists; the cost [nc1] of forcing the underlying thunk
+     plus the cost [nc2] of the ghost update add up to the necessary cost [nc];
+
+   - in the right branch, the proxy thunk has been forced, so the ghost update
+     does not exist any more; the underlying thunk has been forced, so its
+     value [v] has been decided, and (because the update has been exploited
+     already) the postcondition [□ ψ v] holds. *)
+
 Local Definition LeftBranch R φ ψ nc1 nc2 nc : iProp :=
     ⌜ (nc = nc1 + nc2)%nat ⌝
   ∗ isUpdate nc2 R φ ψ.
@@ -52,6 +64,27 @@ Local Definition RightBranch t ψ : iProp :=
   ∃ v,
       ThunkVal t v
     ∗ □ ψ v.
+
+(* The definition of [ProxyThunk] is essentially a conjunction of:
+
+   - the underlying thunk, with a debit of [nc1];
+
+   - the piggy bank, whose branches are defined as described above.
+
+   The debit [n] of the piggy bank is also the debit [n] of the proxy thunk.
+   Once this debit is zero, the piggy bank can be forced, and this delivers
+   enough credit to force the underlying thunk *and* apply the ghost update.
+
+   Things are set up so that the masks required to force the underlying thunk
+   and to force the piggy bank are disjoint. The underlying thunk needs [F1],
+   while the piggy bank needs [↑N], and we require these masks to be disjoint.
+   This is required in the verification of [force]: the piggy bank must be
+   broken at the beginning (so as to liberate the time credits stored in it)
+   and cannot be closed until the underlying thunk has been forced. In other
+   words, the underlying thunk must be forced at a point in time where the
+   the piggy bank is opened. This implies that the token for the piggy bank
+   and the token for the underlying thunk must be disjoint: the latter must
+   be available at a point in time where the former has been consumed. *)
 
 Definition ProxyThunk p F t n R ψ : iProp :=
 
