@@ -5,7 +5,14 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits PiggyBank.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 
+(* In this file, we prove that if we are given a predicate [Thunk] that
+   satisfies the API in ThunksAPI.v, then we are able to define a predicate
+   [ProxyThunk] that also satisfies this API. in addition, it has a form of
+   the consequence rule, which constructs a [ProxyThunk] out of a [Thunk]. *)
+
 (* -------------------------------------------------------------------------- *)
+
+(* Prologue. *)
 
 Section Step.
 
@@ -27,7 +34,12 @@ Implicit Type γpaid : gname.
 Implicit Type nc ac : nat.
 Implicit Type v : val.
 
-(* TODO comments needed *)
+(* -------------------------------------------------------------------------- *)
+
+(* We write [isUpdate n R φ ψ] to indicate that we have a one-shot ghost
+   update that transforms [□ φ v] into [□ ψ v], for an arbitrary value [v], at
+   a cost of [n] time credits. The resource [R] is required, but not consumed,
+   by this update. *)
 
 Definition isUpdate n R φ ψ : iProp :=
   ∀ v, R -∗ TC n -∗ □ φ v ={⊤}=∗ R ∗ □ ψ v.

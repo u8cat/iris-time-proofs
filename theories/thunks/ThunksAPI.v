@@ -9,19 +9,21 @@ From iris_time Require Import ThunksCode ThunksBase.
    proxy thunks, and thunks. These layers are described in the files
    ThunksBase.v, ThunksStep.v, and ThunksFull.v. *)
 
-(* This file defines an API (that is, a set of reasoning rules) that are common
-   to all three layers. This API is used in the construction as follows:
+(* This file defines an API (that is, a set of reasoning rules) that are
+   common to all three layers. This API is used in the construction as
+   follows:
 
-   + in the beginning, we prove that the predicate [BaseThunk] satisfies
-     this API;
+   + in the beginning, we prove that the predicate [BaseThunk] satisfies this
+     API; in addition, it has a creation rule;
 
-   + then, we prove that if we are given a predicate [SomeThunk] that satisfies
+   + then, we prove that if we are given a predicate [Thunk] that satisfies
      this API, then on top of it, we are able to define a predicate
-     [ProxyThunk SomeThunk] that also satisfies this API.
+     [ProxyThunk] that also satisfies this API; in addition, it has a form of
+     the consequence rule, which constructs a [ProxyThunk] out of a [Thunk];
 
    + finally, by iterating this construction an arbitrary number of times, we
-     build the predicate [Thunk], which satisfies this API and also enjoys the
-     desired creation and consequence rules. *)
+     build the predicate [Thunk], which satisfies this API and has both the
+     creation rule and the consequence rule. *)
 
 (* -------------------------------------------------------------------------- *)
 
