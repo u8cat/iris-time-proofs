@@ -17,6 +17,8 @@ Notation ThunkToken := na_own.
 
 (* -------------------------------------------------------------------------- *)
 
+(* Prologue. *)
+
 Section Proofs.
 
 Notation valO := (valO heap_lang).
@@ -38,6 +40,8 @@ Implicit Type φ : val → iProp.
 Implicit Type f v : val.
 Implicit Type γdecided : gname.
 
+(* -------------------------------------------------------------------------- *)
+
 (* We write [isAction f n R φ] to indicate that [f] is a one-shot function
    that takes a unit argument and returns a value v such that [□ φ v] holds.
    The cost of this call is [n] time credits. The resource [R] is required,
@@ -48,13 +52,14 @@ Implicit Type γdecided : gname.
 Definition isAction f n R φ : iProp :=
   R -∗ TC n -∗ ∀ ψ, (∀ v, R -∗ □ φ v -∗ ψ «v»%V) -∗ WP «f #()» {{ ψ }}.
 
+(* -------------------------------------------------------------------------- *)
+
 (* The parameters of the public predicate [BaseThunk p F t n R φ] are:
 
-    - p: a non-atomic-invariant pool
+    - p, F: a non-atomic-invariant pool and a mask; the token
+            [ThunkToken p F] is required to force this thunk
 
-    - F: a mask
-
-    - t: the physical location of the thunk
+    - t: a memory location; the physical location of the thunk
 
     - n: the apparent remaining debt,
          that is, the number of debits associated with this thunk
@@ -62,55 +67,24 @@ Definition isAction f n R φ : iProp :=
     - R: a resource that is required, but not consumed,
          when the thunk is forced
 
-    - φ: the postcondition of this thunk is □φ
+    - φ: a postcondition; the value v produced by forcing this thunk
+         satisfies [□ φ v].
 
  *)
 
 (* The following variables are used internally:
 
-    - γpaid: a ghost cell, whose content inhabits the monoid Auth (Nat, max)
-
-    - γdecided: a ghost cell, whose content is either Left () or Right v,
-      indicating whether the thunk has been forced already;
-      the left side is exclusive and represents a unique permission to force;
-      the right side is persistent and represents agreement on the value v
-
-    - nc: the necessary credits, that is, the credits that appear
-          in the precondition of the function f
-
-    - ac: the available credits, that is, the credits that have
-          been paid so far and currently stored in the thunk
+    - γdecided: a ghost cell, whose content is either [Cinl (Excl ())] or
+      [Cinr (to_agree v)], indicating whether the thunk has been forced
+      already; the left side is exclusive and represents a unique permission
+      to force; the right side is persistent and represents agreement on the
+      value v
 
     - f: the function that is invoked when the thunk is forced
 
     - v: the result of calling f(), and of forcing the thunk
 
 *)
-
-(* The internal predicate [BaseThunkInv ...] is the thunk's invariant. *)
-
-(* It states that
-   + the ghost cell γpaid contains the authoritative value ac;
-     that is, ac is the authoritative number of "available credits";
-   + and
-     - either the thunk is currently unevaluated,
-       in which case we have a unique permission to call f,
-       and this call requires nc time credits,
-       and we currently have ac time credits at hand;
-     - or the thunk is evaluated already,
-       and its value v satisfies the postcondition □φ,
-       and the thunk must have been fully paid for (nc ≤ ac). *)
-
-(* The postcondition □φ is persistent by construction. Indeed, a copy
-   of the value [v] is returned to the caller and a copy of [v] is
-   memoized for later use. Both copies must satisfy the postcondition,
-   so the postcondition must be duplicable. *)
-
-(* The assertion [nc ≤ ac] in the second disjunct expresses the idea that if
-   a thunk has been forced then it must have been fully paid for. This
-   assertion is used in the proof of the lemma confront_base_thunk_thunkval,
-   which states that if a thunk has been forced, then it can be viewed as a
-   zero-debit thunk. *)
 
 Local Definition ownUndecided γdecided :=
   own γdecided (Cinl $ Excl ()).
@@ -121,23 +95,34 @@ Local Definition ownDecided γdecided v :=
 (* The predicate [BaseThunk p F t n R φ] is public. It is an abstract
    predicate: its definition is not meant to be exposed to the user. *)
 
-(* Its definition states that:
+(* The predicate [BaseThunk] involves a piggy bank whose branches are defined
+   as follows:
 
-   + the ghost location γdecided is uniquely associated with this thunk
-     (this is needed to synchronize BaseThunk and ThunkVal);
+     - in the left branch, the thunk is currently unevaluated: the ghost cell
+       [γdecided] is undecided, the memory location [t] holds [UNEVALUATEDV
+       «f»], and we have a unique permission to call f, which requires [nc]
+       time credits;
 
-   + the thunk's invariant holds; it is placed in a non-atomic invariant
-     indexed by the pool p; the token [ThunkToken p F] suffices to open
-     this invariant;
+     - in the right branch, the thunk is evaluated already: the ghost cell
+       [γdecided] is decided, the memory location [t] holds [EVALUATEDV «v»],
+       and the value v satisfies the postcondition □φ.
 
-   + we have a fragmentary view of the ghost cell γpaid containing the value
-     [nc - n].
+   The postcondition □φ is persistent by construction. Indeed, a copy of the
+   value [v] is returned to the caller and a copy of [v] is memoized for later
+   use. Both copies must satisfy the postcondition, so the postcondition must
+   be duplicable. *)
 
-   Because γpaid inhabits the monoid Auth (Nat, max), this fragmentary view
-   is duplicable. Intuitively, this means that we know [nc - n ≤ ac], hence
-   [nc ≤ ac + n]. That is, the credits that have been paid already, plus the
-   credits that remain to be paid, are sufficient to cover the actual cost
-   of invoking f. *)
+(* The definition of [BaseThunk] further states that:
+
+   + the ghost location [γdecided] is uniquely associated with the thunk [t];
+     this is needed to synchronize [BaseThunk] and [ThunkVal] without exposing
+     [γdecided] in the public API;
+
+   + the piggy bank is indexed by [p] and [N], where [↑N ⊆ F] holds, which
+     means that the token [ThunkToken p F] suffices to force this piggy bank;
+
+   + the piggy bank is indexed by [ThunkPayment t], which means that paying
+     requires the current atomic mask [E] to satisfy [↑(ThunkPayment t) ⊆ E]. *)
 
 Local Definition LeftBranch t γdecided R φ nc : iProp :=
   ∃ f,
