@@ -86,7 +86,7 @@ Proof.
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   iModIntro.
   (* Pack existentials. *)
-  iExists ThunkStep, _, _.
+  iExists ProxyThunk, _, _.
   iExists N, (d+1), _.
   iFrame "Hthunk".
   iPureIntro; split.

@@ -53,7 +53,7 @@ Local Definition RightBranch t ψ : iProp :=
       ThunkVal t v
     ∗ □ ψ v.
 
-Definition ThunkStep p F t n R ψ : iProp :=
+Definition ProxyThunk p F t n R ψ : iProp :=
 
   ∃ nc1 nc2 φ F1 N,
       ⌜ F1 ∪ ↑N ⊆ F ⌝
@@ -98,7 +98,7 @@ Local Ltac construct_thunk :=
 (* -------------------------------------------------------------------------- *)
 
 Global Instance thunkstep_persistent p F t n R ψ :
-  Persistent (ThunkStep p F t n R ψ).
+  Persistent (ProxyThunk p F t n R ψ).
 Proof.
   exact _.
 Qed.
@@ -107,8 +107,8 @@ Qed.
 
 Local Lemma thunkstep_increase_debt p F t n1 n2 R ψ :
   n1 ≤ n2 →
-  ThunkStep p F t n1 R ψ -∗
-  ThunkStep p F t n2 R ψ.
+  ProxyThunk p F t n1 R ψ -∗
+  ProxyThunk p F t n2 R ψ.
 Proof.
   iIntros (?) "Hthunk".
   destruct_thunk.
@@ -123,7 +123,7 @@ Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
   F1 ## ↑N →
   Thunk p F1 t n1 R φ -∗
   isUpdate n2 R φ ψ ={E}=∗
-  ThunkStep p F t (n1 + n2) R ψ.
+  ProxyThunk p F t (n1 + n2) R ψ.
 Proof.
   intros.
   iIntros "#Hthunk Hupdate".
@@ -147,7 +147,7 @@ Qed.
 Local Lemma thunkstep_force_spec p F F' t R ψ :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ ThunkStep p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC 11 ∗ ProxyThunk p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ v, RET «v» ; □ ψ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
@@ -222,7 +222,7 @@ Qed.
 Local Lemma thunkstep_force_forced p F t n R ψ v F' :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ ThunkStep p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
+  {{{ TC 11 ∗ ProxyThunk p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
     «force #t»
   {{{ RET «v» ; ThunkToken p F' }}}.
 Proof.
@@ -246,9 +246,9 @@ Qed.
 
 Local Lemma thunkstep_pay p F E n k t R ψ :
   ↑ThunkPayment t ⊆ E →
-  ThunkStep p F t n R ψ -∗
+  ProxyThunk p F t n R ψ -∗
   TC k ={E}=∗
-  ThunkStep p F t (n-k) R ψ.
+  ProxyThunk p F t (n-k) R ψ.
 Proof.
   intros.
   iIntros "#Hthunk Hk".
@@ -266,7 +266,7 @@ Qed.
 (* We now check that the API is satisfied. *)
 
 Global Instance step_thunk_api :
-  CommonThunkAPI ThunkStep.
+  CommonThunkAPI ProxyThunk.
 Proof.
   constructor.
   { eauto using thunkstep_increase_debt. }
