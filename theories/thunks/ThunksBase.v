@@ -87,10 +87,10 @@ Definition isAction f n R φ : iProp :=
 *)
 
 Local Definition ownUndecided γdecided :=
-  own γdecided (Cinl $ Excl ()).
+  own γdecided (Cinl (Excl ())).
 
 Local Definition ownDecided γdecided v :=
-  own γdecided (Cinr $ to_agree v).
+  own γdecided (Cinr (to_agree v)).
 
 (* The predicate [BaseThunk p F t n R φ] is public. It is an abstract
    predicate: its definition is not meant to be exposed to the user. *)
