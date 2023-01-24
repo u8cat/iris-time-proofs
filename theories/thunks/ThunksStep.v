@@ -130,7 +130,9 @@ Local Ltac construct_thunk :=
 
 (* -------------------------------------------------------------------------- *)
 
-Global Instance thunkstep_persistent p F t n R ψ :
+(* This law is part of the common thunk API. *)
+
+Global Instance proxythunk_persistent p F t n R ψ :
   Persistent (ProxyThunk p F t n R ψ).
 Proof.
   exact _.
@@ -138,7 +140,9 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Local Lemma thunkstep_increase_debt p F t n1 n2 R ψ :
+(* This law is part of the common thunk API. *)
+
+Local Lemma proxythunk_increase_debt p F t n1 n2 R ψ :
   n1 ≤ n2 →
   ProxyThunk p F t n1 R ψ -∗
   ProxyThunk p F t n2 R ψ.
@@ -151,7 +155,15 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Lemma thunkstep_consequence N F E p F1 t n1 n2 R φ ψ :
+(* This reasoning rule allows constructing a new proxy thunk out of an
+   existing thunk and a ghost update. If the existing thunk has debit [n1] and
+   the ghost update costs [n2], then the new proxy thunk has debit [n1 + n2].
+
+   This is essentially the consequence rule that we wish to have, except it is
+   heterogenous: it takes a thunk and produces a proxy thunk. A homogeneous
+   consequence rule is obtained later on, in ThunksFull.v. *)
+
+Lemma proxythunk_consequence N F E p F1 t n1 n2 R φ ψ :
   F1 ∪ ↑N ⊆ F →
   F1 ## ↑N →
   Thunk p F1 t n1 R φ -∗
@@ -175,9 +187,9 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* A public lemma: the specification of [force]. *)
+(* This law is part of the common thunk API. *)
 
-Local Lemma thunkstep_force_spec p F F' t R ψ :
+Local Lemma proxythunk_force_spec p F F' t R ψ :
   F ⊆ F' →
   TC_invariant -∗
   {{{ TC 11 ∗ ProxyThunk p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
@@ -252,7 +264,11 @@ Proof.
 
 Qed.
 
-Local Lemma thunkstep_force_forced p F t n R ψ v F' :
+(* -------------------------------------------------------------------------- *)
+
+(* This law is part of the common thunk API. *)
+
+Local Lemma proxythunk_force_forced p F t n R ψ v F' :
   F ⊆ F' →
   TC_invariant -∗
   {{{ TC 11 ∗ ProxyThunk p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
@@ -277,7 +293,11 @@ Proof.
   eauto.
 Qed.
 
-Local Lemma thunkstep_pay p F E n k t R ψ :
+(* -------------------------------------------------------------------------- *)
+
+(* This law is part of the common thunk API. *)
+
+Local Lemma proxythunk_pay p F E n k t R ψ :
   ↑ThunkPayment t ⊆ E →
   ProxyThunk p F t n R ψ -∗
   TC k ={E}=∗
@@ -302,10 +322,10 @@ Global Instance step_thunk_api :
   CommonThunkAPI ProxyThunk.
 Proof.
   constructor.
-  { eauto using thunkstep_increase_debt. }
-  { eauto using thunkstep_force_spec. }
-  { eauto using thunkstep_force_forced. }
-  { eauto using thunkstep_pay. }
+  { eauto using proxythunk_increase_debt. }
+  { eauto using proxythunk_force_spec. }
+  { eauto using proxythunk_force_forced. }
+  { eauto using proxythunk_pay. }
 Qed.
 
 End Step.

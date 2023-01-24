@@ -79,7 +79,7 @@ Proof.
   iIntros "#Hthunk Hupdate".
   destruct_thunk.
   (* Wrap this thunk into a fresh ghost thunk. *)
-  iMod (thunkstep_consequence (N .@ (d+1)) with "Hthunk Hupdate")
+  iMod (proxythunk_consequence (N .@ (d+1)) with "Hthunk Hupdate")
     as "Hthunk'".
   { reflexivity. }
   { eauto with lia. }
