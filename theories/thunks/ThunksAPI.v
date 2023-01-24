@@ -109,7 +109,7 @@ Class CommonThunkAPI
     Thunk p F t n2 R φ
   ;
 
-  (* The creation of a thunk is *not* part of this basic API. *)
+  (* The creation of a thunk is *not* part of this API. *)
 
   (* The specification of [force] is as follows. *)
 
@@ -181,7 +181,7 @@ End API.
 
 (* -------------------------------------------------------------------------- *)
 
-(* The predicate [BaseThunk] satisfies the basic thunk API. *)
+(* The predicate [BaseThunk] satisfies the common thunk API. *)
 
 Section BaseInstance.
 

@@ -7,7 +7,7 @@ From iris_time Require Import ThunksCode.
 
 (* This file defines the predicate [ThunkVal]. It also provides a definition
    of the predicate [BaseThunk]. Together, these definitions satisfy the
-   basic thunk API defined in ThunksAPI.v. *)
+   common thunk API defined in ThunksAPI.v. *)
 
 (* -------------------------------------------------------------------------- *)
 
@@ -226,7 +226,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the basic thunk API. *)
+(* This law is part of the common thunk API. *)
 
 Global Instance base_thunk_persistent p F t n R φ :
   Persistent (BaseThunk p F t n R φ).
@@ -273,7 +273,7 @@ Qed.
    the thunk [t] has zero debits, that is, [BaseThunk p F t 0 R φ] holds. This
    guarantees that this thunk can be forced at a constant cost. *)
 
-(* This lemma is not part of the basic thunk API because it is true at level
+(* This lemma is not part of the common thunk API because it is true at level
    zero only; it is not true at higher levels. The fact that a physical thunk
    has been forced does not imply that the ghost thunks above it have been
    forced; so a ghost thunk does not satisfy this law. *)
@@ -329,7 +329,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the basic thunk API. *)
+(* This law is part of the common thunk API. *)
 
 Lemma base_thunk_increase_debt p F t n1 n2 R φ :
   n1 ≤ n2 →
@@ -386,7 +386,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the basic thunk API. *)
+(* This law is part of the common thunk API. *)
 
 Lemma base_thunk_force p F F' t R φ :
   F ⊆ F' →
@@ -538,7 +538,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the basic thunk API. *)
+(* This law is part of the common thunk API. *)
 
 Lemma base_thunk_pay p F E n k t R φ :
   ↑ThunkPayment t ⊆ E →
