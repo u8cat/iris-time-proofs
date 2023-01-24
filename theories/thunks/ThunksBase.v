@@ -250,6 +250,8 @@ Proof.
   exact _.
 Qed.
 
+(* -------------------------------------------------------------------------- *)
+
 (* A public lemma: in [ThunkVal t v], [t] determines [v]. That is, a thunk
    has at most one value. Once its value has been decided, it becomes fixed
    forever. *)
@@ -264,6 +266,8 @@ Proof.
   assert (γdecided2 = γdecided) by congruence. subst.
   iApply (ownDecided_agree with "Hγdecided [$]").
 Qed.
+
+(* -------------------------------------------------------------------------- *)
 
 (* The conjunction of [BaseThunk p F t n R φ] and [ThunkVal t v] implies that
    the thunk [t] has zero debits, that is, [BaseThunk p F t 0 R φ] holds. This
@@ -354,7 +358,7 @@ Qed.
 
 Lemma base_thunk_create p N F nc R φ f :
   ↑N ⊆ F →
-  TC_invariant -∗ (* TODO hide this in an Iris$ triple *)
+  TC_invariant -∗
   {{{ TC 3 ∗ isAction f nc R φ }}}
     «create f»
   {{{ t, RET #t ; BaseThunk p F t nc R φ }}}.
