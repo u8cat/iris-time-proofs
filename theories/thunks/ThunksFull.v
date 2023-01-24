@@ -5,7 +5,14 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
 From iris_time Require Import ThunksCode ThunksBase ThunksAPI ThunksStep.
 
+(* In this file, we complete the construction of thunks. By combining the
+   results in ThunksBase.v and ThunksStep.v, we are able to define a predicate
+   [Thunk] which which satisfies the common API in ThunksAPI.v and also has
+   the creation rule and the consequence rule. *)
+
 (* -------------------------------------------------------------------------- *)
+
+(* Prologue. *)
 
 Section Full.
 
@@ -27,6 +34,36 @@ Implicit Type R : iProp.
 Implicit Type φ : val → iProp.
 Implicit Type f v : val.
 
+(* -------------------------------------------------------------------------- *)
+
+(* The definition of the predicate [Thunk] relies on an existential
+   quantification: it is essentially the greatest predicate that is
+   persistent and satisfies the common thunk API. Thus, it includes
+   [BaseThunk] and is closed under the [ProxyThunk] construction:
+   this allows us to prove that it has both the creation rule and
+   the consequence rule. *)
+
+(* We could also have defined [Thunk] in an inductive manner,
+   by using [BaseThunk] as the base case and [ProxyThunk] as
+   the step case. *)
+
+(* The definition involves technical side conditions about masks. For the
+   iterative construction to work up to an arbitrary height, we must argue
+   that we have an infinite family of pairwise disjoint masks.
+
+   We use a family of masks of the form [↑(N .@ d)] where [N] is an arbitrary
+   namespace and [d] is an integer level. At the bottom, we take [d] to be
+   zero; when constructing a new proxy thunk, we go from level [d] to level
+   [d+1].
+
+   The mask [F'] is the union of the masks that are already in use, up to and
+   including level [d]. It is disjoint with the levels [d'] above [d].
+
+   To the outside, these technical details are not visible. Forcing the thunk
+   requires the token [ThunkToken p F], where [F] contains [↑N]. In other
+   words, this token covers the infinite family of all levels; it is strong
+   enough to force a thunk of an arbitrary level. *)
+
 Definition Thunk p F t n R φ : iProp :=
   ∃ SomeThunk,
   ∃ (_ : ∀ p F t n R φ, Persistent (SomeThunk p F t n R φ)),
@@ -36,17 +73,30 @@ Definition Thunk p F t n R φ : iProp :=
   ⌜ F' ⊆ ↑N ⊆ F ⌝ ∗
   SomeThunk p F' t n R φ.
 
+(* -------------------------------------------------------------------------- *)
+
+(* Local tactics, for clarity. *)
+
 Local Ltac destruct_thunk :=
-  iDestruct "Hthunk" as (SomeThunk ? ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
+  iDestruct "Hthunk"
+    as (SomeThunk ? ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
+
+(* -------------------------------------------------------------------------- *)
+
+(* This law is part of the common thunk API. *)
 
 Global Instance thunk_persistent p F t n R φ :
   Persistent (Thunk p F t n R φ).
 Proof.
   exact _.
 Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* A public reasoning rule: the construction of a thunk. *)
 
 Lemma thunk_create p N F nc R φ f :
   ↑N ⊆ F →
@@ -71,6 +121,10 @@ Proof.
   eauto with iFrame.
 Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* A public reasoning rule: the consequence rule. *)
+
 Lemma thunk_consequence E p F t n1 n2 R φ ψ :
   Thunk p F t n1 R φ -∗
   isUpdate n2 R φ ψ ={E}=∗
@@ -94,6 +148,10 @@ Proof.
     eapply disjoint_union_l; eauto with lia ndisj. }
   { eauto using namespaces.coPset_union_least with ndisj. }
 Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* The predicate [Thunk] satisfies the common thunk API. *)
 
 Global Instance full_thunk_api :
   CommonThunkAPI Thunk.
