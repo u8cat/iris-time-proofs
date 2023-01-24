@@ -9,7 +9,7 @@ From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 
 Section Step.
 
-Context `{BasicThunkAPI Σ Thunk}.
+Context `{CommonThunkAPI Σ Thunk}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Notation iProp := (iProp Σ).
@@ -254,7 +254,7 @@ Qed.
 (* We now check that the API is satisfied. *)
 
 Global Instance step_thunk_api :
-  BasicThunkAPI ThunkStep.
+  CommonThunkAPI ThunkStep.
 Proof.
   constructor.
   { eauto using thunkstep_increase_debt. }

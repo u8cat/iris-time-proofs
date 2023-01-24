@@ -30,7 +30,7 @@ Implicit Type f v : val.
 Definition Thunk p F t n R φ : iProp :=
   ∃ SomeThunk,
   ∃ (_ : ∀ p F t n R φ, Persistent (SomeThunk p F t n R φ)),
-  ∃ (_ : BasicThunkAPI SomeThunk),
+  ∃ (_ : CommonThunkAPI SomeThunk),
   ∃ N d F',
   ⌜ ∀ d', d < d' → F' ## ↑(N .@ d') ⌝ ∗
   ⌜ F' ⊆ ↑N ⊆ F ⌝ ∗
@@ -96,7 +96,7 @@ Proof.
 Qed.
 
 Global Instance full_thunk_api :
-  BasicThunkAPI Thunk.
+  CommonThunkAPI Thunk.
 Proof.
   constructor; intros.
 

@@ -71,7 +71,7 @@ Implicit Type v : val.
 
 (* The common thunk API. *)
 
-Class BasicThunkAPI
+Class CommonThunkAPI
 
   (* The Thunk predicate takes the form [Thunk p F t n R φ]. *)
 
@@ -194,7 +194,7 @@ Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
 
 Global Instance base_thunk_api :
-  BasicThunkAPI BaseThunk.
+  CommonThunkAPI BaseThunk.
 Proof.
   constructor.
   { eauto using base_thunk_increase_debt. }
@@ -221,7 +221,7 @@ End BaseInstance.
 
 Section Consequences.
 
-Context `{BasicThunkAPI Σ Thunk}.
+Context `{CommonThunkAPI Σ Thunk}.
 Notation iProp := (iProp Σ).
 
 (* -------------------------------------------------------------------------- *)
