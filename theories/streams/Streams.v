@@ -906,7 +906,7 @@ Section StreamProofs.
     iIntros. simpl. eauto.
   Qed.
 
-  Lemma rev_spec g l xs ds ys :
+  Lemma rev_spec g l xs :
     g > 0 →
     isList l xs -∗
     TC_invariant -∗
