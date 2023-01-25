@@ -102,6 +102,12 @@ Local Ltac deconstruct_thunk :=
 Local Ltac construct_thunk g' :=
   iExists g'; iSplitR; [ eauto with lia |].
 
+Local Ltac construct_texan_triple ipat :=
+  iIntros "#?"; (* introduce TC_invariant *)
+  iIntros (Φ) "!>";
+  iIntros ipat;
+  iIntros "Post".
+
 (* -------------------------------------------------------------------------- *)
 
 (* [GThunk] is persistent. *)
@@ -128,7 +134,7 @@ Lemma gthunk_create p g n φ f :
     « create f »
   {{{ t, RET «#t» ; GThunk p g t n φ }}}.
 Proof.
-  iIntros "#?" (Φ) "!# H Post".
+  construct_texan_triple "H".
   wp_apply (thunk_create with "[$] H"); [ done |].
   iIntros (t) "Hthunk".
   iApply "Post". construct_thunk g. done.
@@ -205,7 +211,8 @@ Lemma gthunk_force p g b t φ :
     « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof using.
-  intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & Hthunk & Htoken) Post".
+  intros Hg.
+  construct_texan_triple "(Htc & Hthunk & Htoken)".
   deconstruct_thunk.
   assert (Hg': lies_below g' b) by eauto using leq_lies_below.
   rewrite /GToken.
@@ -213,12 +220,43 @@ Proof using.
   iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
   { set_solver. }
   (* Both tokens are required here. *)
-  wp_apply (thunk_force with "HtickInv [$TC $Hthunk $Htoken2 $Htoken1]").
+  wp_apply (thunk_force with "[$] [$Htc $Hthunk $Htoken2 $Htoken1]").
   { eauto using gen_ns_subseteq_interval. }
   (* Conclude. *)
   iIntros (v) "(#Hv & #Hval & Htoken1 & Htoken2)".
   iApply "Post". iFrame "Hv Hval".
   iDestruct (na_own_union with "[$Htoken2 $Htoken1]") as "Htoken".
+  { set_solver. }
+  iFrame "Htoken".
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* Forcing a thunk that has already been forced. See ThunksAPI for comments. *)
+
+Lemma gthunk_force_forced p g t n φ b v :
+  lies_below g b →
+  let token := GToken p b in
+  TC_invariant -∗
+  {{{ TC 11 ∗ GThunk p g t n φ ∗ ThunkVal t v ∗ token }}}
+    « force #t »
+  {{{ RET «v» ; token }}}.
+Proof using.
+  intros Hg.
+  construct_texan_triple "(Htc & Hthunk & Hval & Htoken)".
+  deconstruct_thunk.
+  assert (Hg': lies_below g' b) by eauto using leq_lies_below.
+  rewrite /GToken.
+  rewrite (carve_out_gens_below_gen _ _ Hg').
+  iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
+  { set_solver. }
+  (* Only one token is required here. *)
+  wp_apply (thunk_force_forced with "[$] [$Htc $Hthunk $Hval $Htoken2]").
+  { eauto using gen_ns_subseteq_interval. }
+  (* Conclude. *)
+  iIntros "Htoken2".
+  iApply "Post".
+  iDestruct (na_own_union with "[$Htoken1 $Htoken2]") as "Htoken".
   { set_solver. }
   iFrame "Htoken".
 Qed.
