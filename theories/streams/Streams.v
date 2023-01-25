@@ -374,7 +374,7 @@ Section StreamProofs.
   (* Forcing a stream. *)
 
   Notation token g :=
-    (own_gens_below_bound p (Some (g + 1))).
+    (GToken p (Some (g + 1))).
 
   Local Ltac construct_texan_triple ipat :=
     iIntros "#?"; (* introduce TC_invariant *)

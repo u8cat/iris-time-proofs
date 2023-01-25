@@ -6,7 +6,19 @@ From iris_time Require Import ThunksCode ThunksBase ThunksAPI ThunksFull.
 From iris_time Require Import Generations.
 Open Scope nat_scope.
 
+(* This file offers a theory of thunks indexed with integer generations.
+   It is built on top of ThunksFull, which offers a more low-level theory
+   of thunks indexed with masks. *)
+
+(* In both cases, this discipline aims to prevent the construction of
+   cyclic thunks. The main idea is that a thunk is allowed to force a
+   thunk of an earlier generation. It is *not* allowed to force a thunk
+   in the same generation or in a newer generation. A thunk is allowed
+   to *construct* a thunk in an arbitrary generation. *)
+
 (* -------------------------------------------------------------------------- *)
+
+(* Prologue. *)
 
 Section Gthunks.
 
@@ -19,25 +31,37 @@ Section Gthunks.
   Notation iProp := (iProp Σ).
   Open Scope nat_scope.
 
-  Implicit Type p : na_inv_pool_name.
-  Implicit Type t : loc.
-
   Definition generation := generation.
 
-  Definition own_gens_below_bound p bound :=
-    na_own p (gens_below_bound bound).
-  (* TODO own_gens_below_bound is part of public spec;
-          shorter name needed *)
+  Implicit Type p : na_inv_pool_name.
+  Implicit Type t : loc.
+  Implicit Type g : generation.
+  Implicit Type n : nat.
+  Implicit Type φ : val → iProp.
 
-  Local Lemma own_gens_below_alloc :
-    ⊢ |==> ∃ p, own_gens_below_bound p None.
-  Proof using. iApply na_alloc. Qed.
+(* -------------------------------------------------------------------------- *)
+
+(* The token associated with a pool [p] and bound [b]. *)
+
+Definition GToken p b :=
+  na_own p (gens_below_bound b).
+
+(* This lemma allocates a new pool together with its token, which controls
+   all generations in this pool. *)
+
+Lemma gtoken_alloc :
+  ⊢ |==> ∃ p, GToken p None.
+Proof using.
+    iApply na_alloc.
+  Qed.
+
+(* -------------------------------------------------------------------------- *)
 
   (* TODO parameterize with R *)
   Definition Gthunk p g t n φ : iProp :=
     ∃ g', ⌜ g' ≤ g ⌝ ∗
     let F := ↑(gen_ns g') in
-    let R := own_gens_below_bound p (Some g') in
+    let R := GToken p (Some g') in
     Thunk p F t n R φ.
 
   Local Ltac deconstruct_thunk :=
@@ -99,7 +123,7 @@ Section Gthunks.
   Qed.
 
   Lemma create_spec p g n φ f :
-    let token := own_gens_below_bound p (Some g) in
+    let token := GToken p (Some g) in
     TC_invariant -∗
     {{{ TC 3 ∗ isAction f n token φ }}}
       « create f »
@@ -113,7 +137,7 @@ Section Gthunks.
 
   Lemma force_spec p g bound t φ :
     lies_below g bound →
-    let token := own_gens_below_bound p bound in
+    let token := GToken p bound in
     TC_invariant -∗
     {{{ TC 11 ∗ Gthunk p g t 0 φ ∗ token }}}
     « force #t »
@@ -122,7 +146,7 @@ Section Gthunks.
     intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & Hthunk & Htoken) Post".
     deconstruct_thunk.
     assert (Hg': lies_below g' bound) by eauto using leq_lies_below.
-    rewrite /own_gens_below_bound.
+    rewrite /GToken.
     rewrite (carve_out_gens_below_gen _ _ Hg').
     iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
     { set_solver. }
@@ -139,7 +163,7 @@ Section Gthunks.
 
   Lemma pay_force_spec p g bound t d φ :
     lies_below g bound →
-    let token := own_gens_below_bound p bound in
+    let token := GToken p bound in
     TC_invariant -∗
     {{{ TC (11 + d) ∗ Gthunk p g t d φ ∗ token }}}
     « force #t »
