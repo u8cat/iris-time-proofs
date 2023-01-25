@@ -286,7 +286,7 @@ Lemma gthunk_pay_force p g b t d φ :
   let token := GToken p b in
   TC_invariant -∗
   {{{ TC (11 + d) ∗ GThunk p g t d φ ∗ token }}}
-  « force #t »
+    « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof.
   intros Hg.
