@@ -57,7 +57,35 @@ Proof using.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* TODO parameterize with R *)
+(* The existing predicate [Thunk] is parameterized with a resource [R], which
+   is passed to the suspended computation, and must be preserved by it. Thus,
+   forcing a thunk requires the conjunction of the token [ThunkToken p F] and
+   of the resource [R]. Thus, [ThunkToken p F] and [R] must be separate. *)
+
+(* When a thunk [t] must force another thunk [t'], this implies that the token
+   that controls [t] and the token that controls [t'] must be separate. For an
+   end user, setting up these tokens in a suitable way can be tricky. In this
+   file, we provide a simple discipline that removes most of this burden from
+   the end user. *)
+
+(* The idea is simple: we index thunks with integer generations, and we allow
+   a thunk to force a thunk of an earlier generation. *)
+
+(* To do so, we use a thunk whose parameters [F] and [R] are instantiated in
+   such a way that the tokens [ThunkToken p F] and [R] are disjoint. [F] is
+   instantiated with [↑(gen_ns g')], that is, control over the generation [g']
+   only. [R] is instantiated with [GToken p (Some g')], that is, control over
+   all generations below [g']. *)
+
+(* An existential quantification over [g'], with the constraint [g' ≤ g],
+   ensures that [GThunk] is covariant in [g]. That is, it is safe to view
+   a thunk in an early generation as a thunk in a newer generation. *)
+
+(* We could keep a parameterization in [R], so as to allow our thunks to have
+   visible side effects (that is, side effects that require a token). We have
+   not yet felt the need to do so; so, for the moment, a thunk is not allowed
+   to have visible side effects other than forcing other thunks. *)
+
   Definition Gthunk p g t n φ : iProp :=
     ∃ g', ⌜ g' ≤ g ⌝ ∗
     let F := ↑(gen_ns g') in
