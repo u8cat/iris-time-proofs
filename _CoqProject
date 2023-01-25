@@ -42,7 +42,7 @@ theories/thunks/ThunksFull.v
 theories/thunks/ThunksExamples.v
 theories/thunks/ThunksSimple.v
 theories/thunks/Generations.v
-theories/thunks/Gthunks.v
+theories/thunks/GThunks.v
 
 # A persistent queue (Okasaki, 6.4.2).
 theories/pqueue/Code.v

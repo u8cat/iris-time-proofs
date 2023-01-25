@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
-From iris_time Require Import TimeCredits Gthunks.
+From iris_time Require Import TimeCredits GThunks.
 From iris_time.pqueue Require Import Code.
 
 Fixpoint list_val (l : list val) : val :=

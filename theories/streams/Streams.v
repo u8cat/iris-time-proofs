@@ -2,7 +2,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits ThunksCode ThunksBase Gthunks.
+From iris_time Require Import TimeCredits ThunksCode ThunksBase GThunks.
 Open Scope nat_scope.
 
 Section Stream.
