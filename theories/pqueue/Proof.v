@@ -90,7 +90,7 @@ Definition is_queue_raw
      ∧ lenr = length rl
      ∧ l = fl ++ reverse rl
      ∧ w `prefix_of` fl⌝ ∗
-    Gthunk p id t (thunk_debt w fl rl)
+    GThunk p id t (thunk_debt w fl rl)
           (λ fv, ⌜fv = list_val fl⌝).
 
 Definition is_queue (q : val) (l : list val) : iProp :=

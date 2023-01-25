@@ -216,7 +216,7 @@ Section StreamProofs.
   Variable p : na_inv_pool_name.
 
   (* We want every thunk in the stream to have level [g].
-     (This means level at most [g], since [Gthunk] is covariant in [g].)
+     (This means level at most [g], since [GThunk] is covariant in [g].)
      Thus, the token [token g] allows forcing the entire stream. *)
 
   Fixpoint isStream g t ds xs : iProp :=
@@ -225,7 +225,7 @@ Section StreamProofs.
         False
     | d :: ds =>
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g t d (λ c,
+        GThunk p g t d (λ c,
           match xs with
           | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
           | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ isStream g t' ds xs
@@ -245,7 +245,7 @@ Section StreamProofs.
         False
     | d :: ds =>
         ⌜ length ds = length xs ⌝ ∗
-        Gthunk p g t d (λ c, isStreamCell g c ds xs)
+        GThunk p g t d (λ c, isStreamCell g c ds xs)
     end%I.
   Proof.
     destruct ds; reflexivity.

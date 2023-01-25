@@ -86,11 +86,15 @@ Proof using.
    not yet felt the need to do so; so, for the moment, a thunk is not allowed
    to have visible side effects other than forcing other thunks. *)
 
-Definition Gthunk p g t n φ : iProp :=
+Definition GThunk p g t n φ : iProp :=
   ∃ g', ⌜ g' ≤ g ⌝ ∗
   let F := ↑(gen_ns g') in
   let R := GToken p (Some g') in
   Thunk p F t n R φ.
+
+(* -------------------------------------------------------------------------- *)
+
+(* Local tactics. *)
 
 Local Ltac deconstruct_thunk :=
   iDestruct "Hthunk" as (g') "(% & Hthunk)".
@@ -98,16 +102,18 @@ Local Ltac deconstruct_thunk :=
 Local Ltac construct_thunk g' :=
   iExists g'; iSplitR; [ eauto with lia |].
 
-Global Instance Gthunk_persistent p g t n φ :
-  Persistent (Gthunk p g t n φ).
+(* -------------------------------------------------------------------------- *)
+
+Global Instance GThunk_persistent p g t n φ :
+  Persistent (GThunk p g t n φ).
 Proof using.
   exact _.
 Qed.
 
 Lemma Gthunk_weaken p g t n1 n2 φ :
   n1 ≤ n2 →
-  Gthunk p g t n1 φ -∗
-  Gthunk p g t n2 φ.
+  GThunk p g t n1 φ -∗
+  GThunk p g t n2 φ.
 Proof using.
   iIntros (?) "Hthunk".
   deconstruct_thunk.
@@ -117,8 +123,8 @@ Qed.
 
 Lemma gthunk_covariant_in_g p g1 g2 t n φ :
   g1 ≤ g2 →
-  Gthunk p g1 t n φ -∗
-  Gthunk p g2 t n φ.
+  GThunk p g1 t n φ -∗
+  GThunk p g2 t n φ.
 Proof.
   iIntros (?) "Hthunk".
   deconstruct_thunk.
@@ -128,8 +134,8 @@ Qed.
 
 Lemma Gthunk_consequence p g t n1 n2 φ ψ E :
   (∀ v, TC n2 -∗ □ φ v ={⊤}=∗ □ ψ v) -∗
-  Gthunk p g t  n1       φ  ={E}=∗
-  Gthunk p g t (n1 + n2) ψ.
+  GThunk p g t  n1       φ  ={E}=∗
+  GThunk p g t (n1 + n2) ψ.
 Proof.
   iIntros "Hupdate Hthunk".
   deconstruct_thunk.
@@ -142,7 +148,7 @@ Qed.
 
 Lemma Gthunk_pay k E p g t n φ :
   ↑ThunkPayment t ⊆ E →
-  TC k -∗ Gthunk p g t n φ ={E}=∗ Gthunk p g t (n-k) φ.
+  TC k -∗ GThunk p g t n φ ={E}=∗ GThunk p g t (n-k) φ.
 Proof using.
   iIntros (?) "Htc Hthunk".
   deconstruct_thunk.
@@ -155,7 +161,7 @@ Lemma create_spec p g n φ f :
   TC_invariant -∗
   {{{ TC 3 ∗ isAction f n token φ }}}
     « create f »
-  {{{ t, RET «#t» ; Gthunk p g t n φ }}}.
+  {{{ t, RET «#t» ; GThunk p g t n φ }}}.
 Proof.
   iIntros "#?" (Φ) "!# H Post".
   wp_apply (thunk_create with "[$] H"); [ done |].
@@ -167,7 +173,7 @@ Lemma force_spec p g bound t φ :
   lies_below g bound →
   let token := GToken p bound in
   TC_invariant -∗
-  {{{ TC 11 ∗ Gthunk p g t 0 φ ∗ token }}}
+  {{{ TC 11 ∗ GThunk p g t 0 φ ∗ token }}}
   « force #t »
   {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
 Proof using.
@@ -193,7 +199,7 @@ Lemma pay_force_spec p g bound t d φ :
   lies_below g bound →
   let token := GToken p bound in
   TC_invariant -∗
-  {{{ TC (11 + d) ∗ Gthunk p g t d φ ∗ token }}}
+  {{{ TC (11 + d) ∗ GThunk p g t d φ ∗ token }}}
   « force #t »
   {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
 Proof.
