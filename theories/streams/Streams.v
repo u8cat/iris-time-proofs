@@ -328,7 +328,7 @@ Section StreamProofs.
     unfold_isStream. deconstruct_stream.
     (* Apply the consequence rule to adjust the postcondition of this
        thunk. *)
-    iMod (Gthunk_consequence _ _ _ _ 0 with "[] Hthunk") as "Hthunk'";
+    iMod (gthunk_consequence _ _ _ _ 0 with "[] Hthunk") as "Hthunk'";
       last first.
     { rewrite Nat.add_0_r. iModIntro.
       iPoseProof (gthunk_covariant_in_g with "Hthunk'") as "#Hthunk''".
@@ -392,9 +392,9 @@ Section StreamProofs.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     unfold_isStream. deconstruct_stream.
-    wp_apply (force_spec with "[$] [$Htc $Hthunk $Htoken]");
+    wp_apply (gthunk_force with "[$] [$Htc $Hthunk $Htoken]");
       first eauto with thunks.
-    iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
+    iIntros (c) "(Hc & #Hval & Htoken)". iApply "Post". eauto.
   Qed.
 
   Lemma stream_pay_force g t d ds xs :
@@ -407,7 +407,7 @@ Section StreamProofs.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     unfold_isStream. deconstruct_stream.
-    wp_apply (pay_force_spec with "[$] [$Htc $Hthunk $Htoken]");
+    wp_apply (gthunk_pay_force with "[$] [$Hthunk $Htc $Htoken]");
       first eauto with thunks.
     iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
   Qed.
@@ -583,7 +583,7 @@ Section StreamProofs.
     {
       (* Apply the consequence rule. *)
       rewrite (_ : d2 = d1 + (d2 - d1)); last lia.
-      iMod (Gthunk_consequence with "[Hslack] Hthunk") as "$"; last done.
+      iMod (gthunk_consequence with "[Hslack] Hthunk") as "$"; last done.
       (* We get more slack! *)
       iIntros (c) "Hmore_slack #Hc".
       iCombine "Hslack Hmore_slack" as "Hslack".
@@ -599,14 +599,14 @@ Section StreamProofs.
       (* Pay on the front thunk. *)
       rewrite (_ : slack = (d1 - d2) + (slack + d2 - d1)); last lia.
       iDestruct "Hslack" as "(Hpayment & Hslack)".
-      iMod (Gthunk_pay with "Hpayment Hthunk") as "Hthunk'"; first assumption.
+      iMod (gthunk_pay with "Hthunk Hpayment") as "Hthunk'"; first assumption.
       mv "Hthunk'" "Hthunk".
       rewrite (_ : d1 - (d1 - d2) = d2); last lia.
       (* The front thunk now has the desired debt. *)
       (* We must now apply the consequence rule in order to adjust the
          postcondition of the front thunk. *)
       rewrite {3} (_ : d2 = d2 + 0); last lia.
-      iMod (Gthunk_consequence with "[Hslack] Hthunk") as "$"; last done.
+      iMod (gthunk_consequence with "[Hslack] Hthunk") as "$"; last done.
       (* In this case, we do not get more slack. *)
       iIntros (c) "_ #Hc".
       (* We now have to reason about the stream cell. *)
@@ -688,7 +688,7 @@ Section StreamProofs.
     untranslate.
     (* We pay 3 credits for [create], and keep one credit. *)
     iDestruct "Htc" as "(H1 & H3)".
-    wp_apply (create_spec p g with "[$] [$H3 H1 He]"); last first.
+    wp_apply (gthunk_create p g with "[$] [$H3 H1 He]"); last first.
     { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
     (* We now examine the cost of this action. *)
     construct_action.
@@ -722,7 +722,7 @@ Section StreamProofs.
     untranslate.
     (* We pay 3 credits for [create], and keep one credit. *)
     iDestruct "Htc" as "(H1 & H3)".
-    wp_apply (create_spec with "[$] [$H3 H1]"); last first.
+    wp_apply (gthunk_create with "[$] [$H3 H1]"); last first.
     { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
     (* We now examine the cost of this action. *)
     construct_action.

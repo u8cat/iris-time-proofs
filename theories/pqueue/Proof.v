@@ -113,7 +113,7 @@ Proof.
   wp_tick_lam. wp_tick_closure.
   rewrite (_: 8 = 4 + 4) //. iDestruct "TC" as "[TC1 TC]".
   iDestruct "TC1" as "[TC11 TC12]".
-  iPoseProof (create_spec _ 0 (thunk_debt nil nil nil)
+  iPoseProof (gthunk_create _ 0 (thunk_debt nil nil nil)
                           (λ flv', ⌜flv' = list_val nil⌝)%I
                           (λ: <>, list_val nil)%V
              with "[//] [$TC12 TC11]") as "S".
@@ -143,18 +143,18 @@ Proof using.
   destruct w as [|? w'] eqn:Hw.
   { wp_tick_op. wp_tick_if.
     rewrite (_: 15 = 11 + 4) //. iDestruct "TC" as "[TC1 TC]".
-    wp_apply (force_spec with "[//] [$HT $Hgens $TC1]"). done.
-    iIntros (fv) "(TV & -> & Hgens)". repeat wp_tick_pair.
+    wp_apply (gthunk_force with "[//] [$HT $Hgens $TC1]"). done.
+    iIntros (fv) "(-> & TV & Hgens)". repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val fl, #(length fl), #t, #(length rl), list_val rl)%V fl).
     iFrame "Hgens". iSplit.
-    { iExists _, _, _, _. iSplit; [done|]. iApply (Gthunk_weaken with "HT").
+    { iExists _, _, _, _. iSplit; [done|]. iApply (gthunk_increase_debt with "HT").
       unfold thunk_debt; lia. }
     done. }
   { wp_tick_op. wp_tick_if. repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val (v::w'), #(length fl), #t, #(length rl), list_val rl)%V w).
     iFrame "Hgens". iSplit.
     { iExists _, _, _, _. rewrite -Hw. iSplit; [subst w; done|].
-      iApply (Gthunk_weaken with "HT"). lia. }
+      iApply (gthunk_increase_debt with "HT"). lia. }
     { iPureIntro. intros ->; inversion Hw. } }
 Qed.
 
@@ -188,14 +188,14 @@ Proof.
     rewrite (_: 92 = 11 + 81) //. iDestruct "TC" as "[TC1 TC]".
     rewrite (_: thunk_debt w fl rl = 0).
     2: { rewrite /thunk_debt (_: 8 * length fl - 8 * length rl = 0)%nat; lia. }
-    wp_apply (force_spec with "[//] [$HT $Hgens $TC1]"). done.
-    iIntros (flv) "(? & -> & Hgens)". wp_tick_let.
+    wp_apply (gthunk_force with "[//] [$HT $Hgens $TC1]"). done.
+    iIntros (flv) "(-> & ? & Hgens)". wp_tick_let.
     wp_tick_closure.
     rewrite (_: 78 = 3 + 75) //. iDestruct "TC" as "[TC1 TC]".
     rewrite (_: 75 = S (5 + (6 + 8)) + 55) //. iDestruct "TC" as "[TC2 TC]".
     (* we can assign namespace id 0 to this thunk as it doesn't need to force
        other thunks. *)
-    iPoseProof (create_spec _ 0 (16 * length fl)
+    iPoseProof (gthunk_create _ 0 (16 * length fl)
                             (λ flv', ⌜flv' = list_val (fl ++ reverse rl)⌝)%I
                             (λ: <>, append (list_val fl) (rev (list_val rl)))%V
                with "[//] [$TC1 TC2]") as "S".
@@ -217,7 +217,7 @@ Proof.
     { iExists _, (length fl + length rl), 0, 0. iSplit. iPureIntro. split.
       - repeat f_equal. lia.
       - rewrite app_length reverse_length app_nil_r. repeat split. by apply prefix_app_r.
-      - iApply (Gthunk_weaken with "HT'"). rewrite /thunk_debt.
+      - iApply (gthunk_increase_debt with "HT'"). rewrite /thunk_debt.
         rewrite app_length reverse_length Nat.sub_0_r. lia. }
     iIntros (q' w') "(Hq' & Hgens & %)". iApply "HΦ". iFrame. iPureIntro; split; try done.
     rewrite app_length reverse_length /=. lia. }
@@ -235,7 +235,7 @@ Proof.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_pair. wp_tick_op. repeat wp_tick_pair.
   rewrite (_: 135 = 8 + 127) //. iDestruct "TC" as "[TC1 TC]".
-  iDestruct (Gthunk_pay with "TC1 HT") as ">#HT'". done.
+  iDestruct (gthunk_pay with "HT TC1") as ">#HT'". done.
   rewrite (_: 127 = 121 + 6) //. iDestruct "TC" as "[TC1 TC]".
   wp_apply (check_spec (list_val w, #(length fl), #t, #(length rl + 1), list_val (x::rl))%V
                        (fl ++ reverse rl ++ [x]) w fl (x :: rl)
@@ -244,7 +244,7 @@ Proof.
   { iExists _, (length fl), (length rl + 1), _. iSplit. iPureIntro. split.
     - repeat f_equal. lia.
     - repeat split; auto. cbn; lia. rewrite reverse_cons //.
-    - iApply (Gthunk_weaken with "HT'"). cbn; lia. }
+    - iApply (gthunk_increase_debt with "HT'"). cbn; lia. }
   iIntros (q' w' fl' rl') "(Hq' & % & % & Hgens)". iApply "HΦ".
   iFrame "Hgens". rewrite app_assoc //. iExists _, _, _. by iFrame "Hq'".
 Qed.
@@ -278,22 +278,22 @@ Proof.
     rewrite (_: 211 = 29 + 182) //. iDestruct "TC" as "[TC2 TC]".
     (* pick a new namespace id: we need to be able to force the thunk we are
        wrapping, and all the thunks it may then need to force. *)
-    iPoseProof (create_spec _ (S ns_id) (thunk_debt w' fl rl)
+    iPoseProof (gthunk_create _ (S ns_id) (thunk_debt w' fl rl)
                             (λ flv, ⌜flv = list_val fl⌝)%I
                             (λ: <>, Snd (ThunksCode.force #t))%V
                with "[//] [$TC1 TC2]") as "S".
     { iIntros "Hgens TC" (ψ) "Hψ". wp_tick_lam.
       rewrite (_: 28 = 12 + 16) //. iDestruct "TC2" as "[TC1 TC2]".
       iCombine "TC2 TC" as "TC".
-      iDestruct (Gthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
-                            with "[TC] HT") as ">#HTpaid". done.
+      iDestruct (gthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
+                            with "HT [TC]") as ">#HTpaid". done.
       { iApply (TC_weaken with "TC"). rewrite /thunk_debt.
         rewrite !(_: ∀ x l, length (x :: l) = S (length l)); [|done..]. lia. }
       rewrite Nat.sub_diag.
 
       iDestruct "TC1" as "[TC1 TC2]".
-      wp_apply (force_spec with "[//] [$TC2 $HTpaid $Hgens]"). cbn; lia.
-      iIntros (flv) "(_ & -> & Hgens)". rewrite /=. wp_tick_proj.
+      wp_apply (gthunk_force with "[//] [$TC2 $HTpaid $Hgens]"). cbn; lia.
+      iIntros (flv) "(-> & _ & Hgens)". rewrite /=. wp_tick_proj.
       by iApply ("Hψ" with "Hgens"). }
     rewrite -lock. (* XXX *) wp_apply "S". iIntros (t') "#HT'".
     wp_tick_let. wp_tick_op. repeat wp_tick_pair.

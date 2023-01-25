@@ -104,59 +104,24 @@ Local Ltac construct_thunk g' :=
 
 (* -------------------------------------------------------------------------- *)
 
-Global Instance GThunk_persistent p g t n φ :
+(* [GThunk] is persistent. *)
+
+Global Instance gthunk_persistent p g t n φ :
   Persistent (GThunk p g t n φ).
 Proof using.
   exact _.
 Qed.
 
-Lemma Gthunk_weaken p g t n1 n2 φ :
-  n1 ≤ n2 →
-  GThunk p g t n1 φ -∗
-  GThunk p g t n2 φ.
-Proof using.
-  iIntros (?) "Hthunk".
-  deconstruct_thunk.
-  construct_thunk g'.
-  by iApply thunk_increase_debt.
-Qed.
+(* -------------------------------------------------------------------------- *)
 
-Lemma gthunk_covariant_in_g p g1 g2 t n φ :
-  g1 ≤ g2 →
-  GThunk p g1 t n φ -∗
-  GThunk p g2 t n φ.
-Proof.
-  iIntros (?) "Hthunk".
-  deconstruct_thunk.
-  construct_thunk g'.
-  done.
-Qed.
+(* The creation rule passes the token [GToken p (Some g)] to the suspended
+   computation [f]. Thus, the newly created thunk, which belongs in the
+   generation [g], can force thunks in generations less than [g]. *)
 
-Lemma Gthunk_consequence p g t n1 n2 φ ψ E :
-  (∀ v, TC n2 -∗ □ φ v ={⊤}=∗ □ ψ v) -∗
-  GThunk p g t  n1       φ  ={E}=∗
-  GThunk p g t (n1 + n2) ψ.
-Proof.
-  iIntros "Hupdate Hthunk".
-  deconstruct_thunk.
-  iMod (thunk_consequence with "Hthunk [Hupdate]").
-  { iIntros (v) "$ Htc Hv".
-    iApply ("Hupdate" with "Htc").
-    iAssumption. }
-  iModIntro. construct_thunk g'. done.
-Qed.
+(* There is no restriction regarding the thunks that this new thunk may
+   construct. Indeed, the postcondition [φ] is arbitrary. *)
 
-Lemma Gthunk_pay k E p g t n φ :
-  ↑ThunkPayment t ⊆ E →
-  TC k -∗ GThunk p g t n φ ={E}=∗ GThunk p g t (n-k) φ.
-Proof using.
-  iIntros (?) "Htc Hthunk".
-  deconstruct_thunk.
-  iMod (thunk_pay with "Hthunk Htc"); [ done |].
-  iModIntro. construct_thunk g'. done.
-Qed.
-
-Lemma create_spec p g n φ f :
+Lemma gthunk_create p g n φ f :
   let token := GToken p (Some g) in
   TC_invariant -∗
   {{{ TC 3 ∗ isAction f n token φ }}}
@@ -169,17 +134,80 @@ Proof.
   iApply "Post". construct_thunk g. done.
 Qed.
 
-Lemma force_spec p g bound t φ :
-  lies_below g bound →
-  let token := GToken p bound in
+(* -------------------------------------------------------------------------- *)
+
+(* The consequence rule is standard. *)
+
+Lemma gthunk_consequence p g t n1 n2 φ ψ E :
+  (∀ v, TC n2 -∗ □ φ v ={⊤}=∗ □ ψ v) -∗
+  GThunk p g t  n1       φ  ={E}=∗
+  GThunk p g t (n1 + n2) ψ.
+Proof.
+  iIntros "Hupdate Hthunk".
+  deconstruct_thunk.
+  iMod (thunk_consequence with "Hthunk [Hupdate]").
+  { (* The token [GToken p (Some g')] is not passed to the update,
+       because it would be essentially useless, as [g'] is unknown. *)
+    iIntros (v) "$ Htc Hv".
+    iApply ("Hupdate" with "Htc").
+    iAssumption. }
+  iModIntro. construct_thunk g'. done.
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* [GThunk] is covariant in the parameter [g]. That is, it is safe to view a
+   thunk in an early generation as a thunk in a newer generation. This makes
+   this thunk more difficult to force, as a stronger token is required. *)
+
+Lemma gthunk_covariant_in_g p g1 g2 t n φ :
+  g1 ≤ g2 →
+  GThunk p g1 t n φ -∗
+  GThunk p g2 t n φ.
+Proof.
+  iIntros (?) "Hthunk".
+  deconstruct_thunk.
+  construct_thunk g'.
+  done.
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* [GThunk] is covariant in the parameter [n]. That is, it is safe to view a
+   thunk with a small debt as a thunk with a greater debt. *)
+
+Lemma gthunk_increase_debt p g t n1 n2 φ :
+  n1 ≤ n2 →
+  GThunk p g t n1 φ -∗
+  GThunk p g t n2 φ.
+Proof using.
+  iIntros (?) "Hthunk".
+  deconstruct_thunk.
+  construct_thunk g'.
+  by iApply thunk_increase_debt.
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* Forcing a thunk in a generation [g] that lies below the bound [b] requires
+   the token [GToken p b]. *)
+
+(* To solve the proof obligation [lies_below g b], use [eauto with thunks].   *)
+
+(* The thunk must have zero debit. If it has more than zero debit, then [pay]
+   and [force] must be composed; see [gthunk_pay_force] below. *)
+
+Lemma gthunk_force p g b t φ :
+  lies_below g b →
+  let token := GToken p b in
   TC_invariant -∗
   {{{ TC 11 ∗ GThunk p g t 0 φ ∗ token }}}
-  « force #t »
-  {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
+    « force #t »
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof using.
   intros Hg. iIntros "#HtickInv" (Φ) "!# (TC & Hthunk & Htoken) Post".
   deconstruct_thunk.
-  assert (Hg': lies_below g' bound) by eauto using leq_lies_below.
+  assert (Hg': lies_below g' b) by eauto using leq_lies_below.
   rewrite /GToken.
   rewrite (carve_out_gens_below_gen _ _ Hg').
   iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
@@ -195,19 +223,39 @@ Proof using.
   iFrame "Htoken".
 Qed.
 
-Lemma pay_force_spec p g bound t d φ :
-  lies_below g bound →
-  let token := GToken p bound in
+(* -------------------------------------------------------------------------- *)
+
+(* Paying. *)
+
+Lemma gthunk_pay k E p g t n φ :
+  ↑ThunkPayment t ⊆ E →
+  GThunk p g t n φ -∗ TC k
+    ={E}=∗
+  GThunk p g t (n-k) φ.
+Proof using.
+  iIntros (?) "Hthunk Htc".
+  deconstruct_thunk.
+  iMod (thunk_pay with "Hthunk Htc"); [ done |].
+  iModIntro. construct_thunk g'. done.
+Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+(* The composition of [pay] and [force]. *)
+
+Lemma gthunk_pay_force p g b t d φ :
+  lies_below g b →
+  let token := GToken p b in
   TC_invariant -∗
   {{{ TC (11 + d) ∗ GThunk p g t d φ ∗ token }}}
   « force #t »
-  {{{ v, RET «v» ; ThunkVal t v ∗ □ φ v ∗ token }}}.
+  {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof.
   intros Hg.
   iIntros "#HtickInv" (Φ) "!# ((Htc1 & Htc2) & #Hthunk & Htoken) Post".
-  iMod (Gthunk_pay with "Htc2 Hthunk") as "#Hthunk'"; [ done |].
+  iMod (gthunk_pay with "Hthunk Htc2") as "#Hthunk'"; [ done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
-  wp_apply (force_spec with "[$] [$Htc1 Hthunk $Htoken]").
+  wp_apply (gthunk_force with "[$] [$Htc1 Hthunk $Htoken]").
   { done. }
   { rewrite Nat.sub_diag. iFrame "Hthunk". }
   eauto.
