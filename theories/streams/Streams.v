@@ -910,34 +910,32 @@ Section StreamProofs.
     g > 0 →
     isList l xs -∗
     TC_invariant -∗
-    {{{ TC (13 + 19 * length xs) }}}
+    {{{ TC 13 }}}
       « rev l »
     {{{ t, RET «#t» ;
-        isStream g t (repeat 0 (1 + length xs)) (List.rev xs) }}}.
+        isStream g t ((19 * length xs) :: repeat 0 (length xs)) (List.rev xs) }}}.
   Proof.
     intros Hg.
-    simpl repeat.
     iIntros "#Hl".
     construct_texan_triple "Htc".
     (* We pay 1 credit here. *)
     wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
-    divide_credit "Htc" (7 + 19 * length xs) 5.
-    wp_apply (lazy_spec with "[$] [$Htc' Htc]"); last first.
-    { iIntros (t) "Hstream".
-      iApply "Post". iFrame "Hstream". }
+    divide_credit "Htc" 7 5.
+    wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
     (* Side conditions. *)
-    2: rewrite repeat_length rev_length //.
-    2: exact Hg.
+    by exact Hg.
+    by rewrite repeat_length rev_length //.
     (* Examine the body of this suspension. *)
     rewrite /isLazyCell.
-    iIntros "_ Htoken" (ψ) "Post".
+    iIntros "Htc' Htoken" (ψ) "Post".
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
     (* The call [rev_append l NILV] consumes the remaining credits. *)
     rewrite untranslate_litv. untranslate.
-    wp_apply (rev_append_spec with "[$Hl] [] [$] [$Htc]").
+    wp_apply (rev_append_spec with "[$Hl] [] [$] [Htc Htc']").
     { iApply NILV_spec. }
+    { rewrite TC_plus. iFrame. }
     rewrite !app_nil_r.
     iIntros (c') "Hc'".
     iApply ("Post" with "Hc' Htoken").
