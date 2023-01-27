@@ -48,6 +48,10 @@ theories/thunks/GThunks.v
 theories/pqueue/Code.v
 theories/pqueue/Proof.v
 
+# Another persistent queue (Okasaki, 6.3.2)
+theories/bqueue/Code.v
+theories/bqueue/Proof.v
+
 # Lazy streams.
 theories/streams/Streams.v
 

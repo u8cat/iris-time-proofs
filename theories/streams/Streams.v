@@ -414,33 +414,76 @@ Section StreamProofs.
 
   (* Subtyping on sequences of debits. *)
 
-  Fixpoint subdebits slack ds1 ds2 :=
-    match ds1, ds2 with
-    | [], [] =>
-        True
-    | d1 :: ds1, d2 :: ds2 =>
-        (* The slack is conceptually added to the first element of the
-           right-hand sequence, helping overcome its shortcomings. *)
-        let d2 := slack + d2 in
-        (* [d1] must be less than [d2]. *)
-        d1 <= d2 ∧
-        (* If some slack remains, then it is propagated. *)
-        let slack := d2 - d1 in
-        subdebits slack ds1 ds2
-    | [], _ :: _
-    | _ :: _, [] =>
-        (* Nonsensical cases. *)
-        False
-    end.
+  Inductive subdebits : nat → debits → debits → nat → Prop :=
+    | subdebits_nil slack rest :
+      rest <= slack →
+      subdebits slack [] [] rest
+    | subdebits_cons slack d1 ds1 d2 ds2 rest :
+      (* The slack is conceptually added to the first element of the
+         right-hand sequence, helping overcome its shortcomings. *)
+      (* The debit on the left [d1] must be less than the debit on the
+         right [d2] when provided with the extra slack. *)
+      d1 <= slack + d2 →
+      (* The remaining amount of slack is propagated. *)
+      subdebits (slack + d2 - d1) ds1 ds2 rest →
+      subdebits slack (d1 :: ds1) (d2 :: ds2) rest.
 
-  Lemma subdebits_length :
-    ∀ ds1 ds2 slack,
-    subdebits slack ds1 ds2 →
-    length ds1 = length ds2.
+  Lemma subdebits_covariant_in_slack slack slack' ds1 ds2 rest :
+    subdebits slack ds1 ds2 rest →
+    slack ≤ slack' →
+    subdebits slack' ds1 ds2 rest.
   Proof.
-    induction ds1; destruct ds2; simpl; intuition eauto with lia.
+    intros Hsub. revert slack'; induction Hsub;
+      intros; constructor; eauto with lia.
   Qed.
 
+  Lemma subdebits_contravariant_in_rest slack ds1 ds2 rest rest' :
+    subdebits slack ds1 ds2 rest →
+    rest' ≤ rest →
+    subdebits slack ds1 ds2 rest'.
+  Proof.
+    intros Hsub. revert rest'; induction Hsub;
+      intros; constructor; eauto with lia.
+  Qed.
+
+  Lemma subdebits_reflexive slack ds slack' :
+    slack' ≤ slack →
+    subdebits slack ds ds slack'.
+  Proof.
+    revert slack' slack; induction ds as [| d ds ]; intros;
+      constructor; eauto with lia.
+  Qed.
+
+  Lemma subdebits_app slack ds1 ds2 rest ds1' ds2' rest' :
+    subdebits slack ds1 ds2 rest →
+    subdebits rest ds1' ds2' rest' →
+    subdebits slack (ds1 ++ ds1') (ds2 ++ ds2') rest'.
+  Proof.
+    intros Hsub. revert ds1' ds2' rest'.
+    induction Hsub; intros ds1' ds2' rest' Hsub'; cbn.
+    { eauto using subdebits_covariant_in_slack. }
+    constructor; eauto with lia.
+  Qed.
+
+  Lemma subdebits_length :
+    ∀ ds1 ds2 slack rest,
+    subdebits slack ds1 ds2 rest →
+    length ds1 = length ds2.
+  Proof.
+    intros *; induction 1; simpl; intuition eauto with lia.
+  Qed.
+
+  Lemma subdebits_repeat slack a b n :
+    a ≤ b →
+    subdebits slack (repeat a n) (repeat b n) (slack + (b - a) * n).
+  Proof.
+    revert slack; induction n as [| n ]; intros slack ?; cbn.
+    { rewrite Nat.mul_0_r Nat.add_0_r. by constructor. }
+    { constructor; first lia.
+      eapply subdebits_contravariant_in_rest; eauto with lia. }
+  Qed.
+
+(*
   Fixpoint sum ds :=
     match ds with
     | [] => 0
@@ -487,24 +530,9 @@ Section StreamProofs.
     intuition eauto using subdebits_alternate_characterization_1,
       subdebits_alternate_characterization_2, subdebits_length.
   Qed.
+*)
 
-  Lemma subdebits_reflexive ds :
-    ∀ slack,
-    subdebits slack ds ds.
-  Proof.
-    induction ds; simpl; eauto with lia.
-  Qed.
-
-  Lemma subdebits_covariant_in_slack :
-    ∀ ds1 ds2 slack1 slack2,
-    subdebits slack1 ds1 ds2 →
-    slack1 ≤ slack2 →
-    subdebits slack2 ds1 ds2.
-  Proof.
-    induction ds1; destruct ds2; simpl;
-    intuition eauto with lia.
-  Qed.
-
+(*
   Lemma subdebits_transitive :
     ∀ ds1 ds2 ds3 slack1 slack2 slack,
     subdebits slack1 ds1 ds2 →
@@ -515,6 +543,7 @@ Section StreamProofs.
     induction ds1; destruct ds2; destruct ds3; simpl;
     intuition eauto with lia.
   Qed.
+*)
 
   Local Lemma isStreamCell_nil g c ds1 ds2 :
     length ds1 = length ds2 →
@@ -555,17 +584,16 @@ Section StreamProofs.
 
   Lemma stream_forward_debt :
     ∀ ds1 ds2 slack xs g t E,
-    subdebits slack ds1 ds2 →
+    subdebits slack ds1 ds2 0 →
     ↑ThunkPayment t ⊆ E →
     isStream g t ds1 xs -∗
     TC slack ={E}=∗
     isStream g t ds2 xs.
   Proof.
-    induction ds1 as [| d1 ds1 ]; destruct ds2 as [| d2 ds2 ];
-    simpl subdebits;
+    intros * Hsub; revert xs g t E; induction Hsub;
     try rewrite unfold_isStream_contradictory;
-    try solve [ tauto | eauto 3 ].
-    intros slack xs g t E (? & Hsub) ?.
+    try solve [ tauto | eauto 3 ];
+    intros xs g t E ?.
     iIntros "#Hstream Hslack".
     unfold_isStream. deconstruct_stream.
     unfold_isStream.
@@ -618,7 +646,7 @@ Section StreamProofs.
   Qed.
 
   Lemma stream_cell_forward_debt slack g c ds1 ds2 xs E :
-    subdebits slack ds1 ds2 →
+    subdebits slack ds1 ds2 0 →
     (∀ t, ↑ThunkPayment t ⊆ E) →
     isStreamCell g c ds1 xs -∗
     TC slack ={E}=∗
@@ -906,38 +934,36 @@ Section StreamProofs.
     iIntros. simpl. eauto.
   Qed.
 
-  Lemma rev_spec g l xs ds ys :
+  Lemma rev_spec g l xs :
     g > 0 →
     isList l xs -∗
     TC_invariant -∗
-    {{{ TC (13 + 19 * length xs) }}}
+    {{{ TC 13 }}}
       « rev l »
     {{{ t, RET «#t» ;
-        isStream g t (repeat 0 (1 + length xs)) (List.rev xs) }}}.
+        isStream g t ((19 * length xs) :: repeat 0 (length xs)) (List.rev xs) }}}.
   Proof.
     intros Hg.
-    simpl repeat.
     iIntros "#Hl".
     construct_texan_triple "Htc".
     (* We pay 1 credit here. *)
     wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
-    divide_credit "Htc" (7 + 19 * length xs) 5.
-    wp_apply (lazy_spec with "[$] [$Htc' Htc]"); last first.
-    { iIntros (t) "Hstream".
-      iApply "Post". iFrame "Hstream". }
+    divide_credit "Htc" 7 5.
+    wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
     (* Side conditions. *)
-    2: rewrite repeat_length rev_length //.
-    2: exact Hg.
+    by exact Hg.
+    by rewrite repeat_length rev_length //.
     (* Examine the body of this suspension. *)
     rewrite /isLazyCell.
-    iIntros "_ Htoken" (ψ) "Post".
+    iIntros "Htc' Htoken" (ψ) "Post".
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
     (* The call [rev_append l NILV] consumes the remaining credits. *)
     rewrite untranslate_litv. untranslate.
-    wp_apply (rev_append_spec with "[$Hl] [] [$] [$Htc]").
+    wp_apply (rev_append_spec with "[$Hl] [] [$] [Htc Htc']").
     { iApply NILV_spec. }
+    { rewrite TC_plus. iFrame. }
     rewrite !app_nil_r.
     iIntros (c') "Hc'".
     iApply ("Post" with "Hc' Htoken").
@@ -966,6 +992,16 @@ Section StreamProofs.
     intro Hlen1.
     destruct ds1 as [| d1' ds1' ]; [ simpl in Hlen1; lia |].
     reflexivity.
+  Qed.
+
+  Lemma debit_append_join_middle ds1 d1 d2 ds2 :
+    debit_append (ds1 ++ [d1]) (d2 :: ds2) =
+    map (λ d, A + d) ds1 ++ (A + d1 + B + d2) :: ds2.
+  Proof.
+    revert d1 d2 ds2. induction ds1 as [| d ds1 ]; intros d1 d2 ds2; auto.
+    rewrite (_: (d :: ds1) ++ [d1] = d :: (ds1 ++ [d1])) //.
+    rewrite debit_append_step. 2: rewrite app_length /=; lia.
+    rewrite IHds1 //.
   Qed.
 
 (* TODO
