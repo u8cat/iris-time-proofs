@@ -391,6 +391,11 @@ Qed.
    Paying while the piggy bank is being forced is permitted. Indeed, paying
    does not require a [na_own] token. *)
 
+(* The rule PiggyBank-Break in the paper does not involve a degraded token;
+   the original token disappears at the beginning and re-appears at the end.
+   Because a token can be split, the two versions of the rule are logically
+   equivalent. *)
+
 Lemma piggybank_break E F :
   (* The strong token and the weak token: *)
   let token := na_own p F in
