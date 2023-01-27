@@ -994,6 +994,16 @@ Section StreamProofs.
     reflexivity.
   Qed.
 
+  Lemma debit_append_join_middle ds1 d1 d2 ds2 :
+    debit_append (ds1 ++ [d1]) (d2 :: ds2) =
+    map (λ d, A + d) ds1 ++ (A + d1 + B + d2) :: ds2.
+  Proof.
+    revert d1 d2 ds2. induction ds1 as [| d ds1 ]; intros d1 d2 ds2; auto.
+    rewrite (_: (d :: ds1) ++ [d1] = d :: (ds1 ++ [d1])) //.
+    rewrite debit_append_step. 2: rewrite app_length /=; lia.
+    rewrite IHds1 //.
+  Qed.
+
 (* TODO
   Definition debit_append ds1 ds2 :=
     let ds1 := map (λ d, A + d) ds1 in
