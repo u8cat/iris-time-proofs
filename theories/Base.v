@@ -28,3 +28,11 @@ Proof.
     apply IH in Hzy as (ω & Hzω & Hωy).
     exists ω. split ; first econstructor ; eassumption.
 Qed.
+
+Lemma repeat_succ_last A (a : A) n :
+  repeat a (S n) = repeat a n ++ [a].
+Proof. rewrite /= repeat_cons //. Qed.
+
+Lemma map_repeat A B (f : A → B) a n :
+  map f (repeat a n) = repeat (f a) n.
+Proof. induction n; cbn; eauto; rewrite IHn //. Qed.
