@@ -594,3 +594,41 @@ Ltac wp_tick ::=
       | wp_expr_simpl ]
   | _ => fail "wp_tick: not a 'wp'"
   end.
+
+(* Helper tactics to split amounts of time credits *)
+
+(* [divide H] destructs the Iris hypothesis [H] and names the two
+   hypotheses thus obtained [H] and [H']. This is typically useful
+   when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
+
+Ltac divide H :=
+  let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
+  iDestruct H as ipat.
+
+(* [pay_out_of H] destructs the Iris hypothesis [H], which must be
+   of the form [TC k], into two hypotheses [TC (k - ?cost)] and
+   [TC ?cost], where [?cost] is a fresh metavariable. The proof
+   obligation [?cost <= k] is scheduled last, so it can be proved
+   after [?cost] has been instantiated. *)
+
+Ltac pay_out_of H :=
+  match goal with
+  |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+    let cost := fresh "cost" in
+    evar (cost : nat);
+    let Hcost := fresh "Hcost" in
+    assert (Hcost: (cost ≤ k)%nat); first last; [
+    rewrite [in TC k] (_ : (k = (k - cost) + cost)%nat); [
+    unfold cost; clear Hcost; divide H | lia ]
+    |]
+  end.
+
+(* A low-tech tactic: look for the hypothesis H and split it using
+   the two arguments provided by the user. *)
+
+Ltac divide_credit H k1 k2 :=
+  match goal with
+  |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+    rewrite [in TC k] (_ : (k = k1 + k2)%nat); [| lia ];
+    divide H
+  end.

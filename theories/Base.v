@@ -36,3 +36,9 @@ Proof. rewrite /= repeat_cons //. Qed.
 Lemma map_repeat A B (f : A → B) a n :
   map f (repeat a n) = repeat (f a) n.
 Proof. induction n; cbn; eauto; rewrite IHn //. Qed.
+
+Lemma pow2_pos n : 1 ≤ 2 ^ n.
+Proof.
+  pose proof (Nat.pow_le_mono_r 2 0 n ltac:(lia) ltac:(lia)).
+  cbn in *; lia.
+Qed.

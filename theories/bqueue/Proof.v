@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
-From iris_time Require Import Base TimeCredits Streams.
+From iris_time Require Import Base TimeCredits Untranslate Streams.
 From iris_time.thunks Require Import Generations GThunks.
 From iris_time.bqueue Require Import Code.
 
@@ -17,35 +17,6 @@ Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
 Context `{na_invG Σ}.
 Context (p : na_inv_pool_name).
-
-(* XXX copy-pasted from Streams *)
-Hint Rewrite
-  untranslate_pairv
-  untranslate_pair
-  untranslate_injlv
-  untranslate_injrv
-  untranslate_injl
-  untranslate_injr
-  untranslate_lambda
-  untranslate_app
-  untranslate_val
-: untranslate.
-
-Ltac untranslate :=
-  autorewrite with untranslate.
-
-Ltac divide H :=
-  let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
-  iDestruct H as ipat.
-
-Ltac divide_credit H k1 k2 :=
-  match goal with
-  |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
-    rewrite [in TC k] (_ : k = k1 + k2); [| lia ];
-    divide H
-  end.
-
-(******)
 
 Local Hint Resolve subdebits_reflexive : core.
 

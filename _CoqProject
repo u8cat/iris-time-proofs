@@ -46,16 +46,20 @@ theories/thunks/Generations.v
 theories/thunks/GThunks.v
 theories/thunks/LazyCode.v
 
-# A persistent queue (Okasaki, 6.4.2).
+# Lazy streams.
+theories/streams/Streams.v
+
+# The "physicist queue" (Okasaki, 6.4.2).
 theories/pqueue/Code.v
 theories/pqueue/Proof.v
 
-# Another persistent queue (Okasaki, 6.3.2)
+# The "banker's queue", using streams (Okasaki, 6.3.2)
 theories/bqueue/Code.v
 theories/bqueue/Proof.v
 
-# Lazy streams.
-theories/streams/Streams.v
+# The "implicit queue" based on recursive slowdown (Okasaki, 11.1)
+theories/iqueue/Code.v
+theories/iqueue/Proof.v
 
 # The Union-Find algorithm and its complexity.
 theories/union_find/math/Ackermann.v
