@@ -31,6 +31,7 @@ theories/TimeCreditsAltProofs.v
 theories/TimeReceipts.v
 theories/Combined.v
 theories/Translation.v
+theories/Untranslate.v
 
 # Thunks.
 theories/thunks/PiggyBank.v
