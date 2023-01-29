@@ -372,6 +372,19 @@ Section StreamProofs.
       constructor; eauto with lia.
   Qed.
 
+  Lemma subdebits_transitive :
+    ∀ slack1 ds1 ds2 rest1,
+    subdebits slack1 ds1 ds2 rest1 →
+    ∀ ds3 slack2 slack rest2 rest,
+    subdebits slack2 ds2 ds3 rest2 →
+    slack1 + slack2 ≤ slack →
+    rest ≤ rest1 + rest2 →
+    subdebits slack ds1 ds3 rest.
+  Proof.
+    induction 1; inversion 1; intros; subst;
+      constructor; eauto with lia.
+  Qed.
+
   Lemma subdebits_app slack ds1 ds2 rest ds1' ds2' rest' :
     subdebits slack ds1 ds2 rest →
     subdebits rest ds1' ds2' rest' →
@@ -447,19 +460,6 @@ Section StreamProofs.
   Proof.
     intuition eauto using subdebits_alternate_characterization_1,
       subdebits_alternate_characterization_2, subdebits_length.
-  Qed.
-*)
-
-(*
-  Lemma subdebits_transitive :
-    ∀ ds1 ds2 ds3 slack1 slack2 slack,
-    subdebits slack1 ds1 ds2 →
-    subdebits slack2 ds2 ds3 →
-    slack1 + slack2 ≤ slack →
-    subdebits slack ds1 ds3.
-  Proof.
-    induction ds1; destruct ds2; destruct ds3; simpl;
-    intuition eauto with lia.
   Qed.
 *)
 
