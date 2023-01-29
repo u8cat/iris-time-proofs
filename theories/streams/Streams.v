@@ -921,19 +921,6 @@ Section StreamProofs.
     rewrite IHds1 //.
   Qed.
 
-(* TODO
-  Definition debit_append ds1 ds2 :=
-    let ds1 := map (λ d, A + d) ds1 in
-    match List.rev ds1, ds2 with
-    | [], _
-    | _, [] =>
-        (* This cannot happen. The two lists must be nonempty. *)
-        ds1 ++ ds2
-    | d1 :: ds1, d2 :: ds2 =>
-        List.rev ds1 ++ [d1 + B + d2] ++ ds2
-    end.
- *)
-
   Lemma debits_induction P :
     (∀ d, P [d]) →
     (∀ d ds, length ds > 0 → P ds → P (d :: ds)) ->
