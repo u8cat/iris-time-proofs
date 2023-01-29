@@ -414,7 +414,6 @@ Section StreamProofs.
       eapply subdebits_contravariant_in_rest; eauto with lia. }
   Qed.
 
-(*
   Fixpoint sum ds :=
     match ds with
     | [] => 0
@@ -422,17 +421,16 @@ Section StreamProofs.
     end.
 
   Lemma subdebits_alternate_characterization_1 :
-    ∀ ds1 ds2 slack,
-    subdebits slack ds1 ds2 →
+    ∀ slack ds1 ds2 rest,
+    subdebits slack ds1 ds2 rest →
     ∀ k,
     sum (take k ds1) ≤ slack + sum (take k ds2).
   Proof.
-    induction ds1 as [| d1 ds1 ]; destruct ds2 as [| d2 ds2 ];
-    intros slack Hsub k;
+    induction 1;
+    intros k;
     repeat rewrite take_nil; simpl in *; try lia.
-    destruct Hsub as (? & Hsub).
     destruct k as [| k ]; simpl; [ lia |].
-    generalize (IHds1 _ _ Hsub k); intro.
+    specialize IHsubdebits with k.
     lia.
   Qed.
 
@@ -440,28 +438,29 @@ Section StreamProofs.
     ∀ ds1 ds2 slack,
     length ds1 = length ds2 →
     (∀ k, sum (take k ds1) ≤ slack + sum (take k ds2)) →
-    subdebits slack ds1 ds2.
+    subdebits slack ds1 ds2 0.
   Proof.
     induction ds1 as [| d1 ds1 ]; destruct ds2 as [| d2 ds2 ];
     simpl;
     intros slack Hlen Hsum;
     try lia.
-    split.
-    { specialize Hsum with 1. simpl in Hsum. lia. }
-    { eapply IHds1; [ congruence |].
-      intros k.
-      specialize Hsum with (S k). simpl in Hsum. lia. }
+    { constructor. lia. }
+    { constructor.
+      { specialize Hsum with 1. simpl in Hsum. lia. }
+      { eapply IHds1; [ congruence |].
+        intros k.
+        specialize Hsum with (S k). simpl in Hsum. lia. }
+    }
   Qed.
 
   Lemma subdebits_alternate_characterization ds1 ds2 slack :
-    subdebits slack ds1 ds2 ↔
+    subdebits slack ds1 ds2 0 ↔
     length ds1 = length ds2 ∧
     ∀ k, sum (take k ds1) ≤ slack + sum (take k ds2).
   Proof.
     intuition eauto using subdebits_alternate_characterization_1,
       subdebits_alternate_characterization_2, subdebits_length.
   Qed.
-*)
 
   Local Lemma isStreamCell_nil g c ds1 ds2 :
     length ds1 = length ds2 →
