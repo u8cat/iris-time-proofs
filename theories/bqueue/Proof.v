@@ -110,8 +110,7 @@ Definition is_queue_raw
   (q : val) (fl rl : list val) : iProp Σ :=
   ∃ (fs : loc) g,
     ⌜q = (#(length fl), #fs, #(length rl), ListV rl)%V⌝ ∗
-    isStream p g fs (queue_debits (length fl) (length rl)) fl ∗
-    ⌜g > 0⌝.
+    isStream p g fs (queue_debits (length fl) (length rl)) fl.
 
 Definition is_queue (q : val) (l : list val) : iProp Σ :=
   ∃ fl rl,
@@ -136,10 +135,10 @@ Local Ltac deconstruct_queue :=
 
 Local Ltac deconstruct_queue_raw :=
   iDestruct "Hqueue_raw" as
-    "(%fs & %g & -> & #Hstream & %)".
+    "(%fs & %g & -> & #Hstream)".
 
 Local Ltac construct_queue_raw :=
-  iExists _, _; iSplit3; swap 1 2; [ | iPureIntro .. ].
+  iExists _, _; iSplit; swap 1 2; [ | iPureIntro .. ].
 
 Local Ltac construct_queue fl rl :=
   iExists fl, rl; iSplit3;
@@ -157,7 +156,7 @@ Proof.
   iIntros "#Hickinv !#" (Φ) "Htc HΦ".
   wp_tick_lam. wp_tick_inj.
   divide_credit "Htc" 5 6.
-  wp_apply (nil_spec p 1 with "[$] Htc'"); [lia|].
+  wp_apply (nil_spec p 1 with "[$] Htc'").
   iIntros (rs) "#Hstream".
   (* pay for the thunk now *)
   divide_credit "Htc" 3 2.
@@ -200,7 +199,7 @@ Proof.
   deconstruct_queue. deconstruct_queue_raw.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   divide_credit "Htc" 4 8.
-  wp_apply (cons_spec with "[$] [$] [$]"); auto.
+  wp_apply (cons_spec with "[$] [$] [$]").
   iIntros (t') "#Hstream'".
   (* Increase the debit of the new thunk to match the invariant. *)
   iMod (stream_forward_debt _ _ (queue_debits (S (length fl)) (length rl))
@@ -235,7 +234,6 @@ Proof.
   rewrite bool_decide_false; [|lia]. wp_tick_if. wp_tick_inj.
   untranslate. divide_credit "Htc" 12 13.
   wp_apply (rev_spec with "[] [$] Htc'").
-  by eassumption.
   by iPureIntro; reflexivity.
   iIntros (trev) "#Hstream_rev".
   divide_credit "Htc" 4 8.
@@ -295,7 +293,7 @@ Proof.
     constructor; eauto with lia. }
   wp_apply (check_spec _ fl (x :: rl) with "[$] [] Htc").
   { cbn; lia. }
-  { construct_queue_raw; first iApply "Hstream'"; eauto with lia.
+  { construct_queue_raw; first iApply "Hstream'".
     repeat f_equal; cbn; eauto with lia. }
   { iIntros (q'). rewrite /= app_assoc. iApply "Post". }
 Qed.

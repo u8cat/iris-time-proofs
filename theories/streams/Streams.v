@@ -27,6 +27,8 @@ Proof.
   reflexivity.
 Qed.
 
+Hint Rewrite subst_lazy : push_subst.
+
 Opaque lazy.
 
 (*
@@ -606,24 +608,34 @@ Section StreamProofs.
      4 credits now and that the front cell has [k+1] debits. The simpler
      specification seems preferable and is just as useful in practice. *)
 
-  (* The expression [e] receives the token [token (g-1)] and must return it.
-     Thus, it is allowed earlier to force thunks in previous generations, but
+  (* The expression [e] receives the token [GToken p (Some g)] and must return
+     it. When [g] is greater than 0, this is synonymous with [token (g-1)].
+     When [g] is zero, this token does not allow forcing any thunk. Thus, the
+     new thunk is allowed earlier to force thunks in previous generations, but
      not thunks in the same generation as itself or in newer generations. *)
 
+  Lemma weaker_token g :
+    g > 0 →
+    GToken p (Some g) = token (g-1).
+  Proof.
+    intros.
+    rewrite [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
+    reflexivity.
+  Qed.
+
   Definition isLazyCell k g ds xs e : iProp :=
-    TC k -∗ token (g-1) -∗
-    ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ token (g-1) -∗ ψ «c»%V) -∗
+    TC k -∗ GToken p (Some g) -∗
+    ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ GToken p (Some g) -∗ ψ «c»%V) -∗
     WP «e» {{ ψ }}.
 
   Lemma lazy_spec g e ds xs k :
-    g > 0 →
     length ds = length xs →
     TC_invariant -∗
     {{{ TC 5 ∗ isLazyCell k g ds xs e }}}
       « lazy e »
     {{{ t, RET #t ; isStream g t (k :: ds) xs }}}.
   Proof.
-    iIntros (Hg Hlen).
+    intros.
     construct_texan_triple "(Htc & He)".
     (* The tick translation of [lazy e] involves two ticks. *)
     rewrite translate_lazy_expr.
@@ -642,9 +654,7 @@ Section StreamProofs.
     wp_tick_lam. iClear "H1".
     (* There remain [k] credits, which allow executing [e]. *)
     (* We have the required token. *)
-    rewrite   [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
     iApply ("He" with "Htc Htoken").
-    rewrite - [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
     iIntros (c) "#Hc Htoken".
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
@@ -708,13 +718,11 @@ Section StreamProofs.
   Qed.
 
   Lemma nil_spec g :
-    g > 0 →
     TC_invariant -∗
     {{{ TC 6 }}}
       « nil »
     {{{ t, RET #t ; isStream g t (0 :: []) [] }}}.
   Proof.
-    intros Hg.
     construct_texan_triple "Htc".
     iDestruct "Htc" as "(H1 & H5)".
     wp_apply (lazy_spec _ _ [] [] 0 with "[$] [$H5 H1]"); eauto 2.
@@ -728,14 +736,12 @@ Section StreamProofs.
   Qed.
 
   Lemma cons_spec g t ds x xs :
-    g > 0 →
     isStream g t ds xs -∗
     TC_invariant -∗
     {{{ TC 8 }}}
       « cons x #t »
     {{{ t', RET #t' ; isStream g t' (2 :: ds) (x :: xs) }}}.
   Proof.
-    intros Hg.
     iIntros "#Hstream".
     construct_texan_triple "Htc".
     note_length_equality "Hstream".
@@ -750,7 +756,6 @@ Section StreamProofs.
       iNext.
       iIntros (c) "Hc".
       iApply ("Post" with "Hc Htoken"). }
-    { eauto. }
     { eauto. }
   Qed.
 
@@ -852,7 +857,6 @@ Section StreamProofs.
   Qed.
 
   Lemma rev_spec g l xs :
-    g > 0 →
     isList l xs -∗
     TC_invariant -∗
     {{{ TC 13 }}}
@@ -860,7 +864,6 @@ Section StreamProofs.
     {{{ t, RET «#t» ;
         isStream g t ((19 * length xs) :: repeat 0 (length xs)) (List.rev xs) }}}.
   Proof.
-    intros Hg.
     iIntros "#Hl".
     construct_texan_triple "Htc".
     (* We pay 1 credit here. *)
@@ -868,8 +871,6 @@ Section StreamProofs.
     (* [lazy (...)] costs 5 credits. *)
     divide_credit "Htc" 7 5.
     wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
-    (* Side conditions. *)
-    by exact Hg.
     by rewrite repeat_length rev_length //.
     (* Examine the body of this suspension. *)
     rewrite /isLazyCell.
@@ -1003,11 +1004,9 @@ Section StreamProofs.
       (* [lazy (...)] costs 5 credits. *)
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
-      2: eauto.
       2: lia.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
-      rewrite (_ : g + 1 - 1 = g); last lia.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
       (* Force [t1]. *)
@@ -1062,10 +1061,8 @@ Section StreamProofs.
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       2: simpl; rewrite length_debit_append ?app_length; lia.
-      2: lia.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
-      rewrite (_ : g + 1 - 1 = g); last lia.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the second branch, and returns a CONS
          cell. *)
