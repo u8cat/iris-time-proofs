@@ -589,15 +589,6 @@ Section StreamProofs.
      new thunk is allowed earlier to force thunks in previous generations, but
      not thunks in the same generation as itself or in newer generations. *)
 
-  Lemma weaker_token g :
-    g > 0 →
-    GToken p (Some g) = token (g-1).
-  Proof.
-    intros.
-    rewrite [in Some _] (_ : g = (g - 1) + 1)%nat; last lia.
-    reflexivity.
-  Qed.
-
   Definition isLazyCell k g ds xs e : iProp :=
     TC k -∗ GToken p (Some g) -∗
     ∀ ψ, (∀ c, isStreamCell g c ds xs -∗ GToken p (Some g) -∗ ψ «c»%V) -∗
