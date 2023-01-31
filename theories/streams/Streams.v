@@ -2,7 +2,8 @@ From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
-From iris_time Require Import TimeCredits ThunksCode ThunksBase GThunks.
+From iris_time Require Import TimeCredits.
+From iris_time Require Import ThunksCode LazyCode ThunksBase GThunks.
 Open Scope nat_scope.
 
 Section Stream.
@@ -18,18 +19,6 @@ Notation "'match:' e0 'with' 'NIL' => e1 | 'CONS' ( x , xs ) => e2 'end'" :=
                      (* this is let: x := Fst xs in let: xs := Snd xs in e2 *)
   )
   (e0, e1, x, xs, e2 at level 200, only parsing) : expr_scope.
-
-Definition lazy e := (create (Lam <>%bind e))%E.
-
-Lemma subst_lazy x v e :
-  subst x v (lazy e) = lazy (subst x v e).
-Proof.
-  reflexivity.
-Qed.
-
-Hint Rewrite subst_lazy : push_subst.
-
-Opaque lazy.
 
 (*
 type 'a stream =
@@ -585,20 +574,6 @@ Section StreamProofs.
 
   Local Ltac construct_action :=
     iIntros "Htoken Htc" (ψ) "Post".
-
-  (* The tick translation of [lazy e] involves two ticks. *)
-
-  Lemma translate_lazy_expr e :
-    « lazy e » = tick « create » (tick (Lam <> «e»)).
-  Proof.
-    reflexivity.
-  Qed.
-
-  Lemma translate_lazy_val c :
-    « lazy c » = tick «create»%V (tick (Lam <> « c »%V)).
-  Proof.
-    reflexivity.
-  Qed.
 
   (* Evaluating [lazy e], where the expression [e] consumes [k] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
