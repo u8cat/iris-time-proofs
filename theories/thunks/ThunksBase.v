@@ -121,8 +121,8 @@ Local Definition ownDecided γdecided v :=
    + the piggy bank is indexed by [p] and [N], where [↑N ⊆ F] holds, which
      means that the token [ThunkToken p F] suffices to force this piggy bank;
 
-   + the piggy bank is indexed by [ThunkPayment t], which means that paying
-     requires the current atomic mask [E] to satisfy [↑(ThunkPayment t) ⊆ E]. *)
+   + the piggy bank is indexed by [ThunkPayment], which means that paying
+     requires the current atomic mask [E] to satisfy [↑ThunkPayment ⊆ E]. *)
 
 Local Definition LeftBranch t γdecided R φ nc : iProp :=
   ∃ f,
@@ -136,8 +136,8 @@ Local Definition RightBranch t γdecided φ : iProp :=
     ∗ t ↦ EVALUATEDV « v »
     ∗ □ φ v.
 
-Definition ThunkPayment t : namespace :=
-  nroot .@ "base_thunk_payment" .@ t.
+Definition ThunkPayment : namespace :=
+  nroot .@ "thunk_payment".
 
 Definition BaseThunk p F t n R φ : iProp :=
 
@@ -147,7 +147,7 @@ Definition BaseThunk p F t n R φ : iProp :=
     ∗ PiggyBank
         (LeftBranch t γdecided R φ)
         (RightBranch t γdecided φ)
-        (ThunkPayment t)
+        ThunkPayment
         p N n
 
 .
@@ -279,7 +279,7 @@ Qed.
    forced; so a ghost thunk does not satisfy this law. *)
 
 Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
-  ↑ThunkPayment t ⊆ E →
+  ↑ThunkPayment ⊆ E →
   F ⊆ E →
   F ⊆ F' →
   BaseThunk p F t n R φ -∗
@@ -541,7 +541,7 @@ Qed.
 (* This law is part of the common thunk API. *)
 
 Lemma base_thunk_pay p F E n k t R φ :
-  ↑ThunkPayment t ⊆ E →
+  ↑ThunkPayment ⊆ E →
   BaseThunk p F t n R φ -∗   TC k   ={E}=∗
   BaseThunk p F t (n-k) R φ.
 Proof.

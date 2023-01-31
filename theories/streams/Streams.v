@@ -493,7 +493,7 @@ Section StreamProofs.
   Lemma stream_forward_debt :
     ∀ ds1 ds2 slack xs g t E,
     subdebits slack ds1 ds2 0 →
-    ↑ThunkPayment t ⊆ E →
+    ↑ThunkPayment ⊆ E →
     isStream g t ds1 xs -∗
     TC slack ={E}=∗
     isStream g t ds2 xs.
@@ -555,7 +555,7 @@ Section StreamProofs.
 
   Lemma stream_cell_forward_debt slack g c ds1 ds2 xs E :
     subdebits slack ds1 ds2 0 →
-    (∀ t, ↑ThunkPayment t ⊆ E) →
+    ↑ThunkPayment ⊆ E →
     isStreamCell g c ds1 xs -∗
     TC slack ={E}=∗
     isStreamCell g c ds2 xs.

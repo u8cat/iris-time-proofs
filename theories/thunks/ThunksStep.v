@@ -95,7 +95,7 @@ Definition ProxyThunk p F t n R ψ : iProp :=
     ∗ PiggyBank
         (LeftBranch R φ ψ nc1 nc2)
         (RightBranch t ψ)
-        (ThunkPayment t)
+        ThunkPayment
         p N n
 
 .
@@ -177,7 +177,7 @@ Proof.
   iMod (piggybank_create
                 (LeftBranch R φ ψ n1 n2)
                 (RightBranch t ψ)
-                (ThunkPayment t)
+                ThunkPayment
                 p N (n1 + n2)
               with "[Hupdate]") as "#Hpiggy".
   { unfold LeftBranch. eauto. }
@@ -298,7 +298,7 @@ Qed.
 (* This law is part of the common thunk API. *)
 
 Local Lemma proxythunk_pay p F E n k t R ψ :
-  ↑ThunkPayment t ⊆ E →
+  ↑ThunkPayment ⊆ E →
   ProxyThunk p F t n R ψ -∗
   TC k ={E}=∗
   ProxyThunk p F t (n-k) R ψ.

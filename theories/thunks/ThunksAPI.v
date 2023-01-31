@@ -171,7 +171,7 @@ Class CommonThunkAPI
   (* Like [force], paying requires the token [ThunkToken p F']. *)
 
   thunk_pay p F n k t R φ E :
-    ↑ThunkPayment t ⊆ E →
+    ↑ThunkPayment ⊆ E →
     Thunk p F t n R φ -∗ TC k
       ={E}=∗
     Thunk p F t (n-k) R φ

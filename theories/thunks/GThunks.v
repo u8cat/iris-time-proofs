@@ -266,7 +266,7 @@ Qed.
 (* Paying. *)
 
 Lemma gthunk_pay k E p g t n φ :
-  ↑ThunkPayment t ⊆ E →
+  ↑ThunkPayment ⊆ E →
   GThunk p g t n φ -∗ TC k
     ={E}=∗
   GThunk p g t (n-k) φ.
