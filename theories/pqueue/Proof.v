@@ -4,7 +4,7 @@ From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
 From iris_time Require Import TimeCredits.
-From iris_time.thunks Require Import GThunks.
+From iris_time.thunks Require Import HThunks.
 From iris_time.pqueue Require Import Code.
 
 (* XXX duplicated with Streams.ListV *)
@@ -86,13 +86,13 @@ Definition is_queue_raw
   (q : val)
   (l w fl rl : list val) : iProp
 :=
-  ∃ (t : loc) (lenf lenr : nat) (id : generation),
+  ∃ (t : loc) (lenf lenr : nat) (id : height),
     ⌜q = (list_val w, #lenf, #t, #lenr, list_val rl)%V
      ∧ lenf = length fl
      ∧ lenr = length rl
      ∧ l = fl ++ reverse rl
      ∧ w `prefix_of` fl⌝ ∗
-    GThunk p id t (thunk_debt w fl rl)
+    HThunk p id t (thunk_debt w fl rl)
           (λ fv, ⌜fv = list_val fl⌝).
 
 Definition is_queue (q : val) (l : list val) : iProp :=
@@ -115,7 +115,7 @@ Proof.
   wp_tick_lam. wp_tick_closure.
   rewrite (_: 8 = 4 + 4) //. iDestruct "TC" as "[TC1 TC]".
   iDestruct "TC1" as "[TC11 TC12]".
-  iPoseProof (gthunk_create _ 0 (thunk_debt nil nil nil)
+  iPoseProof (hthunk_create _ 0 (thunk_debt nil nil nil)
                           (λ flv', ⌜flv' = list_val nil⌝)%I
                           (λ: <>, list_val nil)%V
              with "[//] [$TC12 TC11]") as "S".
@@ -132,10 +132,10 @@ Qed.
    if [f] is empty. *)
 Lemma checkw_spec q l w fl rl :
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 44 ∗ GToken p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC 44 ∗ HToken p None }}}
     «checkw q»
   {{{ q' w', RET «q'»;
-      is_queue_raw q' l w' fl rl ∗ GToken p None
+      is_queue_raw q' l w' fl rl ∗ HToken p None
       ∗ ⌜w' = [] → fl = []⌝ }}}.
 Proof using.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
@@ -145,18 +145,18 @@ Proof using.
   destruct w as [|? w'] eqn:Hw.
   { wp_tick_op. wp_tick_if.
     rewrite (_: 15 = 11 + 4) //. iDestruct "TC" as "[TC1 TC]".
-    wp_apply (gthunk_force with "[//] [$HT $Hgens $TC1]"). done.
+    wp_apply (hthunk_force with "[//] [$HT $Hgens $TC1]"). done.
     iIntros (fv) "(-> & TV & Hgens)". repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val fl, #(length fl), #t, #(length rl), list_val rl)%V fl).
     iFrame "Hgens". iSplit.
-    { iExists _, _, _, _. iSplit; [done|]. iApply (gthunk_increase_debt with "HT").
+    { iExists _, _, _, _. iSplit; [done|]. iApply (hthunk_increase_debt with "HT").
       unfold thunk_debt; lia. }
     done. }
   { wp_tick_op. wp_tick_if. repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val (v::w'), #(length fl), #t, #(length rl), list_val rl)%V w).
     iFrame "Hgens". iSplit.
     { iExists _, _, _, _. rewrite -Hw. iSplit; [subst w; done|].
-      iApply (gthunk_increase_debt with "HT"). lia. }
+      iApply (hthunk_increase_debt with "HT"). lia. }
     { iPureIntro. intros ->; inversion Hw. } }
 Qed.
 
@@ -166,13 +166,13 @@ Qed.
 Lemma check_spec q l w fl rl :
   length rl ≤ length fl + 1 →
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 121 ∗ GToken p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC 121 ∗ HToken p None }}}
     «check q»
   {{{ q' w' fl' rl', RET «q'»;
       is_queue_raw q' l w' fl' rl'
       ∗ ⌜length rl' ≤ length fl'⌝
       ∗ ⌜w' = [] → fl' = []⌝
-      ∗ GToken p None }}}.
+      ∗ HToken p None }}}.
 Proof.
   intros Hlen. iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (t ? ? ns_id) "[(-> & -> & -> & -> & %) HT]".
@@ -190,14 +190,14 @@ Proof.
     rewrite (_: 92 = 11 + 81) //. iDestruct "TC" as "[TC1 TC]".
     rewrite (_: thunk_debt w fl rl = 0).
     2: { rewrite /thunk_debt (_: 8 * length fl - 8 * length rl = 0)%nat; lia. }
-    wp_apply (gthunk_force with "[//] [$HT $Hgens $TC1]"). done.
+    wp_apply (hthunk_force with "[//] [$HT $Hgens $TC1]"). done.
     iIntros (flv) "(-> & ? & Hgens)". wp_tick_let.
     wp_tick_closure.
     rewrite (_: 78 = 3 + 75) //. iDestruct "TC" as "[TC1 TC]".
     rewrite (_: 75 = S (5 + (6 + 8)) + 55) //. iDestruct "TC" as "[TC2 TC]".
     (* we can assign namespace id 0 to this thunk as it doesn't need to force
        other thunks. *)
-    iPoseProof (gthunk_create _ 0 (16 * length fl)
+    iPoseProof (hthunk_create _ 0 (16 * length fl)
                             (λ flv', ⌜flv' = list_val (fl ++ reverse rl)⌝)%I
                             (λ: <>, append (list_val fl) (rev (list_val rl)))%V
                with "[//] [$TC1 TC2]") as "S".
@@ -219,7 +219,7 @@ Proof.
     { iExists _, (length fl + length rl), 0, 0. iSplit. iPureIntro. split.
       - repeat f_equal. lia.
       - rewrite app_length reverse_length app_nil_r. repeat split. by apply prefix_app_r.
-      - iApply (gthunk_increase_debt with "HT'"). rewrite /thunk_debt.
+      - iApply (hthunk_increase_debt with "HT'"). rewrite /thunk_debt.
         rewrite app_length reverse_length Nat.sub_0_r. lia. }
     iIntros (q' w') "(Hq' & Hgens & %)". iApply "HΦ". iFrame. iPureIntro; split; try done.
     rewrite app_length reverse_length /=. lia. }
@@ -227,9 +227,9 @@ Qed.
 
 Lemma push_spec q l x :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 170 ∗ GToken p None }}}
+  {{{ is_queue q l ∗ TC 170 ∗ HToken p None }}}
     «push q x»
-  {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ GToken p None }}}.
+  {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ HToken p None }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & % & %)".
@@ -237,7 +237,7 @@ Proof.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_pair. wp_tick_op. repeat wp_tick_pair.
   rewrite (_: 135 = 8 + 127) //. iDestruct "TC" as "[TC1 TC]".
-  iDestruct (gthunk_pay with "HT TC1") as ">#HT'". done.
+  iDestruct (hthunk_pay with "HT TC1") as ">#HT'". done.
   rewrite (_: 127 = 121 + 6) //. iDestruct "TC" as "[TC1 TC]".
   wp_apply (check_spec (list_val w, #(length fl), #t, #(length rl + 1), list_val (x::rl))%V
                        (fl ++ reverse rl ++ [x]) w fl (x :: rl)
@@ -246,21 +246,21 @@ Proof.
   { iExists _, (length fl), (length rl + 1), _. iSplit. iPureIntro. split.
     - repeat f_equal. lia.
     - repeat split; auto. cbn; lia. rewrite reverse_cons //.
-    - iApply (gthunk_increase_debt with "HT'"). cbn; lia. }
+    - iApply (hthunk_increase_debt with "HT'"). cbn; lia. }
   iIntros (q' w' fl' rl') "(Hq' & % & % & Hgens)". iApply "HΦ".
   iFrame "Hgens". rewrite app_assoc //. iExists _, _, _. by iFrame "Hq'".
 Qed.
 
 Lemma pop_spec q l :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 250 ∗ GToken p None }}}
+  {{{ is_queue q l ∗ TC 250 ∗ HToken p None }}}
     «pop q»
   {{{ r, RET «r»;
       match l with
       | nil => ⌜r = NONEV⌝
       | x :: l' => ∃ q', ⌜r = SOMEV (x, q')%V⌝ ∗ is_queue q' l'
       end ∗
-      GToken p None }}}.
+      HToken p None }}}.
 Proof.
   iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Hgens) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & %Hlen & %Hw)".
@@ -280,21 +280,21 @@ Proof.
     rewrite (_: 211 = 29 + 182) //. iDestruct "TC" as "[TC2 TC]".
     (* pick a new namespace id: we need to be able to force the thunk we are
        wrapping, and all the thunks it may then need to force. *)
-    iPoseProof (gthunk_create _ (S ns_id) (thunk_debt w' fl rl)
+    iPoseProof (hthunk_create _ (S ns_id) (thunk_debt w' fl rl)
                             (λ flv, ⌜flv = list_val fl⌝)%I
                             (λ: <>, Snd (ThunksCode.force #t))%V
                with "[//] [$TC1 TC2]") as "S".
     { iIntros "Hgens TC" (ψ) "Hψ". wp_tick_lam.
       rewrite (_: 28 = 12 + 16) //. iDestruct "TC2" as "[TC1 TC2]".
       iCombine "TC2 TC" as "TC".
-      iDestruct (gthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
+      iDestruct (hthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
                             with "HT [TC]") as ">#HTpaid". done.
       { iApply (TC_weaken with "TC"). rewrite /thunk_debt.
         rewrite !(_: ∀ x l, length (x :: l) = S (length l)); [|done..]. lia. }
       rewrite Nat.sub_diag.
 
       iDestruct "TC1" as "[TC1 TC2]".
-      wp_apply (gthunk_force with "[//] [$TC2 $HTpaid $Hgens]"). cbn; lia.
+      wp_apply (hthunk_force with "[//] [$TC2 $HTpaid $Hgens]"). cbn; lia.
       iIntros (flv) "(-> & _ & Hgens)". rewrite /=. wp_tick_proj.
       by iApply ("Hψ" with "Hgens"). }
     rewrite -lock. (* XXX *) wp_apply "S". iIntros (t') "#HT'".

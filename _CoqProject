@@ -43,7 +43,7 @@ theories/thunks/ThunksFull.v
 theories/thunks/ThunksExamples.v
 theories/thunks/ThunksSimple.v
 theories/thunks/Generations.v
-theories/thunks/GThunks.v
+theories/thunks/HThunks.v
 theories/thunks/LazyCode.v
 
 # Lazy streams.

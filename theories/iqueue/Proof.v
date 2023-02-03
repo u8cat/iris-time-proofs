@@ -4,7 +4,7 @@ From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
 From iris_time Require Import Base TimeCredits Untranslate.
-From iris_time.thunks Require Import LazyCode Generations ThunksBase GThunks.
+From iris_time.thunks Require Import LazyCode Generations ThunksBase HThunks.
 From iris_time.iqueue Require Import Code.
 
 Section IQueue.
@@ -19,15 +19,15 @@ Context (p : na_inv_pool_name).
 
 Lemma lazy_spec g n φ e :
   TC_invariant -∗
-  {{{ TC 4 ∗ isAction (λ: <>, e) n (GToken p (Some g)) φ }}}
+  {{{ TC 4 ∗ isAction (λ: <>, e) n (HToken p (Some g)) φ }}}
     « lazy e »
-  {{{ t, RET «#t» ; GThunk p g t n φ }}}.
+  {{{ t, RET «#t» ; HThunk p g t n φ }}}.
 Proof.
   iIntros "#Hc !#" (Φ) "[Htc Haction] Post".
   rewrite translate_lazy_expr.
   wp_tick_closure.
   untranslate.
-  wp_apply (gthunk_create p g with "[$] [$Htc Haction]"); eauto.
+  wp_apply (hthunk_create p g with "[$] [$Htc Haction]"); eauto.
   rewrite -lock //.
 Qed.
 
@@ -149,15 +149,15 @@ Local Ltac inv :=
 
 Definition K := 150.
 
-Fixpoint is_queue (g : generation) (level : nat) (q : val) (vs : list val) : iProp Σ :=
-  match g with
+Fixpoint is_queue (h : height) (level : nat) (q : val) (vs : list val) : iProp Σ :=
+  match h with
   | 0 =>
       ∃ d, ⌜q = SHALLOWV d⌝ ∗ ⌜is_digit01 level d vs⌝
-  | S g' =>
+  | S h' =>
       (∃ d, ⌜q = SHALLOWV d⌝ ∗ ⌜is_digit01 level d vs⌝) ∨
       (∃ f (m:loc) r fvs mvs rvs lenf lenr,
-         GThunk p g m (K * (lenf - lenr))
-           (λ q', is_queue g' (S level) q' mvs) ∗
+         HThunk p h m (K * (lenf - lenr))
+           (λ q', is_queue h' (S level) q' mvs) ∗
          ⌜q = DEEPV f (#m) r⌝ ∗
          ⌜is_digit12 level f fvs⌝ ∗
          ⌜is_digit01 level r rvs⌝ ∗
@@ -171,7 +171,7 @@ Lemma is_queue_eq g level q vs :
   (∃ d, ⌜q = SHALLOWV d⌝ ∗ ⌜is_digit01 level d vs⌝) ∨
   (∃ g', ⌜g = S g'⌝ ∗
      ∃ f (m:loc) r fvs mvs rvs lenf lenr,
-       GThunk p g m (K * (lenf - lenr))
+       HThunk p g m (K * (lenf - lenr))
          (λ q', is_queue g' (S level) q' mvs) ∗
        ⌜q = DEEPV f (#m) r⌝ ∗
        ⌜is_digit12 level f fvs⌝ ∗
@@ -230,9 +230,9 @@ Proof.
   deconstruct_is_queue.
   { iApply is_queue_eq; iLeft; eauto. }
   symmetry in H4. simplify_eq. rename g into g''.
-  iDestruct (gthunk_covariant_in_g _ _ (S g') with "Hthunk") as "#Hthunk'";
+  iDestruct (hthunk_covariant_in_h _ _ (S g') with "Hthunk") as "#Hthunk'";
     first lia.
-  iMod (gthunk_consequence _ _ _ _ 0 _ (λ q', is_queue g' (S level) q' mvs)
+  iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue g' (S level) q' mvs)
     with "[] Hthunk'") as "Hthunk''".
   { iIntros (v) "_ #Hqueue".
     by iMod ("IH" $! g' with "[] Hqueue") as "#?";
@@ -334,16 +334,16 @@ Proof.
       wp_tick_inj. repeat wp_tick_pair.
       rewrite Nat.sub_0_r.
       assert (lenf >= 1) by (inversion Hlenf; lia).
-      iMod (gthunk_pay with "Hthunk HtcB") as "Hthunk'"; first solve_ndisj.
-      iDestruct (gthunk_increase_debt _ _ _ _ (K * (lenf - 1)) with "Hthunk'")
+      iMod (hthunk_pay with "Hthunk HtcB") as "Hthunk'"; first solve_ndisj.
+      iDestruct (hthunk_increase_debt _ _ _ _ (K * (lenf - 1)) with "Hthunk'")
         as "Hthunk'".
       { unfold K, B; lia. }
-      iMod (gthunk_consequence _ _ _ _ 0 _ (λ q', is_queue (S g') (S level) q' mvs)
+      iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue (S g') (S level) q' mvs)
               with "[] Hthunk'") as "Hthunk'".
       { iIntros (v) "_ #Hq".
         iMod (is_queue_covariant_in_g _ (S g') with "Hq") as "#?";
           [lia | eauto]. }
-      iDestruct (gthunk_covariant_in_g _ _ (S (S g')) with "Hthunk'") as "Hthunk'";
+      iDestruct (hthunk_covariant_in_h _ _ (S (S g')) with "Hthunk'") as "Hthunk'";
         first lia.
       wp_tick_inj. rewrite Nat.add_0_r.
       iApply ("Post" $! (DEEPV f (#m) (ONEaV y))).
@@ -366,10 +366,10 @@ Proof.
         assert (1 <= lenf). { inversion Hlenf; eauto. }
         rewrite (_: K * lenf = K + K * (lenf - 1)); last (unfold K; lia).
         iDestruct (TC_plus with "Htc") as "[HtcK Htc]".
-        iMod (gthunk_pay with "Hthunk Htc") as "Hthunk'"; first solve_ndisj.
+        iMod (hthunk_pay with "Hthunk Htc") as "Hthunk'"; first solve_ndisj.
         rewrite Nat.sub_diag.
         rewrite {2}/K; divide_credit "HtcK" 139 11.
-        wp_apply (gthunk_force with "[$] [$Htok $HtcK' $Hthunk']").
+        wp_apply (hthunk_force with "[$] [$Htok $HtcK' $Hthunk']").
         { unfold lies_below; lia. }
         iIntros (q') "(#Hq' & ? & Htok)". untranslate.
         divide_credit "HtcK" 89 50.
@@ -449,11 +449,11 @@ Lemma tail_is_queue_spec g level q vs :
   2 ^ level ≤ length vs →
   TC_invariant -∗
   is_queue g level q vs -∗
-  {{{ TC (B + 100) ∗ GToken p (Some (S g)) }}}
+  {{{ TC (B + 100) ∗ HToken p (Some (S g)) }}}
     «tail q»
   {{{ q', RET «q'» ;
       is_queue g level q' (drop (2 ^ level) vs) ∗
-      GToken p (Some (S g)) }}}.
+      HToken p (Some (S g)) }}}.
 Proof.
   intros Hlevel. iIntros "#Hc #Hqueue".
   pose TAIL x := tail x. rewrite -/(TAIL _).
@@ -480,10 +480,10 @@ Proof.
       rewrite (_: B = K * (1 - lenr) + (B - K * (1 - lenr)));
         last (unfold B,K; lia).
       iDestruct (TC_plus with "HtcB") as "[HtcK HtcBK]".
-      iMod (gthunk_pay with "Hthunk HtcK") as "Hthunk'"; first solve_ndisj.
+      iMod (hthunk_pay with "Hthunk HtcK") as "Hthunk'"; first solve_ndisj.
       rewrite Nat.sub_diag.
       divide_credit "Htc" 70 11.
-      wp_apply (gthunk_force with "[$] [$Htc' $Htok $Hthunk']");
+      wp_apply (hthunk_force with "[$] [$Htc' $Htok $Hthunk']");
         first (unfold lies_below; cbn; lia).
       iIntros (q') "(#Hqueue' & ? & Htok)".
       wp_tick_let. untranslate.
@@ -532,7 +532,7 @@ Proof.
       repeat (wp_tick_let; repeat wp_tick_proj).
       wp_tick_match. wp_tick_proj. wp_tick_let. wp_tick_proj.
       wp_tick_let. wp_tick_inj. repeat wp_tick_pair.
-      iMod (gthunk_pay K with "Hthunk [HtcB]") as "Hthunk'"; first solve_ndisj.
+      iMod (hthunk_pay K with "Hthunk [HtcB]") as "Hthunk'"; first solve_ndisj.
       { unfold B, K. by divide_credit "HtcB" 50 150. }
       rewrite (_: K * (2 - lenr) - K = K * (1 - lenr)); last nia.
       wp_tick_inj.
@@ -541,7 +541,7 @@ Proof.
       rewrite -app_assoc drop_app_alt// (is_tree_length level v1) //. } }
 Qed.
 
-Notation token := (GToken p None).
+Notation token := (HToken p None).
 
 Lemma tail_spec q v vs :
   TC_invariant -∗
@@ -552,7 +552,7 @@ Lemma tail_spec q v vs :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "[Htc Htok] Post".
   deconstruct_iqueue.
-  rewrite /GToken (carve_out_gens_below_gen (S g) None) //.
+  rewrite /HToken (carve_out_gens_below_gen (S g) None) //.
   iDestruct (na_own_union with "Htok") as "[Htok Htok_rest]".
   by apply disjoint_difference_r1.
   iApply (tail_is_queue_spec with "[$] [$] [$Htc $Htok]").

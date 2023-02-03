@@ -4,7 +4,7 @@ From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
 From iris_time Require Import Base TimeCredits Untranslate Streams.
-From iris_time.thunks Require Import Generations GThunks.
+From iris_time.thunks Require Import Generations HThunks.
 From iris_time.bqueue Require Import Code.
 
 Section BQueue.
@@ -270,7 +270,7 @@ Proof.
 Qed.
 
 Notation token :=
-  (GToken p None).
+  (HToken p None).
 
 Lemma extract q x xs :
   TC_invariant -∗
@@ -281,7 +281,7 @@ Lemma extract q x xs :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "[Htc Htok] Post".
   deconstruct_queue. deconstruct_queue_raw.
-  rewrite /GToken (carve_out_gens_below_gen (g+1) None) //.
+  rewrite /HToken (carve_out_gens_below_gen (g+1) None) //.
   iDestruct (na_own_union with "Htok") as "[Htok Htok_rest]".
   by apply disjoint_difference_r1.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
