@@ -44,9 +44,23 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* We want every thunk in the stream to have height [h].
-     (This means height at most [h], since [HThunk] is covariant in [h].)
-     Thus, the token [token h] allows forcing the entire stream. *)
+  (* Because thunks are indexed with heights, streams must be height-indexed
+     as well. (Attempting to work with thunks of undetermined height cannot
+     work: forcing a thunk of undetermined height requires the strong token
+     [HToken p None], and this token is never made available to a suspended
+     computation. So, if a thunk [t] has undetermined height, then one cannot
+     construct a thunk [t'] that forces [t].) *)
+
+  (* In a stream of height [h], every thunk has height [h]. (This really means
+     height at most [h], since [HThunk] is covariant in [h].) Thus, the token
+     [token h] allows forcing the whole stream. *)
+
+  (* For now, we work with finite streams only. *)
+
+  (* [isStream h t ds xs] means that [t] is a stream of height [h] whose
+     debits and elements are given by the lists [ds] and [xs]. Because a
+     stream of [n] elements involves [n+1] suspensions, if the length of
+     the list [xs] is [n] then the length of the list [ds] must be [n+1]. *)
 
   Fixpoint isStream h t ds xs : iProp :=
     match ds with
