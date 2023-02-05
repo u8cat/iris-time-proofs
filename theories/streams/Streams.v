@@ -62,12 +62,15 @@ Section Proofs.
      stream of [n] elements involves [n+1] suspensions, if the length of
      the list [xs] is [n] then the length of the list [ds] must be [n+1]. *)
 
+  (* That said, the equality [length ds = length xs + 1] remains implicit,
+     and is actually not implied by [isStream h t ds xs], because it can
+     be exposed only by forcing the whole stream. *)
+
   Fixpoint isStream h t ds xs : iProp :=
     match ds with
     | []    =>
         False
     | d :: ds =>
-        ⌜ length ds = length xs ⌝ ∗
         HThunk p h t d (λ c,
           match xs with
           | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
@@ -87,7 +90,6 @@ Section Proofs.
     | []    =>
         False
     | d :: ds =>
-        ⌜ length ds = length xs ⌝ ∗
         HThunk p h t d (λ c, isStreamCell h c ds xs)
     end%I.
   Proof.
@@ -100,10 +102,10 @@ Section Proofs.
   (* Deconstruct a hypothesis Hstream: isStream h t (d :: ds) xs. *)
   Local Ltac deconstruct_stream :=
     (* TODO unfold_isStream in Hstream *)
-    iDestruct "Hstream" as "(% & #Hthunk)".
+    iDestruct "Hstream" as "#Hthunk".
 
   Local Ltac construct_stream H :=
-    unfold_isStream; iFrame H; iPureIntro; eauto with lia.
+    unfold_isStream; iFrame H.
 
   Local Ltac deconstruct_nil_cell :=
     iDestruct "Hc" as "(-> & %)".
@@ -151,13 +153,41 @@ Section Proofs.
   Lemma isStream_length :
     ∀ ds xs h t,
     isStream h t ds xs -∗
-    ⌜(length ds = 1 + length xs)%nat⌝.
+    ⌜length ds > 0⌝.
   Proof.
-    destruct ds; destruct xs; intros; simpl; eauto 2;
-    iIntros "Hstream";
-    deconstruct_stream;
-    iPureIntro; lia.
+    destruct ds; intros; simpl.
+    { eauto. }
+    { iIntros "_". iPureIntro. lia. }
   Qed.
+
+  Local Ltac note_nonzero_length H Hlen :=
+    iPoseProof (isStream_length with H) as Hlen.
+
+  Lemma isStreamCell_nil_cell :
+    ∀ xs h c,
+    isStreamCell h c [] xs -∗
+    ⌜xs = []⌝.
+  Proof.
+    destruct xs; intros; iIntros "Hc".
+    { eauto. }
+    { deconstruct_cons_cell t' "Hstream".
+      note_nonzero_length "Hstream" "%".
+      simpl in *. lia. }
+  Qed.
+
+  Lemma isStreamCell_cons_cell :
+    ∀ ds xs h c,
+    length ds > 0 →
+    isStreamCell h c ds xs -∗
+    ⌜xs ≠ []⌝.
+  Proof.
+    destruct xs; intros; iIntros "Hc".
+    { deconstruct_nil_cell. subst ds. simpl in *. lia. }
+    { iPureIntro. congruence. }
+  Qed.
+
+  Local Ltac note_nil_cell H :=
+    iPoseProof (isStreamCell_nil_cell with H) as "%".
 
   Lemma isStream_covariant :
     ∀ ds g1 g2 t xs E,
@@ -202,16 +232,6 @@ Section Proofs.
       construct_cons_cell.
       iMod (isStream_covariant with "Hstream") as "#?"; [ eassumption |].
       eauto with iFrame. }
-  Qed.
-
-  Lemma isStreamCell_length :
-    ∀ ds xs h c,
-    isStreamCell h c ds xs -∗
-    ⌜(length ds = length xs)%nat⌝.
-  Proof.
-    destruct xs; intros; iIntros "Hc".
-    { deconstruct_nil_cell. subst ds. eauto. }
-    { deconstruct_cons_cell t' "Hstream". iApply isStream_length. eauto. }
   Qed.
 
   (* Forcing a stream. *)
@@ -440,8 +460,6 @@ Section Proofs.
     unfold_isStream. deconstruct_stream.
     unfold_isStream.
     assert (length ds1 = length ds2) by eauto using subdebits_length.
-    iAssert (⌜ length ds2 = length xs ⌝)%I as "$".
-    { iPureIntro. congruence. }
     (* Two cases arise. If [d1] is less than [d2], then we want to use the
        consequence rule to increase the apparent debt of the first thunk and
        gain more slack that can be used to pay subsequent thunks. On the other
@@ -500,12 +518,6 @@ Section Proofs.
     { eauto using stream_forward_debt. }
   Qed.
 
-  Local Ltac note_length_equality H :=
-    first [
-      iPoseProof (isStreamCell_length with H) as "%"
-    | iPoseProof (isStream_length with H) as "%"
-    ].
-
   Local Ltac construct_action :=
     iIntros "Htoken Htc" (ψ) "Post".
 
@@ -529,7 +541,6 @@ Section Proofs.
     WP «e» {{ ψ }}.
 
   Lemma lazy_spec h e ds xs k :
-    length ds = length xs →
     TC_invariant -∗
     {{{ TC 5 ∗ isLazyCell k h ds xs e }}}
       « lazy e »
@@ -560,14 +571,13 @@ Section Proofs.
   Qed.
 
   Lemma lazy_val_spec h c ds xs :
-    length ds = length xs →
     isStreamCell h c ds xs -∗
     TC_invariant -∗
     {{{ TC 5 }}}
       « lazy c »
     {{{ t, RET #t ; isStream h t (0 :: ds) xs }}}.
   Proof.
-    iIntros (Hlen) "#Hc".
+    iIntros "#Hc".
     construct_texan_triple "Htc".
     (* The tick translation of [lazy e] involves two ticks. *)
     rewrite translate_lazy_expr.
@@ -644,7 +654,6 @@ Section Proofs.
   Proof.
     iIntros "#Hstream".
     construct_texan_triple "Htc".
-    note_length_equality "Hstream".
     wp_tick_lam. wp_tick_let.
     push_subst.
     wp_apply (lazy_spec with "[$] [$Htc]"); last first.
@@ -656,7 +665,6 @@ Section Proofs.
       iNext.
       iIntros (c) "Hc".
       iApply ("Post" with "Hc Htoken"). }
-    { eauto. }
   Qed.
 
   Lemma extract_spec h t ds x xs :
@@ -712,7 +720,6 @@ Section Proofs.
 
     (* Case: the list is nonempty. *)
     {
-      note_length_equality "Hc".
       rewrite (_ : 6 + 19 * length (_ :: xs) = (6 + 19 * length xs) + 19);
         last (cbn; lia).
       iDestruct "Htc" as "[Hrest Htc]".
@@ -723,7 +730,6 @@ Section Proofs.
       (* The next redex is [lazy c]. *)
       divide_credit "Htc" 2 5.
       wp_apply (lazy_val_spec with "[$Hc] [$] [$Htc']").
-      { eassumption. }
       (* Continue stepping. *)
       iIntros (t) "#Hthunk".
       wp_tick_pair. wp_tick_inj.
@@ -771,7 +777,6 @@ Section Proofs.
     (* [lazy (...)] costs 5 credits. *)
     divide_credit "Htc" 7 5.
     wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
-    by rewrite repeat_length rev_length //.
     (* Examine the body of this suspension. *)
     rewrite /isLazyCell.
     iIntros "Htc' Htoken" (ψ) "Post".
@@ -872,31 +877,20 @@ Section Proofs.
   Proof.
     (* First, extract length information. *)
     iIntros "#Hstream1 #Hstream2".
-    note_length_equality "Hstream1".
-    note_length_equality "Hstream2".
-    assert (Hlen1: length ds1 > 0) by lia.
+    note_nonzero_length "Hstream1" "%Hlen1".
+    (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
+    note_nonzero_length "Hstream2" "%Hlen2".
+    destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia | clear Hlen2 ].
     (* Move the hypotheses back into the goal. *)
     iStopProof.
-    repeat match goal with h: length _ = _ |- _ => revert h end.
-    revert ds2 t1 t2 h xs1 xs2.
+    revert d2 ds2 t1 t2 h xs1 xs2.
     (* Reason by induction on [ds1]. *)
     pattern ds1.
-    eapply debits_induction; [| | exact Hlen1 ]; clear ds1 Hlen1.
+    eapply debits_induction; [| | assumption ]; clear dependent ds1.
 
     (* Case: [ds1] is a singleton list. *)
     {
-      intros d1 ds2 t1 t2 h xs1 xs2.
-      intros Hlen1 Hlen2.
-      (* The list [xs1] must be empty. *)
-      assert (xs1 = []); [| subst xs1; clear Hlen1 ].
-      { destruct xs1; [ eauto |]. simpl in Hlen1. lia. }
-      rewrite app_nil_l.
-      (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
-      destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia |].
-      assert (Hlen: length ds2 = length xs2);
-        [ simpl in Hlen2; lia | clear Hlen2 ].
-      rename Hlen into Hlen2.
-      (* We are in business. *)
+      intros d1 d2 ds2 t1 t2 h xs1 xs2.
       iIntros "(#Hstream1 & #Hstream2)".
       construct_texan_triple "Htc".
       (* Step. We pay 3 credits here. *)
@@ -904,7 +898,6 @@ Section Proofs.
       (* [lazy (...)] costs 5 credits. *)
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
-      2: lia.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
       iIntros "Htc Htoken" (ψ) "Post".
@@ -918,6 +911,9 @@ Section Proofs.
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
       { iFrame "Hstream1". }
       iIntros (c) "(_ & #Hc & Htoken)".
+      (* The list [xs1] must be empty. *)
+      note_nil_cell "Hc". subst xs1.
+      rewrite app_nil_l.
       deconstruct_nil_cell.
       (* Enter the first branch, consuming 3 credits. *)
       wp_tick_match.
@@ -937,19 +933,7 @@ Section Proofs.
 
     (* Case: [ds1] is not a singleton list. *)
     {
-      intros d1 ds1 ? IH ds2 t1 t2 h xs1 xs2.
-      intros Hlen1 Hlen2.
-      (* The list [xs1] must be nonempty: rename it [x1 :: xs1]. *)
-      destruct xs1 as [| x1 xs1 ]; [ simpl in Hlen1; lia |].
-      (* Simplify some hypotheses. *)
-      assert (Hlen: length ds1 = 1 + length xs1);
-        [ simpl in Hlen1; lia |
-          clear Hlen1; rename Hlen into Hlen1 ].
-      (* The list [ds2] must be nonempty; rename it [d2 :: ds2]. *)
-      destruct ds2 as [| d2 ds2 ]; [ simpl in Hlen2; lia |].
-      assert (Hlen: length ds2 = length xs2);
-        [ simpl in Hlen2; lia | clear Hlen2 ].
-      rename Hlen into Hlen2.
+      intros d1 ds1 ? IH d2 ds2 t1 t2 h xs1 xs2.
       (* Simplify the goal. *)
       rewrite debit_append_step; last eassumption.
       (* We are in business. *)
@@ -960,7 +944,6 @@ Section Proofs.
       (* [lazy (...)] costs 5 credits. *)
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
-      2: simpl; rewrite length_debit_append ?app_length; lia.
       (* Now, examine the body of the suspension. *)
       rewrite /isLazyCell.
       iIntros "Htc Htoken" (ψ) "Post".
@@ -973,6 +956,10 @@ Section Proofs.
       { iFrame "Hstream1". }
       iIntros (c) "(_ & #Hc & Htoken)".
       iClear (t1) "Hstream1".
+      (* The list [xs1] must be nonempty: rename it [x1 :: xs1]. *)
+      (* TODO tactic note_cons_cell? *)
+      iPoseProof (isStreamCell_cons_cell with "Hc") as "%Hneq"; eauto 2.
+      destruct xs1 as [| x1 xs1 ]; [ congruence | clear Hneq ].
       deconstruct_cons_cell t1 "Hstream1".
       (* Enter the first second, consuming 3 credits. *)
       wp_tick_match.
@@ -982,9 +969,7 @@ Section Proofs.
       rewrite !untranslate_val !untranslate_app.
       (* Use the induction hypothesis. *)
       divide_credit "Htc" 2 8.
-      wp_apply (IH with "[#] [$] [$Htc']"); [| | eauto |].
-      { exact Hlen1. }
-      { simpl. lia. }
+      wp_apply (IH with "[#] [$] [$Htc']"); [ eauto |].
       iClear (t1 t2) "Hstream1 Hstream2".
       iIntros (t') "#Hstream'".
       untranslate.
