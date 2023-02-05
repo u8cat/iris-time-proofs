@@ -7,7 +7,13 @@ From iris_time.thunks Require Import ThunksCode LazyCode ThunksBase HThunks.
 From iris_time.streams Require Import StreamsCode.
 Open Scope nat_scope.
 
-Section StreamProofs.
+(* This file contains specifications and proofs for operations on streams. *)
+
+(* -------------------------------------------------------------------------- *)
+
+(* Prologue. *)
+
+Section Proofs.
 
   Notation valO := (valO heap_lang).
   Context `{timeCreditHeapG Σ}.
@@ -18,11 +24,14 @@ Section StreamProofs.
   Notation iProp := (iProp Σ).
   Open Scope nat_scope.
 
+  (* A debit is a natural integer. The predicate [Stream] is indexed
+     with a list of debits. *)
   Definition debit := nat.
   Definition debits := list debit.
 
+  (* We write [t] for a thunk and [c] for a stream cell. *)
   Implicit Type t : loc.
-  Implicit Type c l : val.
+  Implicit Type c : val.
   Implicit Type x y z : val.
   Implicit Type xs ys zs : list val.
   Implicit Type d : debit.
@@ -30,7 +39,10 @@ Section StreamProofs.
   Implicit Type h : height.
   Implicit Type E F : coPset.
 
+  (* Everything in this section is indexed with a non-atomic pool [p]. *)
   Variable p : na_inv_pool_name.
+
+(* -------------------------------------------------------------------------- *)
 
   (* We want every thunk in the stream to have height [h].
      (This means height at most [h], since [HThunk] is covariant in [h].)
@@ -975,4 +987,4 @@ Section StreamProofs.
   Definition isStream' t ds xs : iProp :=
     ∃ h, isStream h t ds xs.
 
-End StreamProofs.
+End Proofs.
