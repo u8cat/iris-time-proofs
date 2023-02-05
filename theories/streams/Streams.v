@@ -3,65 +3,9 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
-From iris_time Require Import ThunksCode LazyCode ThunksBase HThunks.
+From iris_time.thunks Require Import ThunksCode LazyCode ThunksBase HThunks.
+From iris_time.streams Require Import StreamsCode.
 Open Scope nat_scope.
-
-Section Stream.
-
-Notation NIL := (InjL (LitV LitUnit)).
-Notation CONS v vs := (InjR (v%V, vs%V)).
-Notation NILV := (InjLV (LitV LitUnit)).
-Notation CONSV v vs := (InjRV (v, vs)%V).
-Notation "'match:' e0 'with' 'NIL' => e1 | 'CONS' ( x , xs ) => e2 'end'" :=
-  (Match e0
-    <>%bind (* => *) e1
-    xs%bind (* => *) (Lam x%bind (Lam xs%bind e2%E (Snd xs%bind)) (Fst xs%bind))
-                     (* this is let: x := Fst xs in let: xs := Snd xs in e2 *)
-  )
-  (e0, e1, x, xs, e2 at level 200, only parsing) : expr_scope.
-
-(*
-type 'a stream =
-  'a cell Lazy.t
-
-and 'a cell =
-  | Nil
-  | Cons of 'a * 'a stream
-*)
-
-Definition nil : expr := (* : stream *)
-  lazy NIL.
-
-Definition cons : val := (* : val → stream → stream *)
-  λ: "x" "xs",
-    lazy (CONS "x" "xs").
-
-Definition extract : val := (* : stream → val × stream *)
-  λ: "xs",
-    match: force "xs" with
-      NIL              => #() (* this case must not happen *)
-    | CONS ("x", "xs") => ("x", "xs")
-    end.
-
-Definition rev_append : val := (* : list → cell → cell *)
-  rec: "rev_append" "xs" "ys" :=
-    match: "xs" with
-      NIL              => "ys"
-    | CONS ("x", "xs") => "rev_append" "xs" (CONS "x" (lazy "ys"))
-    end.
-
-Definition rev : val := (* : list → stream *)
-  λ: "xs",
-    lazy (rev_append "xs" NIL).
-
-Definition append : val := (* : stream → stream → stream *)
-  rec: "append" "xs" "ys" :=
-    lazy (
-      match: force "xs" with
-        NIL              => force "ys"
-      | CONS ("x", "xs") => CONS "x" ("append" "xs" "ys")
-      end
-    ).
 
 Section StreamProofs.
 
@@ -623,7 +567,7 @@ Section StreamProofs.
     {{{ TC 1 }}} « NIL » {{{ c, RET « c »; isStreamCell h c [] [] }}}.
   Proof.
     construct_texan_triple "Htc".
-    wp_tick_inj.
+    rewrite /NIL. wp_tick_inj.
     rewrite untranslate_litv. untranslate.
     iApply "Post".
     eauto.
@@ -1032,5 +976,3 @@ Section StreamProofs.
     ∃ h, isStream h t ds xs.
 
 End StreamProofs.
-
-End Stream.

@@ -3,8 +3,9 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
-From iris_time Require Import Base TimeCredits Untranslate Streams.
+From iris_time Require Import Base TimeCredits Untranslate.
 From iris_time.thunks Require Import Generations HThunks.
+From iris_time.streams Require Import StreamsCode Streams.
 From iris_time.bqueue Require Import Code.
 
 Section BQueue.
@@ -125,7 +126,7 @@ Lemma empty_spec :
   {{{ q, RET «q»; is_queue q [] }}}.
 Proof.
   iIntros "#Hickinv !#" (Φ) "Htc HΦ".
-  wp_tick_lam. wp_tick_inj.
+  wp_tick_lam. rewrite /NIL. wp_tick_inj.
   divide_credit "Htc" 5 6.
   wp_apply (nil_spec p 1 with "[$] Htc'").
   iIntros (rs) "#Hstream".
