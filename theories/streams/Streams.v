@@ -3,7 +3,8 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import auth excl agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits.
-From iris_time.thunks Require Import ThunksCode LazyCode ThunksBase HThunks.
+From iris_time.thunks Require Import ThunksCode LazyCode ThunksBase.
+From iris_time.thunks Require Import Generations HThunks.
 From iris_time.streams Require Import StreamsCode.
 Open Scope nat_scope.
 
@@ -155,6 +156,13 @@ Section Proofs.
   Local Ltac construct_cons_cell :=
     iExists _; pure_conjunct; eauto.
 
+  (* Introduce a Texan triple. *)
+  Local Ltac construct_texan_triple ipat :=
+    iIntros "#?"; (* introduce TC_invariant *)
+    iIntros (Φ) "!>";
+    iIntros ipat;
+    iIntros "Post".
+
 (* -------------------------------------------------------------------------- *)
 
 (* Basic properties. *)
@@ -216,6 +224,9 @@ Section Proofs.
     match goal with h: ?xs = [] |- _ => subst xs end;
     deconstruct_nil_cell.
 
+  (* In [StreamCell h c ds xs], if [ds] is nonempty then this must be a cons
+     cell. *)
+
   Lemma streamcell_cons_cell :
     ∀ ds xs h c,
     length ds > 0 →
@@ -227,18 +238,19 @@ Section Proofs.
     { iPureIntro. congruence. }
   Qed.
 
+  (* Like [Thunk], [Stream] is covariant in the height [h]. *)
+
   Lemma stream_covariant :
-    ∀ ds g1 g2 t xs E,
-    g1 ≤ g2 →
-    Stream g1 t ds xs ={E}=∗
-    Stream g2 t ds xs.
+    ∀ ds h1 h2 t xs E,
+    h1 ≤ h2 →
+    Stream h1 t ds xs ={E}=∗
+    Stream h2 t ds xs.
   Proof.
     induction ds as [| d ds ]; intros; iIntros "Hstream".
     { rewrite unfold_stream_contradictory.
       iDestruct "Hstream" as "%". tauto. }
     unfold_stream. deconstruct_stream.
-    (* Apply the consequence rule to adjust the postcondition of this
-       thunk. *)
+    (* Apply the consequence rule to adjust the postcondition of this thunk. *)
     iMod (hthunk_consequence _ _ _ _ 0 with "[] Hthunk") as "Hthunk'";
       last first.
     { rewrite Nat.add_0_r. iModIntro.
@@ -256,14 +268,17 @@ Section Proofs.
       eauto with iFrame. }
   Qed.
 
+  (* Likewise, [StreamCell] is covariant in [h]. *)
+
   Lemma streamcell_covariant :
-    ∀ ds g1 g2 c xs E,
-    g1 ≤ g2 →
-    StreamCell g1 c ds xs ={E}=∗
-    StreamCell g2 c ds xs.
+    ∀ ds h1 h2 c xs E,
+    h1 ≤ h2 →
+    StreamCell h1 c ds xs ={E}=∗
+    StreamCell h2 c ds xs.
   Proof.
     intros. iIntros "#Hc".
     (* Reason by cases on [xs] and use the previous lemma. *)
+    (* A few lines of proof are duplicated; never mind. *)
     destruct xs as [| x xs ].
     { deconstruct_nil_cell. construct_nil_cell. }
     { deconstruct_cons_cell t' "Hstream".
@@ -272,24 +287,20 @@ Section Proofs.
       eauto with iFrame. }
   Qed.
 
+(* -------------------------------------------------------------------------- *)
+
   (* Forcing a stream. *)
 
-  Notation token h :=
-    (HToken p (Some (h + 1))).
-
-  Local Ltac construct_texan_triple ipat :=
-    iIntros "#?"; (* introduce TC_invariant *)
-    iIntros (Φ) "!>";
-    iIntros ipat;
-    iIntros "Post".
-
-  Lemma stream_force h t ds xs :
+  Lemma stream_force h t ds xs b :
+    lies_below h b →
+    let token := HToken p b in
     Stream h t (0 :: ds) xs -∗
     TC_invariant -∗
-    {{{ TC 11 ∗ token h }}}
+    {{{ TC 11 ∗ token }}}
       « force #t »
-    {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token h }}}.
+    {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token }}}.
   Proof.
+    intros.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     unfold_stream. deconstruct_stream.
@@ -298,13 +309,39 @@ Section Proofs.
     iIntros (c) "(Hc & #Hval & Htoken)". iApply "Post". eauto.
   Qed.
 
-  Lemma stream_pay_force h t d ds xs :
+  (* Forcing an already-forced stream. *)
+
+  Lemma stream_force_forced h t d ds xs c b :
+    lies_below h b →
+    let token := HToken p b in
+    Stream h t (d :: ds) xs -∗
+    ThunkVal t c -∗
+    TC_invariant -∗
+    {{{ TC 11 ∗ token }}}
+      « force #t »
+    {{{ RET «c» ; token }}}.
+  Proof.
+    intros.
+    iIntros "#Hstream #Hval".
+    construct_texan_triple "(Htc & Htoken)".
+    unfold_stream. deconstruct_stream.
+    wp_apply (hthunk_force_forced with "[$] [$Htc $Hthunk $Hval $Htoken]");
+      first eauto with thunks.
+    eauto.
+  Qed.
+
+  (* The combination of [pay] and [force]. *)
+
+  Lemma stream_pay_force h t d ds xs b :
+    lies_below h b →
+    let token := HToken p b in
     Stream h t (d :: ds) xs -∗
     TC_invariant -∗
-    {{{ TC (11 + d) ∗ token h }}}
+    {{{ TC (11 + d) ∗ token }}}
       « force #t »
-    {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token h }}}.
+    {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token }}}.
   Proof.
+    intros.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     unfold_stream. deconstruct_stream.
@@ -705,19 +742,24 @@ Section Proofs.
       iApply ("Post" with "Hc Htoken"). }
   Qed.
 
-  Lemma extract_spec h t ds x xs :
+  Lemma extract_spec h t ds x xs b :
+    lies_below h b →
+    let token := HToken p b in
     Stream h t (0 :: ds) (x :: xs) -∗
     TC_invariant -∗
-    {{{ TC 22 ∗ token h }}}
+    {{{ TC 22 ∗ token }}}
       « extract #t »
-    {{{ t', RET («x», #t'); Stream h t' ds xs ∗ token h }}}.
+    {{{ t', RET («x», #t'); Stream h t' ds xs ∗ token }}}.
   Proof.
+    intros.
     iIntros "#Hstream".
     construct_texan_triple "(Htc & Htoken)".
     wp_tick_lam.
     (* Force the stream [t]. *)
     divide_credit "Htc" 10 11.
-    wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]"); [ done |].
+    wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]");
+      first eauto with thunks;
+      first done.
     iClear "Hstream".
     iIntros (c) "(_ & #Hc & Htoken)".
     deconstruct_cons_cell t' "Hstream'".
@@ -947,6 +989,7 @@ Section Proofs.
       rewrite translate_case.
       unfold A; divide_credit "Htc" (19 + (B + d2)) (11 + d1).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
+      { eauto with thunks. }
       { iFrame "Hstream1". }
       iIntros (c) "(_ & #Hc & Htoken)".
       (* The list [xs1] must be empty. *)
@@ -960,6 +1003,7 @@ Section Proofs.
       rewrite (untranslate_litv t2). untranslate.
       divide_credit "Htc" 16 (B + d2).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
+      { eauto with thunks. }
       { iFrame "Hstream2". }
       iIntros (c) "(_ & #Hc & Htoken)".
       (* Promote the first cell of the second list from level [g] to [g+1]. *)
@@ -990,6 +1034,7 @@ Section Proofs.
       rewrite translate_case.
       unfold A; divide_credit "Htc" (19) (11 + d1).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
+      { eauto with thunks. }
       { iFrame "Hstream1". }
       iIntros (c) "(_ & #Hc & Htoken)".
       iClear (t1) "Hstream1".

@@ -303,7 +303,9 @@ Proof.
     rewrite queue_debits_cons_front; last lia.
     constructor; eauto with lia. }
   divide_credit "Htc" 63 22.
-  wp_apply (extract_spec with "[$] [$] [$Htc' $Htok]").
+  wp_apply (extract_spec with "[$] [$] [$Htc' Htok]").
+  { eauto with thunks. }
+  { iFrame "Htok". }
   iIntros (t') "[#Hstream_tail Htok]".
   repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_op. repeat wp_tick_pair.
