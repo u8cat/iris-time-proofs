@@ -350,13 +350,20 @@ Section Proofs.
     iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
   Qed.
 
+(* -------------------------------------------------------------------------- *)
+
   (* Subtyping on sequences of debits. *)
 
+  (* The assertion [subdebits slack ds1 ds2 rest] means that if we are willing
+     to pay [slack] time credits, then we can transform [ds1] into [ds2], both
+     by paying and by moving debts forward in the stream; and, at the end, we
+     have [rest] leftover time credits *inside* the final thunk. *)
+
   Inductive subdebits : nat → debits → debits → nat → Prop :=
-    | subdebits_nil slack rest :
+  | subdebits_nil slack rest :
       rest <= slack →
       subdebits slack [] [] rest
-    | subdebits_cons slack d1 ds1 d2 ds2 rest :
+  | subdebits_cons slack d1 ds1 d2 ds2 rest :
       (* The slack is conceptually added to the first element of the
          right-hand sequence, helping overcome its shortcomings. *)
       (* The debit on the left [d1] must be less than the debit on the
