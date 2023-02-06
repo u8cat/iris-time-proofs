@@ -1021,6 +1021,23 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
+  (* In order to express the specification of [append], we must first define
+     the effect of [append] at the level of lists of debits. Suppose two
+     streams of [n1] elements and [n2] elements are appended. These streams
+     are described by two lists of debits, [ds1] and [ds2], where [length ds1]
+     is [n1 + 1] and [length ds2] is [n2 + 1]. The stream that is constructed
+     by [append] has [n1 + n2] elements, so it must be described by a list of
+     debits whose length is [n1 + n2 + 1].
+
+     This list of debits is obtained in three steps as follows:
+     - add a constant [A] to every element of the list [ds1];
+     - add a constant [B] to the first element of the list [ds2];
+     - concatenate the lists [ds1] and [ds2] while fusing (adding)
+       the last element of [ds1] with the first element of [ds2].
+
+     The function [debit_append], which is inductively defined, is a more
+     direct expression of this process. *)
+
   Definition A := 30.
   Definition B := 11.
 
@@ -1028,13 +1045,15 @@ Section Proofs.
     match ds1, ds2 with
     | [], _
     | _, [] =>
-        (* These cases cannot occur. *)
+        (* Because [ds1] and [ds2] must be nonempty, this case cannot occur. *)
         ds1 ++ ds2
     | [d1], d2 :: ds2 =>
         (A + d1 + B + d2) :: ds2
     | d1 :: ds1, _ =>
         (A + d1) :: debit_append ds1 ds2
     end.
+
+  (* A characterization of the last case in the above definition. *)
 
   Lemma debit_append_step d1 ds1 d2 ds2 :
     length ds1 > 0 →
@@ -1046,6 +1065,9 @@ Section Proofs.
     reflexivity.
   Qed.
 
+  (* This lemma shows that our inductive definition of [debit_append] is
+     equivalent to the three-step description that was given above. *)
+
   Lemma debit_append_join_middle ds1 d1 d2 ds2 :
     debit_append (ds1 ++ [d1]) (d2 :: ds2) =
     map (λ d, A + d) ds1 ++ (A + d1 + B + d2) :: ds2.
@@ -1055,6 +1077,8 @@ Section Proofs.
     rewrite debit_append_step. 2: rewrite app_length /=; lia.
     rewrite IHds1 //.
   Qed.
+
+  (* An induction principle over nonempty lists. *)
 
   Lemma debits_induction P :
     (∀ d, P [d]) →
@@ -1068,6 +1092,9 @@ Section Proofs.
     { apply Hstep; [ simpl; lia |].
       apply IHds; simpl; lia. }
   Qed.
+
+  (* A characterization of the length of the list [debit_append ds1 ds2],
+     where both [ds1] and [ds2] are nonempty. *)
 
   Lemma length_debit_append :
     ∀ ds1,
@@ -1088,12 +1115,15 @@ Section Proofs.
       simpl length. rewrite IH. lia. }
   Qed.
 
-  Lemma translate_case e0 e1 e2 :
-    « Case e0 e1 e2 » =
-    Case (tick $ « e0 »)
-          (tick_case_branch (Lam <> « e1 »))
-          (tick_case_branch (Lam <> « e2 »)).
-    Proof. reflexivity. Qed.
+  (* A specification for [append]. *)
+
+  (* [append t1 t2] costs O(1) and returns a stream whose debits are
+     described by the list [debit_append ds1 ds2]. *)
+
+  (* Because the suspensions in the new stream can force suspensions
+     in the pre-existing streams [t1] and [t2], the height of the new
+     stream must be [h+1] if the heights of the existing streams are
+     bounded by [h]. *)
 
   Lemma append_spec h t1 t2 ds1 ds2 xs1 xs2 :
     Stream h t1 ds1 xs1 -∗
@@ -1134,7 +1164,7 @@ Section Proofs.
       (* TODO The goal does have the desired shape, namely
               « force #t1 » in an evaluation context,
               but the tactic wp_apply does not recognize this. *)
-      rewrite translate_case.
+      simpl_trans.
       unfold A; divide_credit "Htc" (19 + (B + d2)) (11 + d1).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
       { eauto with thunks. }
@@ -1178,7 +1208,7 @@ Section Proofs.
       (* The code forces [t1], enters the second branch, and returns a CONS
          cell. *)
       (* Force [t1]. *)
-      rewrite translate_case.
+      simpl_trans.
       unfold A; divide_credit "Htc" (19) (11 + d1).
       wp_apply (stream_pay_force with "[#] [$] [$Htc' $Htoken]").
       { eauto with thunks. }
@@ -1209,9 +1239,10 @@ Section Proofs.
     }
   Qed.
 
-  (* TODO create a layer where the parameter [h] disappears, if possible *)
-  (* what about the parameter [p]? *)
-  Definition Stream' t ds xs : iProp :=
-    ∃ h, Stream h t ds xs.
+  (* In some applications of streams, the client does not care about the
+     height of the stream, and uses the strong token [HToken p None] when
+     forcing the stream. To cater for such uses, we could propose a high-level
+     variant of the predicate [Stream] where the parameter [h] disappears. For
+     the time being, we do not do so. *)
 
 End Proofs.
