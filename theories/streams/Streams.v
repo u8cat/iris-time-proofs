@@ -676,6 +676,9 @@ Section Proofs.
     unfold isCellAction;
     iIntros "Htc Htoken" (ψ) "Post".
 
+  (* As a special case, if the expression [e] is already a value [c], then
+     it is an action whose cost is zero. *)
+
   Lemma iscellaction_value h c ds xs :
     StreamCell h c ds xs -∗
     isCellAction h 0 c ds xs.
@@ -727,6 +730,9 @@ Section Proofs.
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
 
+  (* As a special case, if [c] is an existing cell, then the expression [lazy c]
+     costs 5 credits now and returns a stream whose front cell has [0] debits. *)
+
   Lemma lazy_val_spec h c ds xs :
     StreamCell h c ds xs -∗
     TC_invariant -∗
@@ -740,15 +746,30 @@ Section Proofs.
     iApply (iscellaction_value with "Hc").
   Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* Specifications for the expressions [nil] and [cons x #t]. *)
+
+  (* A specification for the value [NILV]. *)
+
+  Lemma NILV_spec h :
+    ⊢ StreamCell h NILV [] [].
+  Proof.
+    iIntros. simpl. eauto.
+  Qed.
+
+  (* Specifications for the expression [NIL]. *)
+
   Lemma NIL_spec h :
     TC_invariant -∗
     {{{ TC 1 }}} « NIL » {{{ c, RET « c »; StreamCell h c [] [] }}}.
   Proof.
     construct_texan_triple "Htc".
-    rewrite /NIL. wp_tick_inj.
+    unfold NIL.
+    wp_tick_inj. iClear "Htc".
     rewrite untranslate_litv. untranslate.
     iApply "Post".
-    eauto.
+    construct_nil_cell.
   Qed.
 
   Lemma NIL_action h :
@@ -756,6 +777,9 @@ Section Proofs.
     TC 1 -∗
     isCellAction h 0 NIL [] [].
   Proof.
+    (* This specification requires paying 1 credit now and 0 credit
+       when the thunk is forced. We could have required 0 credit now
+       and 1 credit when the thunk is forced, but this is simpler. *)
     iIntros "#? H1".
     construct_cellaction.
     iApply (NIL_spec with "[$] [$H1]").
@@ -763,6 +787,8 @@ Section Proofs.
     iIntros (c) "Hc".
     iApply ("Post" with "Hc Htoken").
   Qed.
+
+  (* Specifications for the expression [CONS x #t]. *)
 
   Lemma CONS_spec h t ds x xs :
     Stream h t ds xs -∗
@@ -773,8 +799,7 @@ Section Proofs.
   Proof.
     iIntros "#Hstream".
     construct_texan_triple "Htc".
-    (* TODO These back and forth translations are really painful: *)
-    rewrite -untranslate_injr -untranslate_pair.
+    unfold CONS.
     wp_tick_pair.
     wp_tick_inj.
     rewrite untranslate_litv. untranslate.
@@ -795,6 +820,8 @@ Section Proofs.
     iApply ("Post" with "Hc Htoken").
   Qed.
 
+  (* A specification for the expression [nil]. *)
+
   Lemma nil_spec h :
     TC_invariant -∗
     {{{ TC 6 }}}
@@ -809,6 +836,8 @@ Section Proofs.
     iApply (NIL_action with "[$] H1").
   Qed.
 
+  (* A specification for the function [cons]. *)
+
   Lemma cons_spec h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
@@ -816,15 +845,26 @@ Section Proofs.
       « cons x #t »
     {{{ t', RET #t' ; Stream h t' (2 :: ds) (x :: xs) }}}.
   Proof.
+    (* [cons] is defined in terms of [CONS], which is an expression. In other
+       words, the cell is allocated when the thunk is forced, not when the
+       function [cons] is invoked. For this reason, we get a thunk with 2
+       debits. If desired, we could give a simpler specification, where we pay
+       10 credits now and get a thunk with zero debits. *)
     iIntros "#Hstream".
     construct_texan_triple "Htc".
     wp_tick_lam. wp_tick_let.
     push_subst.
     wp_apply (lazy_spec with "[$] [$Htc]"); last first.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
-    { change (InjR (x, #t)) with (CONS x #t).
-      iApply (CONS_action with "Hstream [$]"). }
+    { iApply (CONS_action with "Hstream [$]"). }
   Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+  (* A specification for the function [extract]. *)
+
+  (* The front thunk must have zero debit
+     and the stream must be nonempty. *)
 
   Lemma extract_spec h t ds x xs b :
     lies_below h b →
@@ -852,20 +892,31 @@ Section Proofs.
     (* Construct a pair. *)
     wp_tick_pair.
     (* Conclude. *)
-    iApply "Post". iFrame "Htoken". eauto.
+    iApply ("Post" with "[$Hstream' $Htoken]").
   Qed.
+
+(* -------------------------------------------------------------------------- *)
+
+  (* The function [rev_append] has type [list → stream → stream]. In order to
+     express its specification, we must define a representation predicate for
+     immutable lists. It is pure. *)
+
+  (* [isList v xs] means that the value [v] is the HeapLang encoding of the
+     list of values [xs]. *)
 
   Fixpoint ListV xs : val :=
     match xs with
-    | []    =>  NILV
-    | x::xs =>  CONSV x (ListV xs)
+    | []      => NILV
+    | x :: xs => CONSV x (ListV xs)
     end.
 
-  Definition isList l xs : iProp :=
-    ⌜l = ListV xs⌝.
+  Definition isList (v : val) xs : iProp :=
+    ⌜v = ListV xs⌝.
+
+  (* A specification for [rev_append], in a preliminary form. *)
 
   Lemma rev_append_spec_aux h :
-    ∀ xs c ds ys ,
+    ∀ xs c ds ys,
     StreamCell h c ds ys -∗
     TC_invariant -∗
     {{{ TC (6 + 19 * length xs) }}}
@@ -873,16 +924,18 @@ Section Proofs.
     {{{ c', RET «c'» ;
         StreamCell h c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
-    induction xs as [|x xs]; intros c ds ys;
+    induction xs as [|x xs]; intros;
     iIntros "#Hc";
     construct_texan_triple "Htc".
 
-    (* Case: the list is empty. *)
-    { simpl.
+    (* Case: the list is empty. 6 credits are consumed. *)
+    {
+      simpl.
       wp_tick_lam. wp_tick_let. wp_tick_match.
-      iApply "Post". iFrame "Hc". }
+      iApply ("Post" with "Hc").
+    }
 
-    (* Case: the list is nonempty. *)
+    (* Case: the list is nonempty. 19 credits are consumed. *)
     {
       rewrite (_ : 6 + 19 * length (_ :: xs) = (6 + 19 * length xs) + 19);
         last (cbn; lia).
@@ -901,40 +954,51 @@ Section Proofs.
       wp_apply (IHxs _ (0 :: ds) (x :: ys) with "[] [$] [$Hrest]").
       { construct_cons_cell. }
       { iIntros (c') "#Hc'". iApply "Post".
-        by rewrite /= app_comm_cons repeat_cons -assoc -assoc /=. }
+        by rewrite /= app_comm_cons repeat_cons -!assoc /=. }
     }
   Qed.
 
-  Lemma rev_append_spec h l xs c ds ys :
-    isList l xs -∗
+  (* A specification for [rev_append]. *)
+
+  (* [rev_append v c] eagerly traverses the list [v], so the cost that must be
+     paid up front is linear in [n], where n is the length of this list. Since
+     each of the suspensions that is constructed is trivial, this function
+     returns a stream cell whose list of debits begins with [n] zeroes. *)
+
+  Lemma rev_append_spec h v xs c ds ys :
+    let n := length xs in
+    isList v xs -∗
     StreamCell h c ds ys -∗
     TC_invariant -∗
-    {{{ TC (6 + 19 * length xs) }}}
-      « rev_append l c »
+    {{{ TC (6 + 19 * n) }}}
+      « rev_append v c »
     {{{ c', RET «c'» ;
-        StreamCell h c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
+        StreamCell h c' (repeat 0 n ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
+    intros. subst n.
     iIntros "%Hxs #Hc". subst.
     construct_texan_triple "Htc".
     wp_apply (rev_append_spec_aux with "[$] [$] [$]").
     eauto.
   Qed.
 
-  Lemma NILV_spec h :
-    ⊢ StreamCell h NILV [] [].
-  Proof.
-    iIntros. simpl. eauto.
-  Qed.
+  (* A specification for [rev]. *)
 
-  Lemma rev_spec h l xs :
-    isList l xs -∗
+  (* The function call [rev v] itself has time complexity O(1). It returns
+     a stream whose front thunk carries O(n) debits. This front thunk is
+     followed with [n] thunks that carry zero debits. *)
+
+  Lemma rev_spec h v xs :
+    let n := length xs in
+    isList v xs -∗
     TC_invariant -∗
     {{{ TC 13 }}}
-      « rev l »
+      « rev v »
     {{{ t, RET «#t» ;
-        Stream h t ((19 * length xs) :: repeat 0 (length xs)) (List.rev xs) }}}.
+        Stream h t ((19 * n) :: repeat 0 n) (List.rev xs) }}}.
   Proof.
-    iIntros "#Hl".
+    intros.
+    iIntros "#Hv".
     construct_texan_triple "Htc".
     (* We pay 1 credit here. *)
     wp_tick_lam. push_subst.
@@ -947,13 +1011,15 @@ Section Proofs.
     wp_tick_inj.
     (* The call [rev_append l NILV] consumes the remaining credits. *)
     rewrite untranslate_litv. untranslate.
-    wp_apply (rev_append_spec with "[$Hl] [] [$] [Htc Htc']").
+    wp_apply (rev_append_spec with "[$Hv] [] [$] [Htc Htc']").
     { iApply NILV_spec. }
     { rewrite TC_plus. iFrame. }
     rewrite !app_nil_r.
     iIntros (c') "Hc'".
     iApply ("Post" with "Hc' Htoken").
   Qed.
+
+(* -------------------------------------------------------------------------- *)
 
   Definition A := 30.
   Definition B := 11.
