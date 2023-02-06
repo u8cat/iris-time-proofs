@@ -660,30 +660,28 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* Evaluating [lazy e], where the expression [e] consumes [k] time credits
+  (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
-     whose front cell has k debits. *)
+     whose front cell has [d] debits. *)
 
   (* We could prove a slightly more precise spec, stating that the cost is
-     4 credits now and that the front cell has [k+1] debits. The simpler
+     4 credits now and that the front cell has [d+1] debits. The simpler
      specification seems preferable and is just as useful in practice. *)
 
-  (* The expression [e] receives the token [HToken p (Some h)] and must return
-     it. When [h] is greater than 0, this is synonymous with [token (h-1)].
-     When [h] is zero, this token does not allow forcing any thunk. Thus, the
-     new thunk is allowed earlier to force thunks at lower heights, but
-     not thunks at the same height as itself or higher. *)
+  (* The expression [e] is passed the token [HToken p (Some h)]. Thus, the new
+     thunk is allowed earlier to force thunks at lower heights, but not thunks
+     at the same height as itself or higher. *)
 
-  Definition isLazyCell k h ds xs e : iProp :=
-    TC k -∗ HToken p (Some h) -∗
+  Definition isCellAction h d e ds xs : iProp :=
+    TC d -∗ HToken p (Some h) -∗
     ∀ ψ, (∀ c, StreamCell h c ds xs -∗ HToken p (Some h) -∗ ψ «c»%V) -∗
     WP «e» {{ ψ }}.
 
-  Lemma lazy_spec h e ds xs k :
+  Lemma lazy_spec h d e ds xs :
     TC_invariant -∗
-    {{{ TC 5 ∗ isLazyCell k h ds xs e }}}
+    {{{ TC 5 ∗ isCellAction h d e ds xs }}}
       « lazy e »
-    {{{ t, RET #t ; Stream h t (k :: ds) xs }}}.
+    {{{ t, RET #t ; Stream h t (d :: ds) xs }}}.
   Proof.
     intros.
     construct_texan_triple "(Htc & He)".
@@ -774,9 +772,9 @@ Section Proofs.
   Proof.
     construct_texan_triple "Htc".
     iDestruct "Htc" as "(H1 & H5)".
-    wp_apply (lazy_spec _ _ [] [] 0 with "[$] [$H5 H1]"); eauto 2.
+    wp_apply (lazy_spec with "[$] [$H5 H1]"); last eauto 2.
     (* TODO make this a lemma: *)
-    rewrite /isLazyCell.
+    rewrite /isCellAction.
     iIntros "_ Htoken" (ψ) "Post".
     iApply (NIL_spec with "[$] [$H1]").
     iNext.
@@ -798,7 +796,7 @@ Section Proofs.
     wp_apply (lazy_spec with "[$] [$Htc]"); last first.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
     { (* TODO make this a lemma: *)
-      rewrite /isLazyCell.
+      rewrite /isCellAction.
       iIntros "Htc Htoken" (ψ) "Post".
       iApply (CONS_spec with "[$] [$] [$]").
       iNext.
@@ -922,7 +920,7 @@ Section Proofs.
     divide_credit "Htc" 7 5.
     wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
     (* Examine the body of this suspension. *)
-    rewrite /isLazyCell.
+    rewrite /isCellAction.
     iIntros "Htc' Htoken" (ψ) "Post".
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
@@ -1043,7 +1041,7 @@ Section Proofs.
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
-      rewrite /isLazyCell.
+      rewrite /isCellAction.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
       (* Force [t1]. *)
@@ -1090,7 +1088,7 @@ Section Proofs.
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
-      rewrite /isLazyCell.
+      rewrite /isCellAction.
       iIntros "Htc Htoken" (ψ) "Post".
       (* The code forces [t1], enters the second branch, and returns a CONS
          cell. *)
