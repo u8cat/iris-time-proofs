@@ -373,30 +373,40 @@ Section Proofs.
       subdebits (slack + d2 - d1) ds1 ds2 rest →
       subdebits slack (d1 :: ds1) (d2 :: ds2) rest.
 
-  Lemma subdebits_covariant_in_slack slack slack' ds1 ds2 rest :
+  (* [subdebits] is covariant in [slack]: more initial credit makes
+     things easier. *)
+
+  Lemma subdebits_covariant_in_slack :
+    ∀ slack ds1 ds2 rest,
     subdebits slack ds1 ds2 rest →
+    ∀ slack',
     slack ≤ slack' →
     subdebits slack' ds1 ds2 rest.
   Proof.
-    intros Hsub. revert slack'; induction Hsub;
-      intros; constructor; eauto with lia.
+    induction 1; intros; constructor; eauto with lia.
   Qed.
 
-  Lemma subdebits_contravariant_in_rest slack ds1 ds2 rest rest' :
+  (* [subdebits] is contravariant in [slack]: some final credit
+     can safely be dropped. *)
+
+  Lemma subdebits_contravariant_in_rest :
+    ∀ slack ds1 ds2 rest,
     subdebits slack ds1 ds2 rest →
+    ∀  rest',
     rest' ≤ rest →
     subdebits slack ds1 ds2 rest'.
   Proof.
-    intros Hsub. revert rest'; induction Hsub;
-      intros; constructor; eauto with lia.
+    induction 1; intros; constructor; eauto with lia.
   Qed.
 
-  Lemma subdebits_reflexive slack ds slack' :
-    slack' ≤ slack →
-    subdebits slack ds ds slack'.
+  (* [subdebits] is reflexive and transitive. *)
+
+  Lemma subdebits_reflexive :
+    ∀ ds slack rest,
+    rest ≤ slack →
+    subdebits slack ds ds rest.
   Proof.
-    revert slack' slack; induction ds as [| d ds ]; intros;
-      constructor; eauto with lia.
+    induction ds; intros; constructor; eauto with lia.
   Qed.
 
   Lemma subdebits_transitive :
@@ -408,9 +418,10 @@ Section Proofs.
     rest ≤ rest1 + rest2 →
     subdebits slack ds1 ds3 rest.
   Proof.
-    induction 1; inversion 1; intros; subst;
-      constructor; eauto with lia.
+    induction 1; inversion 1; intros; subst; constructor; eauto with lia.
   Qed.
+
+  (* [subdebits] interacts nicely with list concatenation. *)
 
   Lemma subdebits_app slack ds1 ds2 rest ds1' ds2' rest' :
     subdebits slack ds1 ds2 rest →
@@ -423,13 +434,32 @@ Section Proofs.
     constructor; eauto with lia.
   Qed.
 
+  (* [subdebits] relates two lists of the same length. *)
+
   Lemma subdebits_length :
     ∀ ds1 ds2 slack rest,
     subdebits slack ds1 ds2 rest →
     length ds1 = length ds2.
   Proof.
-    intros *; induction 1; simpl; intuition eauto with lia.
+    induction 1; simpl; intuition eauto with lia.
   Qed.
+
+  (* Adding slack at the left end results in added slack at the right end. *)
+
+  Lemma subdebits_add_slack :
+    ∀ ds1 ds2 slack rest,
+    subdebits slack ds1 ds2 rest →
+    ∀ slack' rest',
+    slack ≤ slack' →
+    slack' - slack = rest' - rest →
+    subdebits slack' ds1 ds2 rest'.
+  Proof.
+    induction 1; simpl; intros; constructor; eauto with lia.
+  Qed.
+
+  (* Changing a constant list of [a]'s into a constant list of [b]'s,
+     where [b] is greater than [a], creates a slack of [(b - a) * n]
+     at the end of the lists, where [n] is the length of the lists. *)
 
   Lemma subdebits_repeat slack a b n :
     a ≤ b →
@@ -441,11 +471,20 @@ Section Proofs.
       eapply subdebits_contravariant_in_rest; eauto with lia. }
   Qed.
 
+(* -------------------------------------------------------------------------- *)
+
+(* An alternate characterization of [subdebits]. This characterization is not
+   used in our proofs, but can help the reader's intuition. *)
+
+  (* Let us write [sum ds] for the sum of all debits in the list [ds]. *)
+
   Fixpoint sum ds :=
     match ds with
     | [] => 0
     | d :: ds => d + sum ds
     end.
+
+  (* The following two auxiliary lemmas are united below. *)
 
   Lemma subdebits_alternate_characterization_1 :
     ∀ slack ds1 ds2 rest,
@@ -479,6 +518,17 @@ Section Proofs.
         specialize Hsum with (S k). simpl in Hsum. lia. }
     }
   Qed.
+
+  (* If the lists [ds1] and [ds2] have the same length, then the assertion
+     [∃rest, subdebits slack ds1 ds2 rest] is equivalent to
+     [∀ k, sum (take k ds1) ≤ slack + sum (take k ds2)].
+     This means that it is safe to change the description
+     "pay [ds1] as you go"
+     into the description
+     "pay [slack] now, then pay [ds2] as you go".
+     Indeed, at every point [k] in time,
+     the former description requires at most as many credits
+     as the latter description. *)
 
   Lemma subdebits_alternate_characterization ds1 ds2 slack :
     subdebits slack ds1 ds2 0 ↔
