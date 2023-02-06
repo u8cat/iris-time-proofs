@@ -672,6 +672,23 @@ Section Proofs.
     ∀ ψ, (∀ c, StreamCell h c ds xs -∗ HToken p (Some h) -∗ ψ «c»%V) -∗
     WP «e» {{ ψ }}.
 
+  Local Ltac construct_cellaction :=
+    unfold isCellAction;
+    iIntros "Htc Htoken" (ψ) "Post".
+
+  Lemma iscellaction_value h c ds xs :
+    StreamCell h c ds xs -∗
+    isCellAction h 0 c ds xs.
+  Proof.
+    iIntros "#Hc".
+    construct_cellaction.
+    change «c» with (Val «c»%V). (* This was hard to guess! *)
+    iApply wp_value.             (* And so was this. *)
+    iApply ("Post" with "Hc Htoken").
+  Qed.
+
+(* -------------------------------------------------------------------------- *)
+
   (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
      whose front cell has [d] debits. *)
@@ -710,18 +727,6 @@ Section Proofs.
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
 
-  Lemma iscellaction_value h c ds xs :
-    StreamCell h c ds xs -∗
-    isCellAction h 0 c ds xs.
-  Proof.
-    iIntros "#Hc".
-    unfold isCellAction.
-    iIntros "_ Htoken" (ψ) "Post".
-    change «c» with (Val «c»%V). (* This was hard to guess! *)
-    iApply wp_value.             (* And so was this. *)
-    iApply ("Post" with "Hc Htoken").
-  Qed.
-
   Lemma lazy_val_spec h c ds xs :
     StreamCell h c ds xs -∗
     TC_invariant -∗
@@ -746,6 +751,19 @@ Section Proofs.
     eauto.
   Qed.
 
+  Lemma NIL_action h :
+    TC_invariant -∗
+    TC 1 -∗
+    isCellAction h 0 NIL [] [].
+  Proof.
+    iIntros "#? H1".
+    construct_cellaction.
+    iApply (NIL_spec with "[$] [$H1]").
+    iNext.
+    iIntros (c) "Hc".
+    iApply ("Post" with "Hc Htoken").
+  Qed.
+
   Lemma CONS_spec h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
@@ -764,6 +782,19 @@ Section Proofs.
     construct_cons_cell.
   Qed.
 
+  Lemma CONS_action h t ds x xs :
+    Stream h t ds xs -∗
+    TC_invariant -∗
+    isCellAction h 2 (CONS x #t) ds (x :: xs).
+  Proof.
+    iIntros "#Hstream #?".
+    construct_cellaction.
+    iApply (CONS_spec with "[$] [$] [$]").
+    iNext.
+    iIntros (c) "Hc".
+    iApply ("Post" with "Hc Htoken").
+  Qed.
+
   Lemma nil_spec h :
     TC_invariant -∗
     {{{ TC 6 }}}
@@ -772,14 +803,10 @@ Section Proofs.
   Proof.
     construct_texan_triple "Htc".
     iDestruct "Htc" as "(H1 & H5)".
+    (* [nil] is defined as [lazy NIL], and [NIL] is an expression,
+       not a value, so [lazy_val_spec] is not applicable. *)
     wp_apply (lazy_spec with "[$] [$H5 H1]"); last eauto 2.
-    (* TODO make this a lemma: *)
-    rewrite /isCellAction.
-    iIntros "_ Htoken" (ψ) "Post".
-    iApply (NIL_spec with "[$] [$H1]").
-    iNext.
-    iIntros (c) "Hc".
-    iApply ("Post" with "Hc Htoken").
+    iApply (NIL_action with "[$] H1").
   Qed.
 
   Lemma cons_spec h t ds x xs :
@@ -795,13 +822,8 @@ Section Proofs.
     push_subst.
     wp_apply (lazy_spec with "[$] [$Htc]"); last first.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
-    { (* TODO make this a lemma: *)
-      rewrite /isCellAction.
-      iIntros "Htc Htoken" (ψ) "Post".
-      iApply (CONS_spec with "[$] [$] [$]").
-      iNext.
-      iIntros (c) "Hc".
-      iApply ("Post" with "Hc Htoken"). }
+    { change (InjR (x, #t)) with (CONS x #t).
+      iApply (CONS_action with "Hstream [$]"). }
   Qed.
 
   Lemma extract_spec h t ds x xs b :
@@ -917,11 +939,10 @@ Section Proofs.
     (* We pay 1 credit here. *)
     wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
-    divide_credit "Htc" 7 5.
-    wp_apply (lazy_spec with "[$] [$Htc' Htc] Post").
+    divide_credit "Htc" 5 7.
+    wp_apply (lazy_spec with "[$] [$Htc Htc'] Post").
     (* Examine the body of this suspension. *)
-    rewrite /isCellAction.
-    iIntros "Htc' Htoken" (ψ) "Post".
+    construct_cellaction.
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
     (* The call [rev_append l NILV] consumes the remaining credits. *)
@@ -1041,8 +1062,7 @@ Section Proofs.
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
-      rewrite /isCellAction.
-      iIntros "Htc Htoken" (ψ) "Post".
+      construct_cellaction.
       (* The code forces [t1], enters the first branch, then forces [t2]. *)
       (* Force [t1]. *)
       (* TODO The goal does have the desired shape, namely
@@ -1088,8 +1108,7 @@ Section Proofs.
       wp_apply (lazy_spec with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
-      rewrite /isCellAction.
-      iIntros "Htc Htoken" (ψ) "Post".
+      construct_cellaction.
       (* The code forces [t1], enters the second branch, and returns a CONS
          cell. *)
       (* Force [t1]. *)
