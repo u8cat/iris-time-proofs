@@ -82,7 +82,7 @@ Definition is_queue_raw
   (q : val) (fl rl : list val) : iProp Σ :=
   ∃ (fs : loc) g,
     ⌜q = (#(length fl), #fs, #(length rl), ListV rl)%V⌝ ∗
-    isStream p g fs (queue_debits (length fl) (length rl)) fl.
+    Stream p g fs (queue_debits (length fl) (length rl)) fl.
 
 Definition is_queue (q : val) (l : list val) : iProp Σ :=
   ∃ fl rl,
