@@ -539,15 +539,7 @@ Section Proofs.
       subdebits_alternate_characterization_2, subdebits_length.
   Qed.
 
-  Local Lemma streamcell_nil h c ds1 ds2 :
-    length ds1 = length ds2 →
-    StreamCell h c ds1 [] -∗
-    StreamCell h c ds2 [].
-  Proof.
-    intros. iIntros "Hc".
-    deconstruct_nil_cell.
-    construct_nil_cell.
-  Qed.
+(* -------------------------------------------------------------------------- *)
 
   Local Ltac mv H' H :=
     iClear H; iRename H' into H.
@@ -566,9 +558,7 @@ Section Proofs.
     iIntros "#Hc Hslack".
     destruct xs as [| x xs ].
     (* Case: the list is empty. *)
-    { iModIntro.
-      iApply (streamcell_nil with "Hc").
-      eauto. }
+    { iModIntro. deconstruct_nil_cell. construct_nil_cell. }
     (* Case: the list is nonempty. *)
     { deconstruct_cons_cell t' "Hstream".
       (* Exploit the induction hypothesis. *)
