@@ -660,13 +660,8 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
-     and must produce a stream cell, costs 5 credits now and returns a stream
-     whose front cell has [d] debits. *)
-
-  (* We could prove a slightly more precise spec, stating that the cost is
-     4 credits now and that the front cell has [d+1] debits. The simpler
-     specification seems preferable and is just as useful in practice. *)
+  (* The assertion [isCellAction ...] describes the behavior of the expression
+     [e] that appears in the construct [lazy e]. *)
 
   (* The expression [e] is passed the token [HToken p (Some h)]. Thus, the new
      thunk is allowed earlier to force thunks at lower heights, but not thunks
@@ -676,6 +671,14 @@ Section Proofs.
     TC d -∗ HToken p (Some h) -∗
     ∀ ψ, (∀ c, StreamCell h c ds xs -∗ HToken p (Some h) -∗ ψ «c»%V) -∗
     WP «e» {{ ψ }}.
+
+  (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
+     and must produce a stream cell, costs 5 credits now and returns a stream
+     whose front cell has [d] debits. *)
+
+  (* We could prove a slightly more precise spec, stating that the cost is 4
+     credits now and that the front cell has [d+1] debits. The simpler
+     specification seems preferable and is just as useful in practice. *)
 
   Lemma lazy_spec h d e ds xs :
     TC_invariant -∗
@@ -707,6 +710,18 @@ Section Proofs.
     iApply ("Post" with "Htoken"). iFrame "Hc".
   Qed.
 
+  Lemma iscellaction_value h c ds xs :
+    StreamCell h c ds xs -∗
+    isCellAction h 0 c ds xs.
+  Proof.
+    iIntros "#Hc".
+    unfold isCellAction.
+    iIntros "_ Htoken" (ψ) "Post".
+    change «c» with (Val «c»%V). (* This was hard to guess! *)
+    iApply wp_value.             (* And so was this. *)
+    iApply ("Post" with "Hc Htoken").
+  Qed.
+
   Lemma lazy_val_spec h c ds xs :
     StreamCell h c ds xs -∗
     TC_invariant -∗
@@ -716,23 +731,8 @@ Section Proofs.
   Proof.
     iIntros "#Hc".
     construct_texan_triple "Htc".
-    (* The tick translation of [lazy e] involves two ticks. *)
-    rewrite translate_lazy_expr.
-    (* We pay one credit for the second tick, which is executed first. *)
-    wp_tick_closure.
-    (* Then, we recognize an application of [create]. *)
-    untranslate.
-    (* We pay 3 credits for [create], and keep one credit. *)
-    iDestruct "Htc" as "(H1 & H3)".
-    wp_apply (hthunk_create with "[$] [$H3 H1]"); last first.
-    { iIntros (t) "#Hthunk". iApply "Post". construct_stream "Hthunk". }
-    (* We now examine the cost of this action. *)
-    construct_action.
-    (* We have wisely stored one credit, which pays for the call to the
-       constant function that returns [c]. *)
-    wp_tick_lam.
-    (* Done. *)
-    iApply ("Post" with "Htoken"). iFrame "Hc".
+    wp_apply (lazy_spec with "[$] [$Htc]"); last eauto.
+    iApply (iscellaction_value with "Hc").
   Qed.
 
   Lemma NIL_spec h :
