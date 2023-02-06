@@ -174,7 +174,7 @@ Proof.
   wp_apply (cons_spec with "[$] [$] [$]").
   iIntros (t') "#Hstream'".
   (* Increase the debit of the new thunk to match the invariant. *)
-  iMod (stream_forward_debt _ _ (queue_debits (S (length fl)) (length rl))
+  iMod (stream_forward_debt _ _ _ (queue_debits (S (length fl)) (length rl))
     with "Hstream' []") as "#Hstream''"; [|solve_ndisj|iApply zero_TC_now|].
   { rewrite queue_debits_cons_front //. constructor; unfold K; eauto with lia. }
   wp_tick_op. repeat wp_tick_pair.
@@ -213,7 +213,7 @@ Proof.
   iIntros (tapp) "#Hstream_app".
   rewrite queue_debits_no_front; last lia.
   (* distribute the costly debit created by [rev] onto thunks of the front half *)
-  iMod (stream_forward_debt _ _ (queue_debits (length fl + length rl) 0)
+  iMod (stream_forward_debt _ _ _ (queue_debits (length fl + length rl) 0)
     with "Hstream_app []") as "#Hstream_app'"; [|solve_ndisj|iApply zero_TC_now|].
   { rewrite repeat_succ_last debit_append_join_middle map_repeat Nat.add_0_r.
     rewrite queue_debits_app_front; last lia.
@@ -223,8 +223,8 @@ Proof.
     eapply (subdebits_covariant_in_slack 0); last lia.
     rewrite repeat_succ_last queue_debits_no_rear.
     eapply subdebits_app; last by eauto.
-    eapply subdebits_contravariant_in_rest; first eapply subdebits_repeat;
-      unfold K; lia. }
+    eapply subdebits_repeat.
+    lia. }
     wp_tick_op. repeat wp_tick_pair.
     iApply ("Post" $! (#(length fl + length rl), #tapp, #0, InjLV #())%V).
     construct_queue (fl ++ List.rev rl) [].
@@ -252,7 +252,9 @@ Proof.
   (* we possibly need to pay for one debit of the front stream in order to
      preserve the invariant *)
   divide_credit "Htc" 48 60.
-  iMod (stream_forward_debt _ _ (queue_debits (length fl) (S (length rl)))
+  iMod (stream_forward_debt _ _ _
+   (* ds2:  *) (queue_debits (length fl) (S (length rl)))
+   (* rest: *) 0
     with "Hstream Htc'") as "#Hstream'"; [|solve_ndisj|].
   { (* if the rear list is full, we are breaking the invariant anyway and
        [check] will rebalance the queue, so there is nothing to do. *)
@@ -262,7 +264,9 @@ Proof.
     rewrite queue_debits_split_middle; last lia.
     rewrite queue_debits_cons_rear; last lia.
     eapply subdebits_app; first by eauto.
-    constructor; eauto with lia. }
+    unfold K.
+    constructor; eauto using subdebits_reflexive with lia.
+  }
   wp_apply (check_spec _ fl (x :: rl) with "[$] [] Htc").
   { cbn; lia. }
   { construct_queue_raw; first iApply "Hstream'".
@@ -293,7 +297,9 @@ Proof.
   cbn in Hl, Hlen. inversion Hl; subst; clear Hl. cbn [length].
   (* we need to pay for the first thunk before forcing it *)
   divide_credit "Htc" 85 60.
-  iMod (stream_forward_debt _ _ (0 :: queue_debits (length fl) (length rl))
+  iMod (stream_forward_debt _ _ _
+    (* ds2:  *) (0 :: queue_debits (length fl) (length rl))
+    (* rest: *) 0
     with "Hstream Htc'") as "#Hstream'"; [|solve_ndisj|].
   { (* if the rear list is full, the first thunk has in fact already been paid
        for, so there is nothing to do. *)

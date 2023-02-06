@@ -163,6 +163,14 @@ Section Proofs.
     iIntros ipat;
     iIntros "Post".
 
+  (* Introduce [isAction]. *)
+  Local Ltac construct_action :=
+    iIntros "Htoken Htc" (ψ) "Post".
+
+  (* Rename a hypothesis H to H', when H' may already exist. *)
+  Local Ltac mv H H' :=
+    try iClear H'; iRename H into H'.
+
 (* -------------------------------------------------------------------------- *)
 
 (* Basic properties. *)
@@ -541,8 +549,11 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  Local Ltac mv H' H :=
-    iClear H; iRename H' into H.
+(* We now prove the rule Forward-Debt for streams and stream cells. *)
+
+  (* An auxiliary lemma: the forward-debt rule for stream cells,
+     stated under the assumption that forward-debt for streams,
+     specialized for [ds1], holds. *)
 
   Local Lemma stream_cell_forward_debt_aux slack h c ds1 ds2 xs E :
     length ds1 = length ds2 →
@@ -566,15 +577,20 @@ Section Proofs.
       construct_cons_cell. }
   Qed.
 
+  (* Forward-Debt for streams. If [subdebits slack ds1 ds2 rest] holds, then,
+     by paying [slack] time credits now, a stream whose debits are described
+     by [ds1] can be turned into one whose debits are described by [ds2]. *)
+
   Lemma stream_forward_debt :
-    ∀ ds1 ds2 slack xs h t E,
-    subdebits slack ds1 ds2 0 →
+    ∀ slack ds1 ds2 rest,
+    subdebits slack ds1 ds2 rest →
+    ∀ xs h t E,
     ↑ThunkPayment ⊆ E →
     Stream h t ds1 xs -∗
     TC slack ={E}=∗
     Stream h t ds2 xs.
   Proof.
-    intros * Hsub; revert xs h t E; induction Hsub;
+    induction 1;
     try rewrite unfold_stream_contradictory;
     try solve [ tauto | eauto 3 ];
     intros xs h t E ?.
@@ -627,8 +643,10 @@ Section Proofs.
 
   Qed.
 
-  Lemma stream_cell_forward_debt slack h c ds1 ds2 xs E :
-    subdebits slack ds1 ds2 0 →
+  (* Forward-Debt for streams cells. *)
+
+  Lemma stream_cell_forward_debt slack ds1 ds2 rest h c xs E :
+    subdebits slack ds1 ds2 rest →
     ↑ThunkPayment ⊆ E →
     StreamCell h c ds1 xs -∗
     TC slack ={E}=∗
@@ -640,8 +658,7 @@ Section Proofs.
     { eauto using stream_forward_debt. }
   Qed.
 
-  Local Ltac construct_action :=
-    iIntros "Htoken Htc" (ψ) "Post".
+(* -------------------------------------------------------------------------- *)
 
   (* Evaluating [lazy e], where the expression [e] consumes [k] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
