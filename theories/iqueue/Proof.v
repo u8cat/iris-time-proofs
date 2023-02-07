@@ -17,17 +17,17 @@ Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Context (p : na_inv_pool_name).
 
-Lemma lazy_spec g n φ e :
+Lemma lazy_spec h n φ e :
   TC_invariant -∗
-  {{{ TC 4 ∗ isAction (λ: <>, e) n (HToken p (Some g)) φ }}}
+  {{{ TC 4 ∗ isAction (λ: <>, e) n (HToken p (Some h)) φ }}}
     « lazy e »
-  {{{ t, RET «#t» ; HThunk p g t n φ }}}.
+  {{{ t, RET «#t» ; HThunk p h t n φ }}}.
 Proof.
   iIntros "#Hc !#" (Φ) "[Htc Haction] Post".
   rewrite translate_lazy_expr.
   wp_tick_closure.
   untranslate.
-  wp_apply (hthunk_create p g with "[$] [$Htc Haction]"); eauto.
+  wp_apply (hthunk_create p h with "[$] [$Htc Haction]"); eauto.
   rewrite -lock //.
 Qed.
 
@@ -166,13 +166,13 @@ Fixpoint is_queue (h : height) (level : nat) (q : val) (vs : list val) : iProp �
          ⌜vs = fvs ++ mvs ++ rvs⌝)
   end.
 
-Lemma is_queue_eq g level q vs :
-  is_queue g level q vs ⊣⊢
+Lemma is_queue_eq h level q vs :
+  is_queue h level q vs ⊣⊢
   (∃ d, ⌜q = SHALLOWV d⌝ ∗ ⌜is_digit01 level d vs⌝) ∨
-  (∃ g', ⌜g = S g'⌝ ∗
+  (∃ h', ⌜h = S h'⌝ ∗
      ∃ f (m:loc) r fvs mvs rvs lenf lenr,
-       HThunk p g m (K * (lenf - lenr))
-         (λ q', is_queue g' (S level) q' mvs) ∗
+       HThunk p h m (K * (lenf - lenr))
+         (λ q', is_queue h' (S level) q' mvs) ∗
        ⌜q = DEEPV f (#m) r⌝ ∗
        ⌜is_digit12 level f fvs⌝ ∗
        ⌜is_digit01 level r rvs⌝ ∗
@@ -181,27 +181,27 @@ Lemma is_queue_eq g level q vs :
        ⌜vs = fvs ++ mvs ++ rvs⌝).
 Proof.
   iSplit.
-  { destruct g; first by eauto.
+  { destruct h; first by eauto.
     iIntros "[?|?]"; rewrite -/is_queue; first by eauto.
-    iRight. iExists g; iSplit; eauto. }
+    iRight. iExists h; iSplit; eauto. }
   { iIntros "[Hbase|Hsucc]".
-    { destruct g; eauto. iLeft; eauto. }
-    iDestruct "Hsucc" as "(%&%Hg&?)". subst g.
+    { destruct h; eauto. iLeft; eauto. }
+    iDestruct "Hsucc" as "(%&%Hg&?)". subst h.
     iRight; eauto. }
 Qed.
 
 Definition iqueue (q : val) (vs : list val) : iProp Σ :=
-  ∃ g, is_queue g 0 q vs.
+  ∃ h, is_queue h 0 q vs.
 
-Instance is_queue_persistent g lvl q vs :
-  Persistent (is_queue g lvl q vs).
-Proof. revert lvl q vs; induction g; intros; apply _. Qed.
+Instance is_queue_persistent h lvl q vs :
+  Persistent (is_queue h lvl q vs).
+Proof. revert lvl q vs; induction h; intros; apply _. Qed.
 
 Instance iqueue_persistent q vs : Persistent (iqueue q vs).
 Proof. apply _. Qed.
 
 Local Ltac deconstruct_iqueue :=
-  iDestruct "Hqueue" as "(%g & Hqueue)".
+  iDestruct "Hqueue" as "(%h & Hqueue)".
 
 Local Ltac deconstruct_is_queue :=
   iDestruct (is_queue_eq with "Hqueue") as "[HqueueS|HqueueD]";
@@ -218,24 +218,24 @@ Local Ltac construct_is_queue_deep :=
   iApply is_queue_eq; iRight; iExists _; iSplit; first done;
   iExists _,_,_,_,_,_,_,_; iSplit; [ | iPureIntro ].
 
-Lemma is_queue_covariant_in_g g g' level q vs :
-  g ≤ g' →
-  is_queue g level q vs ={⊤}=∗
-  is_queue g' level q vs.
+Lemma is_queue_covariant_in_h h h' level q vs :
+  h ≤ h' →
+  is_queue h level q vs ={⊤}=∗
+  is_queue h' level q vs.
 Proof.
   iIntros (Hg) "Hqueue".
-  iInduction g as [|g] "IH" forall (g' Hg q vs level).
+  iInduction h as [|h] "IH" forall (h' Hg q vs level).
   { iApply is_queue_eq; iLeft; eauto. }
-  destruct g' as [| g' ]; first lia.
+  destruct h' as [| h' ]; first lia.
   deconstruct_is_queue.
   { iApply is_queue_eq; iLeft; eauto. }
-  symmetry in H4. simplify_eq. rename g into g''.
-  iDestruct (hthunk_covariant_in_h _ _ (S g') with "Hthunk") as "#Hthunk'";
+  simplify_eq.
+  iDestruct (hthunk_covariant_in_h _ _ (S h') with "Hthunk") as "#Hthunk'";
     first lia.
-  iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue g' (S level) q' mvs)
+  iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue h' (S level) q' mvs)
     with "[] Hthunk'") as "Hthunk''".
   { iIntros (v) "_ #Hqueue".
-    by iMod ("IH" $! g' with "[] Hqueue") as "#?";
+    by iMod ("IH" $! h' with "[] Hqueue") as "#?";
     first (iPureIntro; lia). }
   iModIntro. rewrite Nat.add_0_r.
   construct_is_queue_deep; first iApply "Hthunk''"; split_and!; eauto.
@@ -244,9 +244,9 @@ Qed.
 Lemma empty_spec : ⊢ iqueue empty [].
 Proof. iExists 0, ZEROV; eauto. Qed.
 
-Lemma is_empty_is_queue_spec g q level vs :
+Lemma is_empty_is_queue_spec h q level vs :
   TC_invariant -∗
-  is_queue g level q vs -∗
+  is_queue h level q vs -∗
   {{{ TC 20 }}}
     «is_empty q»
   {{{ (b:bool), RET #b ;
@@ -288,18 +288,18 @@ Qed.
 
 Definition B := 200.
 
-Lemma snoc_is_queue_spec g level q y ys vs :
+Lemma snoc_is_queue_spec h level q y ys vs :
   is_tree level y ys →
   TC_invariant -∗
-  is_queue g level q vs -∗
+  is_queue h level q vs -∗
   {{{ TC (B + 50) }}}
     «snoc q y»
   {{{ q', RET «q'»;
-      is_queue (S g) level q' (vs ++ ys) }}}.
+      is_queue (S h) level q' (vs ++ ys) }}}.
 Proof.
   intros Hy. iIntros "#Hc #Hqueue".
   pose SNOC x y := snoc x y. rewrite -/(SNOC _ _).
-  iLöb as "IH" forall (g level q y ys vs Hy) "Hqueue".
+  iLöb as "IH" forall (h level q y ys vs Hy) "Hqueue".
   iIntros "!#" (Φ) "Htc Post". rewrite {2}/SNOC.
   iDestruct (TC_plus with "Htc") as "[HtcB Htc]".
   deconstruct_is_queue.
@@ -314,7 +314,7 @@ Proof.
       untranslate.
       push_subst.
       divide_credit "Htc" 32 8.
-      wp_apply (lazy_spec (S g) (2*K) (λ q', is_queue g (S level) q' [])
+      wp_apply (lazy_spec (S h) (2*K) (λ q', is_queue h (S level) q' [])
                  with "[$] [Htc']").
       { divide_credit "Htc'" 4 4. iFrame "Htc''".
         iIntros "? ?" (?) "H". iRevert "Htc'"; iIntros "Htc'".
@@ -338,12 +338,12 @@ Proof.
       iDestruct (hthunk_increase_debt _ _ _ _ (K * (lenf - 1)) with "Hthunk'")
         as "Hthunk'".
       { unfold K, B; lia. }
-      iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue (S g') (S level) q' mvs)
+      iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue (S h') (S level) q' mvs)
               with "[] Hthunk'") as "Hthunk'".
       { iIntros (v) "_ #Hq".
-        iMod (is_queue_covariant_in_g _ (S g') with "Hq") as "#?";
+        iMod (is_queue_covariant_in_h _ (S h') with "Hq") as "#?";
           [lia | eauto]. }
-      iDestruct (hthunk_covariant_in_h _ _ (S (S g')) with "Hthunk'") as "Hthunk'";
+      iDestruct (hthunk_covariant_in_h _ _ (S (S h')) with "Hthunk'") as "Hthunk'";
         first lia.
       wp_tick_inj. rewrite Nat.add_0_r.
       iApply ("Post" $! (DEEPV f (#m) (ONEaV y))).
@@ -356,8 +356,8 @@ Proof.
       wp_tick_match. wp_tick_inj.
       rewrite untranslate_litv. untranslate. push_subst.
       divide_credit "Htc" 20 8.
-      wp_apply (lazy_spec (S (S g')) (K * lenf)
-                          (λ q', is_queue (S g') (S level) q' (mvs ++ rvs ++ ys))
+      wp_apply (lazy_spec (S (S h')) (K * lenf)
+                          (λ q', is_queue (S h') (S level) q' (mvs ++ rvs ++ ys))
                   with "[$] [HtcB Htc']").
       { divide_credit "Htc'" 4 4. iFrame "Htc''".
         iIntros "Htok Htc" (ψ) "Hψ". iRevert "Htc'"; iIntros "Htc'".
@@ -400,10 +400,10 @@ Proof.
   iExists _; eauto.
 Qed.
 
-Lemma head_is_queue_spec g level q ys vs :
+Lemma head_is_queue_spec h level q ys vs :
   length ys = 2 ^ level →
   TC_invariant -∗
-  is_queue g level q (ys ++ vs) -∗
+  is_queue h level q (ys ++ vs) -∗
   {{{ TC 25 }}}
     «head q»
   {{{ y, RET «y»; ⌜is_tree level y ys⌝ }}}.
@@ -445,19 +445,19 @@ Proof.
   iIntros (? ?). inv. by iApply "Post".
 Qed.
 
-Lemma tail_is_queue_spec g level q vs :
+Lemma tail_is_queue_spec h level q vs :
   2 ^ level ≤ length vs →
   TC_invariant -∗
-  is_queue g level q vs -∗
-  {{{ TC (B + 100) ∗ HToken p (Some (S g)) }}}
+  is_queue h level q vs -∗
+  {{{ TC (B + 100) ∗ HToken p (Some (S h)) }}}
     «tail q»
   {{{ q', RET «q'» ;
-      is_queue g level q' (drop (2 ^ level) vs) ∗
-      HToken p (Some (S g)) }}}.
+      is_queue h level q' (drop (2 ^ level) vs) ∗
+      HToken p (Some (S h)) }}}.
 Proof.
   intros Hlevel. iIntros "#Hc #Hqueue".
   pose TAIL x := tail x. rewrite -/(TAIL _).
-  iLöb as "IH" forall (g level q vs Hlevel) "Hqueue".
+  iLöb as "IH" forall (h level q vs Hlevel) "Hqueue".
   iIntros "!#" (Φ) "[Htc Htok] Post". rewrite {2}/TAIL.
   iDestruct (TC_plus with "Htc") as "[HtcB Htc]".
   deconstruct_is_queue.
@@ -505,8 +505,8 @@ Proof.
         rewrite -untranslate_val. (* argh *)
         divide_credit "Htc" 8 6.
         divide_credit "Htc'" 2 4.
-        wp_apply (lazy_spec (S g') (K * (2 - lenr))
-                            (λ q', is_queue g' (S level) q' mvs2)
+        wp_apply (lazy_spec (S h') (K * (2 - lenr))
+                            (λ q', is_queue h' (S level) q' mvs2)
                    with "[$] [$Htc'' HtcBK Htc']").
         { iIntros "Htok Htc" (ψ) "Hψ". wp_tick_lam. untranslate.
           iDestruct (TC_plus with "[$Htc $HtcBK]") as "Htc".
@@ -552,7 +552,7 @@ Lemma tail_spec q v vs :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "[Htc Htok] Post".
   deconstruct_iqueue.
-  rewrite /HToken (carve_out_gens_below_gen (S g) None) //.
+  rewrite /HToken (carve_out_gens_below_gen (S h) None) //.
   iDestruct (na_own_union with "Htok") as "[Htok Htok_rest]".
   by apply disjoint_difference_r1.
   iApply (tail_is_queue_spec with "[$] [$] [$Htc $Htok]").

@@ -80,9 +80,9 @@ Qed.
 
 Definition is_queue_raw
   (q : val) (fl rl : list val) : iProp Σ :=
-  ∃ (fs : loc) g,
+  ∃ (fs : loc) h,
     ⌜q = (#(length fl), #fs, #(length rl), ListV rl)%V⌝ ∗
-    Stream p g fs (queue_debits (length fl) (length rl)) fl.
+    Stream p h fs (queue_debits (length fl) (length rl)) fl.
 
 Definition is_queue (q : val) (l : list val) : iProp Σ :=
   ∃ fl rl,
@@ -107,7 +107,7 @@ Local Ltac deconstruct_queue :=
 
 Local Ltac deconstruct_queue_raw :=
   iDestruct "Hqueue_raw" as
-    "(%fs & %g & -> & #Hstream)".
+    "(%fs & %h & -> & #Hstream)".
 
 Local Ltac construct_queue_raw :=
   iExists _, _; iSplit; swap 1 2; [ | iPureIntro .. ].
@@ -286,7 +286,7 @@ Lemma extract q x xs :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "[Htc Htok] Post".
   deconstruct_queue. deconstruct_queue_raw.
-  rewrite /HToken (carve_out_gens_below_gen (g+1) None) //.
+  rewrite /HToken (carve_out_gens_below_gen (h+1) None) //.
   iDestruct (na_own_union with "Htok") as "[Htok Htok_rest]".
   by apply disjoint_difference_r1.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
