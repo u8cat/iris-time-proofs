@@ -6,7 +6,8 @@ From iris_time Require Import ThunksCode.
 
 (* This file contains a simple formalization of thunks, as presented in the
    ESOP 2019 paper. A more elaborate formalization, which is based on the same
-   HeapLang code but offers a richer logical API, can be found in Thunks.v. *)
+   HeapLang code but offers a richer logical API, can be found in ThunksFull.v
+   and in the files that it depends upon. *)
 
 (* -------------------------------------------------------------------------- *)
 
