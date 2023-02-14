@@ -538,6 +538,10 @@ Section Proofs.
      the former description requires at most as many credits
      as the latter description. *)
 
+  (* For simplicity, we have taken [rest] to be zero. This is imprecise.
+     We could probably prove that the greatest possible [rest]
+     is the difference between [sum ds1] and [slack + sum ds2]. *)
+
   Local Lemma subdebits_alternate_characterization ds1 ds2 slack :
     subdebits slack ds1 ds2 0 ↔
     length ds1 = length ds2 ∧
