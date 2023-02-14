@@ -17,7 +17,7 @@ Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Context (p : na_inv_pool_name).
 
-Lemma lazy_spec h n φ e :
+Lemma stream_create h n φ e :
   TC_invariant -∗
   {{{ TC 4 ∗ isAction (λ: <>, e) n (HToken p (Some h)) φ }}}
     « lazy e »
@@ -314,7 +314,7 @@ Proof.
       untranslate.
       push_subst.
       divide_credit "Htc" 32 8.
-      wp_apply (lazy_spec (S h) (2*K) (λ q', is_queue h (S level) q' [])
+      wp_apply (stream_create (S h) (2*K) (λ q', is_queue h (S level) q' [])
                  with "[$] [Htc']").
       { divide_credit "Htc'" 4 4. iFrame "Htc''".
         iIntros "? ?" (?) "H". iRevert "Htc'"; iIntros "Htc'".
@@ -356,7 +356,7 @@ Proof.
       wp_tick_match. wp_tick_inj.
       rewrite untranslate_litv. untranslate. push_subst.
       divide_credit "Htc" 20 8.
-      wp_apply (lazy_spec (S (S h')) (K * lenf)
+      wp_apply (stream_create (S (S h')) (K * lenf)
                           (λ q', is_queue (S h') (S level) q' (mvs ++ rvs ++ ys))
                   with "[$] [HtcB Htc']").
       { divide_credit "Htc'" 4 4. iFrame "Htc''".
@@ -505,7 +505,7 @@ Proof.
         rewrite -untranslate_val. (* argh *)
         divide_credit "Htc" 8 6.
         divide_credit "Htc'" 2 4.
-        wp_apply (lazy_spec (S h') (K * (2 - lenr))
+        wp_apply (stream_create (S h') (K * (2 - lenr))
                             (λ q', is_queue h' (S level) q' mvs2)
                    with "[$] [$Htc'' HtcBK Htc']").
         { iIntros "Htok Htc" (ψ) "Hψ". wp_tick_lam. untranslate.

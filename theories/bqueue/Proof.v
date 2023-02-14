@@ -128,7 +128,7 @@ Proof.
   iIntros "#Hickinv !#" (Φ) "Htc HΦ".
   wp_tick_lam. rewrite /NIL. wp_tick_inj.
   divide_credit "Htc" 5 6.
-  wp_apply (nil_spec p 1 with "[$] Htc'").
+  wp_apply (stream_nil p 1 with "[$] Htc'").
   iIntros (rs) "#Hstream".
   (* pay for the thunk now *)
   divide_credit "Htc" 3 2.
@@ -160,7 +160,7 @@ Proof.
     { by intros [-> ?]%app_nil. } }
 Qed.
 
-Lemma cons_spec x q xs :
+Lemma stream_cons x q xs :
   TC_invariant -∗
   is_queue q xs -∗
   {{{ TC 34 }}}
@@ -171,7 +171,7 @@ Proof.
   deconstruct_queue. deconstruct_queue_raw.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   divide_credit "Htc" 4 8.
-  wp_apply (cons_spec with "[$] [$] [$]").
+  wp_apply (stream_cons with "[$] [$] [$]").
   iIntros (t') "#Hstream'".
   (* Increase the debit of the new thunk to match the invariant. *)
   iMod (stream_forward_debt _ _ _ (queue_debits (S (length fl)) (length rl))
@@ -205,11 +205,11 @@ Proof.
   assert (length rl = length fl + 1) as Hlen' by lia. clear Hlen Hlen_rev.
   rewrite bool_decide_false; [|lia]. wp_tick_if. wp_tick_inj.
   untranslate. divide_credit "Htc" 12 13.
-  wp_apply (rev_spec with "[] [$] Htc'").
+  wp_apply (stream_revl with "[] [$] Htc'").
   by iPureIntro; reflexivity.
   iIntros (trev) "#Hstream_rev".
   divide_credit "Htc" 4 8.
-  wp_apply (append_spec with "Hstream Hstream_rev [$] [$]").
+  wp_apply (stream_append with "Hstream Hstream_rev [$] [$]").
   iIntros (tapp) "#Hstream_app".
   rewrite queue_debits_no_front; last lia.
   (* distribute the costly debit created by [rev] onto thunks of the front half *)
@@ -309,7 +309,7 @@ Proof.
     rewrite queue_debits_cons_front; last lia.
     constructor; eauto with lia. }
   divide_credit "Htc" 63 22.
-  wp_apply (extract_spec with "[$] [$] [$Htc' Htok]").
+  wp_apply (stream_uncons with "[$] [$] [$Htc' Htok]").
   { eauto with thunks. }
   { iFrame "Htok". }
   iIntros (t') "[#Hstream_tail Htok]".

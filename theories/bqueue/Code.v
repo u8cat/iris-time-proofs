@@ -25,7 +25,7 @@ Definition check : val := λ: "q",
   if: "lenr" ≤ "lenf" then
     "q"
   else
-    ("lenf" + "lenr", append "f" (rev "r"), #0, NIL).
+    ("lenf" + "lenr", append "f" (revl "r"), #0, NIL).
 
 Definition snoc : val := λ: "q" "x",
   letq: ("lenf", "f", "lenr", "r") := "q" in
@@ -37,7 +37,7 @@ Definition is_empty : val := λ: "q",
 
 Definition extract : val := λ: "q",
   letq: ("lenf", "f", "lenr", "r") := "q" in
-  let: "p" := extract "f" in
+  let: "p" := uncons "f" in
   let: "x" := Fst "p" in
   let: "f'" := Snd "p" in
   let: "q'" := check ("lenf" - #1, "f'", "lenr", "r") in

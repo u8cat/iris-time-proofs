@@ -43,25 +43,23 @@ Definition cons : val := (* : val → stream → stream *)
   λ: "x" "xs",
     lazy (CONS "x" "xs").
 
-(* TODO named [uncons] in the paper *)
-Definition extract : val := (* : stream → val × stream *)
+Definition uncons : val := (* : stream → val × stream *)
   λ: "xs",
     match: force "xs" with
       NIL              => #() (* this case must not happen *)
     | CONS ("x", "xs") => ("x", "xs")
     end.
 
-(* TODO named [revk] in the paper? *)
-Definition rev_append : val := (* : list → cell → cell *)
-  rec: "rev_append" "xs" "ys" :=
+Definition revl_append : val := (* : list → cell → cell *)
+  rec: "revl_append" "xs" "ys" :=
     match: "xs" with
       NIL              => "ys"
-    | CONS ("x", "xs") => "rev_append" "xs" (CONS "x" (lazy "ys"))
+    | CONS ("x", "xs") => "revl_append" "xs" (CONS "x" (lazy "ys"))
     end.
 
-Definition rev : val := (* : list → stream *)
+Definition revl : val := (* : list → stream *)
   λ: "xs",
-    lazy (rev_append "xs" NIL).
+    lazy (revl_append "xs" NIL).
 
 Definition append : val := (* : stream → stream → stream *)
   rec: "append" "xs" "ys" :=

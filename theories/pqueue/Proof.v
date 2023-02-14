@@ -45,7 +45,7 @@ Proof using.
     f_equal. rewrite reverse_cons cons_middle app_assoc //. }
 Qed.
 
-Lemma rev_spec (l : list val) :
+Lemma stream_revl (l : list val) :
   TC_invariant -∗
   {{{ TC (6 + 8 * length l) }}}
     «rev (list_val l)»
@@ -56,7 +56,7 @@ Proof using.
   iIntros "!>" (l'' ->). rewrite app_nil_r. by iApply "HΦ".
 Qed.
 
-Lemma append_spec (l1 l2 : list val) :
+Lemma stream_append (l1 l2 : list val) :
   TC_invariant -∗
   {{{ TC (5 + 8 * length l1) }}}
     «append (list_val l1) (list_val l2)»
@@ -205,10 +205,10 @@ Proof.
       rewrite (_: 16 * length fl = 8 * length fl + 8 * length fl); [|lia].
       iDestruct "TC" as "[TCa TCr]". iDestruct "TC2" as "[TC2 TCrc]".
       iCombine "TCrc TCr" as "TCr".
-      wp_apply (rev_spec with "[//] [TCr]"). iApply (TC_weaken with "TCr"); lia.
+      wp_apply (stream_revl with "[//] [TCr]"). iApply (TC_weaken with "TCr"); lia.
       iIntros (rrl) "->".
       iCombine "TC2 TCa" as "TCa".
-      wp_apply (append_spec with "[//] [$TCa]").
+      wp_apply (stream_append with "[//] [$TCa]").
       iIntros (l') "->". by iApply ("Hψ" with "Htok"). }
     rewrite -lock. (* XXX *) wp_apply "S".
     iIntros (t') "#HT'". wp_tick_let. wp_tick_op. repeat wp_tick_pair.

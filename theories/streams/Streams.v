@@ -486,7 +486,7 @@ Section Proofs.
 
   (* Let us write [sum ds] for the sum of all debits in the list [ds]. *)
 
-  Fixpoint sum ds :=
+  Local Fixpoint sum ds :=
     match ds with
     | [] => 0
     | d :: ds => d + sum ds
@@ -494,7 +494,7 @@ Section Proofs.
 
   (* The following two auxiliary lemmas are united below. *)
 
-  Lemma subdebits_alternate_characterization_1 :
+  Local Lemma subdebits_alternate_characterization_1 :
     ∀ slack ds1 ds2 rest,
     subdebits slack ds1 ds2 rest →
     ∀ k,
@@ -508,7 +508,7 @@ Section Proofs.
     lia.
   Qed.
 
-  Lemma subdebits_alternate_characterization_2 :
+  Local Lemma subdebits_alternate_characterization_2 :
     ∀ ds1 ds2 slack,
     length ds1 = length ds2 →
     (∀ k, sum (take k ds1) ≤ slack + sum (take k ds2)) →
@@ -538,7 +538,7 @@ Section Proofs.
      the former description requires at most as many credits
      as the latter description. *)
 
-  Lemma subdebits_alternate_characterization ds1 ds2 slack :
+  Local Lemma subdebits_alternate_characterization ds1 ds2 slack :
     subdebits slack ds1 ds2 0 ↔
     length ds1 = length ds2 ∧
     ∀ k, sum (take k ds1) ≤ slack + sum (take k ds2).
@@ -555,7 +555,7 @@ Section Proofs.
      stated under the assumption that forward-debt for streams,
      specialized for [ds1], holds. *)
 
-  Local Lemma stream_cell_forward_debt_aux slack h c ds1 ds2 xs E :
+  Local Lemma streamcell_forward_debt_aux slack h c ds1 ds2 xs E :
     length ds1 = length ds2 →
     (
       ∀ xs h t,
@@ -617,7 +617,7 @@ Section Proofs.
       (* We now have to reason about the stream cell. *)
       (* The result follows from the previous lemma and
          from the induction hypothesis. *)
-      iMod (stream_cell_forward_debt_aux with "Hc Hslack") as "$"; eauto 2.
+      iMod (streamcell_forward_debt_aux with "Hc Hslack") as "$"; eauto 2.
     }
 
     (* Case: [d2 ≤ d1 ≤ slack + d2]. *)
@@ -638,14 +638,14 @@ Section Proofs.
       (* We now have to reason about the stream cell. *)
       (* The result follows from the previous lemma and
          from the induction hypothesis. *)
-      iMod (stream_cell_forward_debt_aux with "Hc Hslack") as "$"; eauto 2.
+      iMod (streamcell_forward_debt_aux with "Hc Hslack") as "$"; eauto 2.
     }
 
   Qed.
 
   (* Forward-Debt for streams cells. *)
 
-  Lemma stream_cell_forward_debt slack ds1 ds2 rest h c xs E :
+  Lemma streamcell_forward_debt slack ds1 ds2 rest h c xs E :
     subdebits slack ds1 ds2 rest →
     ↑ThunkPayment ⊆ E →
     StreamCell h c ds1 xs -∗
@@ -653,7 +653,7 @@ Section Proofs.
     StreamCell h c ds2 xs.
   Proof.
     iIntros (Hsub Hmask) "#Hc Hslack".
-    iMod (stream_cell_forward_debt_aux with "Hc Hslack") as "#$"; last done.
+    iMod (streamcell_forward_debt_aux with "Hc Hslack") as "#$"; last done.
     { eauto using subdebits_length. }
     { eauto using stream_forward_debt. }
   Qed.
@@ -700,7 +700,7 @@ Section Proofs.
      credits now and that the front cell has [d+1] debits. The simpler
      specification seems preferable and is just as useful in practice. *)
 
-  Lemma lazy_spec h d e ds xs :
+  Lemma stream_create h d e ds xs :
     TC_invariant -∗
     {{{ TC 5 ∗ isCellAction h d e ds xs }}}
       « lazy e »
@@ -733,7 +733,7 @@ Section Proofs.
   (* As a special case, if [c] is an existing cell, then the expression [lazy c]
      costs 5 credits now and returns a stream whose front cell has [0] debits. *)
 
-  Lemma lazy_val_spec h c ds xs :
+  Lemma stream_create_val h c ds xs :
     StreamCell h c ds xs -∗
     TC_invariant -∗
     {{{ TC 5 }}}
@@ -742,7 +742,7 @@ Section Proofs.
   Proof.
     iIntros "#Hc".
     construct_texan_triple "Htc".
-    wp_apply (lazy_spec with "[$] [$Htc]"); last eauto.
+    wp_apply (stream_create with "[$] [$Htc]"); last eauto.
     iApply (iscellaction_value with "Hc").
   Qed.
 
@@ -752,7 +752,7 @@ Section Proofs.
 
   (* A specification for the value [NILV]. *)
 
-  Lemma NILV_spec h :
+  Lemma streamcell_NILV h :
     ⊢ StreamCell h NILV [] [].
   Proof.
     iIntros. simpl. eauto.
@@ -760,7 +760,7 @@ Section Proofs.
 
   (* Specifications for the expression [NIL]. *)
 
-  Lemma NIL_spec h :
+  Lemma streamcell_NIL h :
     TC_invariant -∗
     {{{ TC 1 }}} « NIL » {{{ c, RET « c »; StreamCell h c [] [] }}}.
   Proof.
@@ -772,7 +772,7 @@ Section Proofs.
     construct_nil_cell.
   Qed.
 
-  Lemma NIL_action h :
+  Lemma iscellaction_NIL h :
     TC_invariant -∗
     TC 1 -∗
     isCellAction h 0 NIL [] [].
@@ -782,7 +782,7 @@ Section Proofs.
        and 1 credit when the thunk is forced, but this is simpler. *)
     iIntros "#? H1".
     construct_cellaction.
-    iApply (NIL_spec with "[$] [$H1]").
+    iApply (streamcell_NIL with "[$] [$H1]").
     iNext.
     iIntros (c) "Hc".
     iApply ("Post" with "Hc Htoken").
@@ -790,7 +790,7 @@ Section Proofs.
 
   (* Specifications for the expression [CONS x #t]. *)
 
-  Lemma CONS_spec h t ds x xs :
+  Lemma streamcell_CONS h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
     {{{ TC 2 }}}
@@ -807,14 +807,14 @@ Section Proofs.
     construct_cons_cell.
   Qed.
 
-  Lemma CONS_action h t ds x xs :
+  Lemma iscellaction_CONS h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
     isCellAction h 2 (CONS x #t) ds (x :: xs).
   Proof.
     iIntros "#Hstream #?".
     construct_cellaction.
-    iApply (CONS_spec with "[$] [$] [$]").
+    iApply (streamcell_CONS with "[$] [$] [$]").
     iNext.
     iIntros (c) "Hc".
     iApply ("Post" with "Hc Htoken").
@@ -822,7 +822,7 @@ Section Proofs.
 
   (* A specification for the expression [nil]. *)
 
-  Lemma nil_spec h :
+  Lemma stream_nil h :
     TC_invariant -∗
     {{{ TC 6 }}}
       « nil »
@@ -831,14 +831,14 @@ Section Proofs.
     construct_texan_triple "Htc".
     iDestruct "Htc" as "(H1 & H5)".
     (* [nil] is defined as [lazy NIL], and [NIL] is an expression,
-       not a value, so [lazy_val_spec] is not applicable. *)
-    wp_apply (lazy_spec with "[$] [$H5 H1]"); last eauto 2.
-    iApply (NIL_action with "[$] H1").
+       not a value, so [stream_create_val] is not applicable. *)
+    wp_apply (stream_create with "[$] [$H5 H1]"); last eauto 2.
+    iApply (iscellaction_NIL with "[$] H1").
   Qed.
 
   (* A specification for the function [cons]. *)
 
-  Lemma cons_spec h t ds x xs :
+  Lemma stream_cons h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
     {{{ TC 8 }}}
@@ -854,25 +854,25 @@ Section Proofs.
     construct_texan_triple "Htc".
     wp_tick_lam. wp_tick_let.
     push_subst.
-    wp_apply (lazy_spec with "[$] [$Htc]"); last first.
+    wp_apply (stream_create with "[$] [$Htc]"); last first.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
-    { iApply (CONS_action with "Hstream [$]"). }
+    { iApply (iscellaction_CONS with "Hstream [$]"). }
   Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* A specification for the function [extract]. *)
+  (* A specification for the function [uncons]. *)
 
   (* The front thunk must have zero debit
      and the stream must be nonempty. *)
 
-  Lemma extract_spec h t ds x xs b :
+  Lemma stream_uncons h t ds x xs b :
     lies_below h b →
     let token := HToken p b in
     Stream h t (0 :: ds) (x :: xs) -∗
     TC_invariant -∗
     {{{ TC 22 ∗ token }}}
-      « extract #t »
+      « uncons #t »
     {{{ t', RET («x», #t'); Stream h t' ds xs ∗ token }}}.
   Proof.
     intros.
@@ -897,7 +897,7 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  (* The function [rev_append] has type [list → stream → stream]. In order to
+  (* The function [revl_append] has type [list → stream → stream]. In order to
      express its specification, we must define a representation predicate for
      immutable lists. It is pure. *)
 
@@ -913,14 +913,14 @@ Section Proofs.
   Definition isList (v : val) xs : iProp :=
     ⌜v = ListV xs⌝.
 
-  (* A specification for [rev_append], in a preliminary form. *)
+  (* A specification for [revl_append], in a preliminary form. *)
 
-  Lemma rev_append_spec_aux h :
+  Local Lemma stream_revl_append_aux h :
     ∀ xs c ds ys,
     StreamCell h c ds ys -∗
     TC_invariant -∗
     {{{ TC (6 + 19 * length xs) }}}
-      « rev_append (ListV xs) c »
+      « revl_append (ListV xs) c »
     {{{ c', RET «c'» ;
         StreamCell h c' (repeat 0 (length xs) ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
@@ -946,7 +946,7 @@ Section Proofs.
       push_subst.
       (* The next redex is [lazy c]. *)
       divide_credit "Htc" 2 5.
-      wp_apply (lazy_val_spec with "[$Hc] [$] [$Htc']").
+      wp_apply (stream_create_val with "[$Hc] [$] [$Htc']").
       (* Continue stepping. *)
       iIntros (t) "#Hthunk".
       wp_tick_pair. wp_tick_inj.
@@ -958,42 +958,42 @@ Section Proofs.
     }
   Qed.
 
-  (* A specification for [rev_append]. *)
+  (* A specification for [revl_append]. *)
 
-  (* [rev_append v c] eagerly traverses the list [v], so the cost that must be
+  (* [revl_append v c] eagerly traverses the list [v], so the cost that must be
      paid up front is linear in [n], where n is the length of this list. Since
      each of the suspensions that is constructed is trivial, this function
      returns a stream cell whose list of debits begins with [n] zeroes. *)
 
-  Lemma rev_append_spec h v xs c ds ys :
+  Lemma stream_revl_append h v xs c ds ys :
     let n := length xs in
     isList v xs -∗
     StreamCell h c ds ys -∗
     TC_invariant -∗
     {{{ TC (6 + 19 * n) }}}
-      « rev_append v c »
+      « revl_append v c »
     {{{ c', RET «c'» ;
         StreamCell h c' (repeat 0 n ++ ds) (List.rev xs ++ ys) }}}.
   Proof.
     intros. subst n.
     iIntros "%Hxs #Hc". subst.
     construct_texan_triple "Htc".
-    wp_apply (rev_append_spec_aux with "[$] [$] [$]").
+    wp_apply (stream_revl_append_aux with "[$] [$] [$]").
     eauto.
   Qed.
 
-  (* A specification for [rev]. *)
+  (* A specification for [revl]. *)
 
-  (* The function call [rev v] itself has time complexity O(1). It returns
+  (* The function call [revl v] itself has time complexity O(1). It returns
      a stream whose front thunk carries O(n) debits. This front thunk is
      followed with [n] thunks that carry zero debits. *)
 
-  Lemma rev_spec h v xs :
+  Lemma stream_revl h v xs :
     let n := length xs in
     isList v xs -∗
     TC_invariant -∗
     {{{ TC 13 }}}
-      « rev v »
+      « revl v »
     {{{ t, RET «#t» ;
         Stream h t ((19 * n) :: repeat 0 n) (List.rev xs) }}}.
   Proof.
@@ -1004,15 +1004,15 @@ Section Proofs.
     wp_tick_lam. push_subst.
     (* [lazy (...)] costs 5 credits. *)
     divide_credit "Htc" 5 7.
-    wp_apply (lazy_spec with "[$] [$Htc Htc'] Post").
+    wp_apply (stream_create with "[$] [$Htc Htc'] Post").
     (* Examine the body of this suspension. *)
     construct_cellaction.
     (* Evaluate NIL, consuming 1 credit. *)
     wp_tick_inj.
-    (* The call [rev_append l NILV] consumes the remaining credits. *)
+    (* The call [revl_append l NILV] consumes the remaining credits. *)
     rewrite untranslate_litv. untranslate.
-    wp_apply (rev_append_spec with "[$Hv] [] [$] [Htc Htc']").
-    { iApply NILV_spec. }
+    wp_apply (stream_revl_append with "[$Hv] [] [$] [Htc Htc']").
+    { iApply streamcell_NILV. }
     { rewrite TC_plus. iFrame. }
     rewrite !app_nil_r.
     iIntros (c') "Hc'".
@@ -1125,7 +1125,7 @@ Section Proofs.
      stream must be [h+1] if the heights of the existing streams are
      bounded by [h]. *)
 
-  Lemma append_spec h t1 t2 ds1 ds2 xs1 xs2 :
+  Lemma stream_append h t1 t2 ds1 ds2 xs1 xs2 :
     Stream h t1 ds1 xs1 -∗
     Stream h t2 ds2 xs2 -∗
     TC_invariant -∗
@@ -1155,7 +1155,7 @@ Section Proofs.
       (* Step. We pay 3 credits here. *)
       wp_tick_lam. wp_tick_let. push_subst.
       (* [lazy (...)] costs 5 credits. *)
-      wp_apply (lazy_spec with "[$] [$Htc]"); last first.
+      wp_apply (stream_create with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
       construct_cellaction.
@@ -1201,7 +1201,7 @@ Section Proofs.
       (* Step. We pay 3 credits here. *)
       wp_tick_lam. wp_tick_let. push_subst.
       (* [lazy (...)] costs 5 credits. *)
-      wp_apply (lazy_spec with "[$] [$Htc]"); last first.
+      wp_apply (stream_create with "[$] [$Htc]"); last first.
       { iIntros (t) "Hstream". iApply "Post". iFrame "Hstream". }
       (* Now, examine the body of the suspension. *)
       construct_cellaction.
@@ -1232,7 +1232,7 @@ Section Proofs.
       iIntros (t') "#Hstream'".
       untranslate.
       (* Build a CONS cell. *)
-      wp_apply (CONS_spec with "[$Hstream'] [$] [$Htc]").
+      wp_apply (streamcell_CONS with "[$Hstream'] [$] [$Htc]").
       iIntros (c) "#Hc".
       (* Conclude. *)
       iApply ("Post" with "Hc Htoken").
