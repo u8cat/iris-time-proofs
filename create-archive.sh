@@ -16,6 +16,7 @@ rm -rf ${ARCHIVE} ${ARCHIVE}.tar.gz
 mkdir ${ARCHIVE}
 
 cp -r \
+  .gitignore \
   Makefile \
   README.md \
   theories \
