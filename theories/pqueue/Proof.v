@@ -313,3 +313,6 @@ Proof.
 Qed.
 
 End PQueue.
+
+Local Definition public_api := (@push_spec, @pop_spec).
+Print Assumptions public_api.

@@ -563,3 +563,7 @@ Proof.
 Qed.
 
 End IQueue.
+
+Local Definition public_api :=
+  (@empty_spec, @is_empty_spec, @snoc_spec, @head_spec, @tail_spec).
+Print Assumptions public_api.

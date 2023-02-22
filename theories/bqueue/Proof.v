@@ -234,7 +234,7 @@ Proof.
     { rewrite app_nil_r //. }
 Qed.
 
-Lemma snoc q xs x :
+Lemma snoc_spec q xs x :
   TC_invariant -∗
   is_queue q xs -∗
   {{{ TC 136 }}}
@@ -277,7 +277,7 @@ Qed.
 Notation token :=
   (HToken p None).
 
-Lemma extract q x xs :
+Lemma extract_spec q x xs :
   TC_invariant -∗
   is_queue q (x :: xs) -∗
   {{{ TC 165 ∗ token }}}
@@ -328,3 +328,7 @@ Proof.
 Qed.
 
 End BQueue.
+
+Local Definition public_api :=
+  (@empty_spec, @is_empty_spec, @snoc_spec, @extract_spec).
+Print Assumptions public_api.
