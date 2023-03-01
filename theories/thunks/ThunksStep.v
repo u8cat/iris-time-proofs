@@ -322,6 +322,7 @@ Global Instance step_thunk_api :
   CommonThunkAPI ProxyThunk.
 Proof.
   constructor.
+  { tc_solve. }
   { eauto using proxythunk_increase_debt. }
   { eauto using proxythunk_force_spec. }
   { eauto using proxythunk_force_forced. }

@@ -66,7 +66,6 @@ Implicit Type f v : val.
 
 Definition Thunk p F t n R φ : iProp :=
   ∃ SomeThunk,
-  ∃ (_ : ∀ p F t n R φ, Persistent (SomeThunk p F t n R φ)),
   ∃ (_ : CommonThunkAPI SomeThunk),
   ∃ N d F',
   ⌜ ∀ d', d < d' → F' ## ↑(N .@ d') ⌝ ∗
@@ -79,7 +78,7 @@ Definition Thunk p F t n R φ : iProp :=
 
 Local Ltac destruct_thunk :=
   iDestruct "Hthunk"
-    as (SomeThunk ? ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
+    as (SomeThunk ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
@@ -113,7 +112,7 @@ Proof.
   iNext. iIntros (t) "Hthunk".
   iApply "Post".
   (* Wrap this base thunk as a Thunk. *)
-  iExists BaseThunk, _, _.
+  iExists BaseThunk, _.
   iExists N, 0, (↑(N .@ 0)).
   repeat pure_conjunct.
   { intros. assert (0 ≠ d') by lia. eauto with ndisj. }
@@ -140,7 +139,7 @@ Proof.
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   iModIntro.
   (* Pack existentials. *)
-  iExists ProxyThunk, _, _.
+  iExists ProxyThunk, _.
   iExists N, (d+1), _.
   iFrame "Hthunk".
   iPureIntro; split.
@@ -157,13 +156,14 @@ Global Instance full_thunk_api :
   CommonThunkAPI Thunk.
 Proof.
   constructor; intros.
+  { tc_solve. }
 
   { (* thunk_increase_debt *)
     iIntros "Hthunk".
     destruct_thunk.
     iPoseProof (thunk_increase_debt with "Hthunk") as "Hthunk'"; [ done |].
     iClear "Hthunk".
-    iExists SomeThunk, _, _.
+    iExists SomeThunk, _.
     iExists _, _, _.
     eauto. }
 
@@ -189,7 +189,7 @@ Proof.
     iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
     iModIntro.
     (* Pack existentials. *)
-    iExists SomeThunk, _, _.
+    iExists SomeThunk, _.
     iExists _, _, _.
     iFrame "Hthunk".
     eauto. }

@@ -88,17 +88,9 @@ Class CommonThunkAPI
     iProp
   )
 
-  (* [Thunk] must be persistent. This means that a thunk can be shared. In
-    combination with [thunk_increase_debt] and [thunk_pay], this implies that
-    several different views of a thunk, with distinct numbers of debits, can
-    co-exist. *)
-
-  `{
-    ∀ p F t n R φ,
-    Persistent (Thunk p F t n R φ)
-  }
-
 := {
+
+  thunk_persistent p F t n R φ :> Persistent (Thunk p F t n R φ);
 
   (* The predicate [Thunk F t n R φ] must be covariant in the parameter [n],
      which represents the debt (that is, the number of debits) associated with
@@ -181,6 +173,8 @@ Class CommonThunkAPI
 
 End API.
 
+Global Existing Instance thunk_persistent.
+
 (* -------------------------------------------------------------------------- *)
 
 (* The predicate [BaseThunk] satisfies the common thunk API. *)
@@ -199,6 +193,7 @@ Global Instance base_thunk_api :
   CommonThunkAPI BaseThunk.
 Proof.
   constructor.
+  { tc_solve. }
   { eauto using base_thunk_increase_debt. }
   { eauto using base_thunk_force. }
   { (* The goal here is almost identical to [base_thunk_force_forced].
