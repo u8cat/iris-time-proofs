@@ -116,6 +116,10 @@ Section TickSpec.
   Global Instance from_sep_TR_succ n : FromSep (TR (S n)) (TR 1) (TR n).
   Proof. by rewrite /FromSep [TR (S n)] TR_succ. Qed.
 
+  Global Instance combine_sep_as_TR_plus m n :
+    CombineSepAs (TR m) (TR n) (TR (m + n)).
+  Proof using. by rewrite /CombineSepAs TR_plus. Qed.
+
   (* Note: we can avoid the update modality by redefining TRdup like so:
          Definition TRdup' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TRdup n. *)
   Lemma zero_TRdup :

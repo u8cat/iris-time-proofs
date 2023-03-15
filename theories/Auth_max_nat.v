@@ -18,7 +18,7 @@ Section Auth_max_nat.
     ⌜(n ≤ m)%nat⌝.
   Proof.
     iIntros "H● H◯".
-    iDestruct (own_valid_2 with "H● H◯") as % [?%max_nat_included _] % auth_both_valid_discrete.
+    iCombine "H● H◯" gives % [?%max_nat_included _] % auth_both_valid_discrete.
     iPureIntro. assumption.
   Qed.
 

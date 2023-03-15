@@ -153,7 +153,7 @@ Local Lemma agree_forced γforced forced forced' :
   ⌜ forced' = forced ⌝.
 Proof.
   iIntros "Hγforced● Hγforced◯".
-  iDestruct (own_valid_2 with "Hγforced● Hγforced◯") as "%Hvalid".
+  iCombine "Hγforced● Hγforced◯" gives "%Hvalid".
   iPureIntro. symmetry. eauto using excl_auth_agree_L.
 Qed.
 

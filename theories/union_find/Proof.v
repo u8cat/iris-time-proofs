@@ -522,7 +522,7 @@ Proof.
   iDestruct (big_sepM_lookup with "HM1") as "H1"=>//.
   iDestruct (big_sepM_lookup with "HM2") as "H2"=>//.
   do 2 destruct val_of_content; try done.
-  by iDestruct (mapsto_valid_2 with "H1 H2") as %[].
+  by iCombine "H1 H2" gives %[].
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -739,7 +739,7 @@ Proof using.
   { case HMx: (M!!x)=>//.
     iDestruct (big_sepM_lookup with "HM") as "Hx'"=>//.
     destruct val_of_content; try done.
-    by iDestruct (mapsto_valid_2 with "Hx Hx'") as %[]. }
+    by iCombine "Hx Hx'" gives %[]. }
   assert (x \notin D) as Dx.
   { intros Dx%HM. by rewrite Mx in Dx. }
 

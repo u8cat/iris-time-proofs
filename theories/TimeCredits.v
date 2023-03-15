@@ -141,6 +141,10 @@ Section TickSpec.
   Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n) | 100.
   Proof. by rewrite /FromSep [TC (S n)] TC_succ. Qed.
 
+  Global Instance combine_sep_as_TC_plus m n :
+    CombineSepAs (TC m) (TC n) (TC (m + n)).
+  Proof using. by rewrite /CombineSepAs TC_plus. Qed.
+
   Definition timeCreditN := nroot .@ "timeCredit".
 
   Definition TC_invariant : iProp Σ :=

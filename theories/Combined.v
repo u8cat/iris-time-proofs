@@ -146,6 +146,10 @@ Section Definitions.
   Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n) | 100.
   Proof using. by rewrite /FromSep [TC (S n)] TC_succ. Qed.
 
+  Global Instance combine_sep_as_TC_plus m n :
+    CombineSepAs (TC m) (TC n) (TC (m + n)).
+  Proof using. by rewrite /CombineSepAs TC_plus. Qed.
+
   Definition TR (n : nat) : iProp Σ :=
     own γ1 (◯nat n).
 
@@ -182,6 +186,10 @@ Section Definitions.
   Proof using. by rewrite /IntoSep TR_succ. Qed.
   Global Instance from_sep_TR_succ n : FromSep (TR (S n)) (TR 1) (TR n) | 100.
   Proof using. by rewrite /FromSep [TR (S n)] TR_succ. Qed.
+
+  Global Instance combine_sep_as_TR_plus m n :
+    CombineSepAs (TR m) (TR n) (TR (m + n)).
+  Proof using. by rewrite /CombineSepAs TR_plus. Qed.
 
   (* Note: we can avoid the update modality by redefining TRdup like so:
          Definition TRdup' n : iProp Σ := ⌜n = 0%nat⌝ ∨ TRdup n. *)
@@ -849,7 +857,7 @@ Section Soundness.
     iApply (Hspec $ HtcHeapG with "Hinv Hγ◯") ; auto.
   Qed.
 
-  (* the final soundness theorem. *) 
+  (* the final soundness theorem. *)
 
   Theorem tctr_sound {Σ} max_tr m φ e :
     (0 < max_tr)%nat →

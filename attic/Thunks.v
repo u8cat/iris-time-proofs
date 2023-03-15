@@ -196,7 +196,7 @@ Section ThunkProofs.
   Lemma ThunkVal_agree γ v1 v2 :
     ThunkVal γ v1 -∗ ThunkVal γ v2 -∗ ⌜v1 = v2⌝.
   Proof.
-    iIntros "H1 H2". iDestruct (own_valid_2 with "H1 H2") as %Hag. iPureIntro.
+    iIntros "H1 H2". iCombine "H1 H2" gives %Hag. iPureIntro.
     eapply to_agree_op_valid_L, (proj1 (Cinr_valid (A:=unitR) _)). by rewrite Cinr_op.
   Qed.
 
@@ -351,7 +351,7 @@ Section ThunkProofs.
     iDestruct "HpaidInv" as (forced paid) "(>Hγforced◯ & >Hγpaid● & Hpaid)".
     (* TODO automate the following deduction step? *)
     iAssert ⌜false = forced⌝%I as %<-.
-    { iDestruct (own_valid_2 with "Hγforced● Hγforced◯") as "%Hvalid".
+    { iCombine "Hγforced● Hγforced◯" gives "%Hvalid".
       eauto using excl_auth_agree_L. }
     iDestruct (own_auth_max_nat_le with "Hγpaid● Hγpaid◯") as %Hle; cbn in Hle.
     iDestruct (TC_weaken _ _ Hle with "Hpaid") as ">Hm".
