@@ -15,7 +15,6 @@ From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 (* Prologue. *)
 
 Section Step.
-
 Context `{CommonThunkAPI Σ Thunk}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
@@ -330,3 +329,5 @@ Proof.
 Qed.
 
 End Step.
+
+Arguments ProxyThunk {_ _ _ _} _ {_ _} _ _ _ _ _ _.

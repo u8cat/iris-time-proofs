@@ -36,16 +36,17 @@ Implicit Type f v : val.
 
 (* -------------------------------------------------------------------------- *)
 
-(* The definition of the predicate [Thunk] relies on an existential
-   quantification: it is essentially the greatest predicate that is
-   persistent and satisfies the common thunk API. Thus, it includes
-   [BaseThunk] and is closed under the [ProxyThunk] construction:
+(* The definition of the predicate [Thunk] is essentially an iterated
+   application of [ProxyThunk] over [BasicThunk]. The application is repeated
+   a number of times, [d], which is then existentially quantified:
    this allows us to prove that it has both the creation rule and
    the consequence rule. *)
 
-(* We could also have defined [Thunk] in an inductive manner,
-   by using [BaseThunk] as the base case and [ProxyThunk] as
-   the step case. *)
+Fixpoint Thunk_rec d p F t n R φ : iProp :=
+  match d with
+  | 0 => BaseThunk p F t n R φ
+  | S d' => ProxyThunk (Thunk_rec d') p F t n R φ
+  end.
 
 (* The definition involves technical side conditions about masks. For the
    iterative construction to work up to an arbitrary height, we must argue
@@ -65,32 +66,51 @@ Implicit Type f v : val.
    enough to force a thunk of an arbitrary level. *)
 
 Definition Thunk p F t n R φ : iProp :=
-  ∃ SomeThunk,
-  ∃ (_ : CommonThunkAPI SomeThunk),
   ∃ N d F',
-  ⌜ ∀ d', d < d' → F' ## ↑(N .@ d') ⌝ ∗
-  ⌜ F' ⊆ ↑N ⊆ F ⌝ ∗
-  SomeThunk p F' t n R φ.
+    ⌜ ∀ d', d < d' → F' ## ↑(N .@ d') ⌝ ∗
+    ⌜ F' ⊆ ↑N ⊆ F ⌝ ∗
+    Thunk_rec d p F' t n R φ.
 
 (* -------------------------------------------------------------------------- *)
 
 (* Local tactics, for clarity. *)
 
 Local Ltac destruct_thunk :=
-  iDestruct "Hthunk"
-    as (SomeThunk ? N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
+  iDestruct "Hthunk" as (N d F'') "(%Hroom & (%HF''N & %HNF) & #Hthunk)".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the common thunk API. *)
+(* The predicates [Thunk_rec] and [Thunk] satisfy the common thunk API. *)
 
-Global Instance thunk_persistent p F t n R φ :
-  Persistent (Thunk p F t n R φ).
+Instance thunk_rec_api d :
+  CommonThunkAPI (Thunk_rec d).
+Proof. induction d; tc_solve. Qed.
+
+Global Instance thunk_api :
+  CommonThunkAPI Thunk.
 Proof.
-  exact _.
+  constructor; intros.
+
+  { tc_solve. (* persistent *) }
+
+  { (* thunk_increase_debt *)
+    iIntros "#Hthunk". destruct_thunk.
+    iExists _, _, _. pure_conjunct. pure_conjunct. by iApply thunk_increase_debt. }
+
+  { (* thunk_force *)
+    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post". destruct_thunk.
+    iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $ HR] Post"). set_solver. }
+
+  { (* thunk_force_forced *)
+    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp) Post". destruct_thunk.
+    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Hp] Post"). set_solver. }
+
+  { (* thunk_pay *)
+    iIntros "#Hthunk Hk". destruct_thunk. iExists N, d, F''. pure_conjunct. pure_conjunct.
+    by iApply (thunk_pay with "Hthunk Hk"). }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -112,12 +132,8 @@ Proof.
   iNext. iIntros (t) "Hthunk".
   iApply "Post".
   (* Wrap this base thunk as a Thunk. *)
-  iExists BaseThunk, _.
-  iExists N, 0, (↑(N .@ 0)).
-  repeat pure_conjunct.
-  { intros. assert (0 ≠ d') by lia. eauto with ndisj. }
-  { eauto with ndisj. }
-  eauto with iFrame.
+  iExists N, 0, _. iFrame "Hthunk". iSplitL; [|solve_ndisj].
+  iIntros (d' ?). assert (0 ≠ d') by lia. solve_ndisj.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -129,8 +145,7 @@ Lemma thunk_consequence E p F t n1 n2 R φ ψ :
   isUpdate n2 R φ ψ ={E}=∗
   Thunk p F t (n1 + n2) R ψ.
 Proof.
-  iIntros "#Hthunk Hupdate".
-  destruct_thunk.
+  iIntros "#Hthunk Hupdate". destruct_thunk.
   (* Wrap this thunk into a fresh ghost thunk. *)
   iMod (proxythunk_consequence (N .@ (d+1)) with "Hthunk Hupdate")
     as "Hthunk'".
@@ -139,61 +154,11 @@ Proof.
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   iModIntro.
   (* Pack existentials. *)
-  iExists ProxyThunk, _.
-  iExists N, (d+1), _.
-  iFrame "Hthunk".
+  iExists N, (S d), _. iFrame "Hthunk".
   iPureIntro; split.
   { intros. assert (d' ≠ d + 1) by lia.
     eapply disjoint_union_l; eauto with lia ndisj. }
   { eauto using namespaces.coPset_union_least with ndisj. }
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
-(* The predicate [Thunk] satisfies the common thunk API. *)
-
-Global Instance full_thunk_api :
-  CommonThunkAPI Thunk.
-Proof.
-  constructor; intros.
-  { tc_solve. }
-
-  { (* thunk_increase_debt *)
-    iIntros "Hthunk".
-    destruct_thunk.
-    iPoseProof (thunk_increase_debt with "Hthunk") as "Hthunk'"; [ done |].
-    iClear "Hthunk".
-    iExists SomeThunk, _.
-    iExists _, _, _.
-    eauto. }
-
-  { (* thunk_force *)
-    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post".
-    destruct_thunk.
-    iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]").
-    { set_solver. }
-    done. }
-
-  { (* thunk_force_forced *)
-    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp) Post".
-    destruct_thunk.
-    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Hp]").
-    { set_solver. }
-    done. }
-
-  { (* thunk_pay *)
-    iIntros "#Hthunk Hk".
-    destruct_thunk.
-    iMod (thunk_pay with "Hthunk Hk") as "#Hthunk'".
-    { set_solver. }
-    iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
-    iModIntro.
-    (* Pack existentials. *)
-    iExists SomeThunk, _.
-    iExists _, _, _.
-    iFrame "Hthunk".
-    eauto. }
-
 Qed.
 
 End Full.
