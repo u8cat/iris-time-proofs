@@ -356,7 +356,7 @@ Proof using.
   { rewrite lookup_insert_ne; [|naive_solver].
     rewrite /update1 fcupdate_miss; [by apply HV|].
     intro. forwards* : R_is_identity_outside_D R r.
-    forwards*: Inv_root x (R x). intuition congruence. }
+    forwards* : Inv_root x (R x). intuition congruence. }
   { rewrite lookup_insert /update1 fcupdate_hit //. splits.
     { eauto using only_roots_outside_D with is_dsf. }
     { (* We use the fact that [K] is zero outside the domain. *)
@@ -458,7 +458,7 @@ Proof using.
     { rewrite /update1 fcupdate_hit; congruence. } }
   { rewrite lookup_insert_ne // /update1 /fcupdate. case_if~.
     destruct~ (M!!y) as [[]|]; [|done..]. destruct HM as (H1&H2&H3).
-    forwards*: is_root_R_self H1. congruence. }
+    forwards* : is_root_R_self H1. congruence. }
 Qed.
 
 (* -------------------------------------------------------------------------- *)
