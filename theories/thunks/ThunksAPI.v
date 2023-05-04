@@ -130,30 +130,6 @@ Class CommonThunkAPI
     {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
   ;
 
-  (* Forcing a thunk that has already been forced requires 11 time credits,
-     regardless of the apparent debt associated with this thunk. *)
-
-  (* The value that is returned must be the value [v] predicted by the
-     assertion [ThunkVal t v]. *)
-
-  (* This specification is weak: it does not guarantee [□ φ v]. One cannot
-     hope to obtain this property when [n] is nonzero. Establishing this
-     property conditionally, only in the special case where [n = 0] holds,
-     may be possible, but leads to difficulties in the proof. *)
-
-  (* When a zero-debit thunk [Thunk p F t 0 R φ] has already been forced, so
-     [ThunkVal t v] is at hand, one might hope to be able to obtain [▷ □ φ v]
-     without executing any code, via a ghost update. We do not provide this
-     reasoning rule. An attempt runs into difficulties in the proof. *)
-
-  thunk_force_forced p F t n R φ v F' :
-    F ⊆ F' →
-    TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p F t n R φ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
-      «force #t»
-    {{{ RET «v» ; ThunkToken p F' }}}
-  ;
-
   (* The ghost operation [pay] allows paying for (part of) the cost of a
      thunk. A thunk must be fully paid for before it can be forced. *)
 
@@ -196,17 +172,6 @@ Proof.
   { tc_solve. }
   { eauto using base_thunk_increase_debt. }
   { eauto using base_thunk_force. }
-  { (* The goal here is almost identical to [base_thunk_force_forced].
-       It differs in that we are not asked to prove [□ φ v], yet we
-       are actually able to prove it. *)
-    intros.
-    iIntros "#Htickinv" (Φ) "!# (Htc & #Hthunk & #Hval & Htoken) Post".
-    wp_apply (base_thunk_force_forced
-               with "Htickinv [$Htc $Hthunk $Hval $Htoken]"); [ done |].
-    iIntros "(#Hv & Htoken)".
-    iClear "Hv". (* Drop φ v *)
-    iApply "Post".
-    iFrame "Htoken". }
   { eauto using base_thunk_pay. }
 Qed.
 

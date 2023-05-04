@@ -248,48 +248,17 @@ Proof.
     iApply wp_fupd.
     (* Force this thunk, which we know has been forced already.
        The result must be [v]. *)
-    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Htoken]").
-    { set_solver. }
-    iNext.
+    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hval]").
+    iNext. iIntros.
     iDestruct "Hv" as "#Hv".
     (* We do not need [□ φ v], which is fortunate, as we do not have it. *)
-    iIntros "Htoken".
     (* Close the invariant, whose right-hand side now holds. *)
-    iMod ("Hclose" with "[] Htoken") as "Hqwd".
+    iMod ("Hclose" with "[] Htoken") as "Htoken".
     { construct_right_branch. }
     (* Done. *)
     iModIntro. iApply "Post". eauto with iFrame.
   }
 
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
-(* This law is part of the common thunk API. *)
-
-Local Lemma proxythunk_force_forced p F t n R ψ v F' :
-  F ⊆ F' →
-  TC_invariant -∗
-  {{{ TC 11 ∗ ProxyThunk p F t n R ψ ∗ ThunkVal t v ∗ ThunkToken p F' }}}
-    «force #t»
-  {{{ RET «v» ; ThunkToken p F' }}}.
-Proof.
-  intros.
-  iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Htoken) Post".
-  destruct_thunk. iClear "Hpiggy".
-
-  (* Remarkably, we do not even need the piggy bank. *)
-
-  (* We force the underlying thunk using the same law,
-     and do not execute the ghost update, as we are not
-     required to produce [□ ψ v]. *)
-
-  (* Force the underlying thunk using the same law. *)
-  iApply (thunk_force_forced
-    with "Htickinv [$Hcredits $Hthunk $Hval $Htoken]");
-    [ set_solver |].
-
-  eauto.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
@@ -324,7 +293,6 @@ Proof.
   { tc_solve. }
   { eauto using proxythunk_increase_debt. }
   { eauto using proxythunk_force_spec. }
-  { eauto using proxythunk_force_forced. }
   { eauto using proxythunk_pay. }
 Qed.
 

@@ -230,37 +230,6 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* Forcing a thunk that has already been forced. See ThunksAPI for comments. *)
-
-Lemma hthunk_force_forced p h t n φ b v :
-  lies_below h b →
-  let token := HToken p b in
-  TC_invariant -∗
-  {{{ TC 11 ∗ HThunk p h t n φ ∗ ThunkVal t v ∗ token }}}
-    « force #t »
-  {{{ RET «v» ; token }}}.
-Proof using.
-  intros Hh.
-  construct_texan_triple "(Htc & Hthunk & Hval & Htoken)".
-  deconstruct_thunk.
-  assert (Hh': lies_below h' b) by eauto using leq_lies_below.
-  rewrite /HToken.
-  rewrite (carve_out_gens_below_gen _ _ Hh').
-  iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
-  { set_solver. }
-  (* Only one token is required here. *)
-  wp_apply (thunk_force_forced with "[$] [$Htc $Hthunk $Hval $Htoken2]").
-  { eauto using gen_ns_subseteq_interval. }
-  (* Conclude. *)
-  iIntros "Htoken2".
-  iApply "Post".
-  iDestruct (na_own_union with "[$Htoken1 $Htoken2]") as "Htoken".
-  { set_solver. }
-  iFrame "Htoken".
-Qed.
-
-(* -------------------------------------------------------------------------- *)
-
 (* Paying. *)
 
 Lemma hthunk_pay k E p h t n φ :

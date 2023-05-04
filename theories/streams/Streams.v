@@ -333,9 +333,8 @@ Section Proofs.
     iIntros "#Hstream #Hval".
     construct_texan_triple "(Htc & Htoken)".
     unfold_stream. deconstruct_stream.
-    wp_apply (hthunk_force_forced with "[$] [$Htc $Hthunk $Hval $Htoken]");
-      first eauto with thunks.
-    eauto.
+    wp_apply (thunk_force_forced with "[$] [$Htc $Hval]"); iIntros.
+    by iApply ("Post" with "Htoken").
   Qed.
 
   (* The combination of [pay] and [force]. *)

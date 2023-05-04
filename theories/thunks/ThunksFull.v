@@ -104,10 +104,6 @@ Proof.
     iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post". destruct_thunk.
     iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $ HR] Post"). set_solver. }
 
-  { (* thunk_force_forced *)
-    iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & #Hval & Hp) Post". destruct_thunk.
-    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hthunk $Hval $Hp] Post"). set_solver. }
-
   { (* thunk_pay *)
     iIntros "#Hthunk Hk". destruct_thunk. iExists N, d, F''. pure_conjunct. pure_conjunct.
     by iApply (thunk_pay with "Hthunk Hk"). }
