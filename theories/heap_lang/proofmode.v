@@ -154,16 +154,19 @@ Proof.
   by rewrite right_id HΔ'.
 Qed.
 
-Lemma tac_wp_load Δ Δ' s E i K l q v Φ :
+Lemma tac_wp_load Δ Δ' s E i K b l q v Φ :
   MaybeIntoLaterNEnvs 1 Δ Δ' →
-  envs_lookup i Δ' = Some (false, l ↦{q} v)%I →
+  envs_lookup i Δ' = Some (b, l ↦{q} v)%I →
   envs_entails Δ' (WP fill K (Val v) @ s; E {{ Φ }}) →
   envs_entails Δ (WP fill K (Load (LitV l)) @ s; E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ???.
+  rewrite envs_entails_unseal=> ?? Hi.
   rewrite -wp_bind. eapply wand_apply; first exact: wp_load.
   rewrite into_laterN_env_sound -later_sep envs_lookup_split //; simpl.
-  by apply later_mono, sep_mono_r, wand_mono.
+  apply later_mono.
+  destruct b; simpl.
+  * iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
+  * by apply sep_mono_r, wand_mono.
 Qed.
 
 Lemma tac_wp_store Δ Δ' Δ'' s E i K l v v' Φ :
