@@ -5,6 +5,10 @@ From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits PiggyBank.
 From iris_time Require Import ThunksCode.
 
+(* TODO *)
+Local Notation "l ↦□ v" := (mapsto l DfracDiscarded v)
+  (at level 20, format "l  ↦□  v") : bi_scope.
+
 (* This file defines the predicate [ThunkVal]. It also provides a definition
    of the predicate [BaseThunk]. Together, these definitions satisfy the
    common thunk API defined in ThunksAPI.v. *)
@@ -133,7 +137,7 @@ Local Definition LeftBranch t γdecided R φ nc : iProp :=
 Local Definition RightBranch t γdecided φ : iProp :=
   ∃ v,
       ownDecided γdecided v
-    ∗ t ↦ EVALUATEDV « v »
+    ∗ t ↦□ EVALUATEDV « v »
     ∗ □ φ v.
 
 Definition ThunkPayment : namespace :=
@@ -163,6 +167,7 @@ Definition ThunkVal t v : iProp :=
   ∃ γdecided,
       meta t nroot γdecided
     ∗ ownDecided γdecided v
+    ∗ t ↦□ EVALUATEDV « v »
 
 .
 
@@ -178,10 +183,10 @@ Local Ltac destruct_left_branch :=
   iDestruct "Hbranch" as (f) "(>Hundecided & >Ht & Hf)".
 
 Local Ltac destruct_right_branch :=
-  iDestruct "Hbranch" as (v) "(>#Hdecided & >Ht & #Hv)".
+  iDestruct "Hbranch" as (v) "(>#Hdecided & >#Ht & #Hv)".
 
 Local Ltac destruct_thunkval :=
-  iDestruct "Hval" as (γdecided) "(Hmeta & Hγdecided)".
+  iDestruct "Hval" as (γdecided) "(Hmeta & Hγdecided & Htv)".
 
 Local Ltac construct_thunkval :=
   try iModIntro; iExists _; auto.
@@ -261,7 +266,7 @@ Lemma confront_thunkval_thunkval t v1 v2 :
 Proof.
   iIntros "Hval Hval2".
   destruct_thunkval.
-  iDestruct "Hval2" as (γdecided2) "(Hmeta2 & Hγdecided2)".
+  iDestruct "Hval2" as (γdecided2) "(Hmeta2 & Hγdecided2 & Htv2)".
   iDestruct (meta_agree with "[$][$]") as "%Heq". iClear "Hmeta Hmeta2".
   assert (γdecided2 = γdecided) by congruence. subst.
   iApply (ownDecided_agree with "Hγdecided [$]").
@@ -293,7 +298,7 @@ Proof.
   intros.
   iIntros "#Hthunk #Hval Htoken".
   destruct_thunk.
-  iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
+  iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided & Htv)".
 
   (* Exploit the agreement of the meta tokens. *)
   iDestruct (meta_agree with "Hmeta Hmeta2") as "%Heq".
@@ -427,6 +432,8 @@ Proof.
     (* Establish the postcondition. *)
     iApply "Post".
     iFrame "Hv HR".
+    (* Make the thunk immutable forever. *)
+    iMod (mapsto_persist with "Ht") as "#Ht".
     iSplitR.
     (* Subgoal: establish [ThunkVal t v]. *)
     { construct_thunkval. }
@@ -502,7 +509,7 @@ Proof.
        already invoked this lemma above, so there is some redundancy here.
        Never mind. This is not a big deal. *)
     iExFalso. iClear "Htickinv Hpiggy Post".
-    iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided)".
+    iDestruct "Hval" as (γdecided2) "(Hmeta2 & Hdecided & _)".
     (* Exploit the agreement of the meta tokens. *)
     iDestruct (meta_agree with "Hmeta Hmeta2") as "%Heq".
     subst γdecided2.
@@ -522,7 +529,7 @@ Proof.
     destruct_right_branch.
     (* [v] and [v'] must be the same value. *)
     iDestruct (confront_thunkval_thunkval with "Hval [Hdecided]") as "%Heq".
-    { iExists _. iFrame "Hmeta Hdecided". }
+    { iExists _. iFrame "Hmeta Hdecided Ht". }
     subst v'.
     (* We now step through the code. The right branch is taken. *)
     wp_tick_load. wp_tick_match.
