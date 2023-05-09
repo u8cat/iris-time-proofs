@@ -132,7 +132,7 @@ Lemma hthunk_create p h n φ f :
     « create f »
   {{{ t, RET «#t» ; HThunk p h t n φ }}}.
 Proof.
-  construct_texan_triple "H".
+  intro. construct_texan_triple "H".
   wp_apply (thunk_create with "[$] H"); [ done |].
   iIntros (t) "Hthunk".
   iApply "Post". construct_thunk h. done.
@@ -209,12 +209,10 @@ Lemma hthunk_force p h b t φ :
     « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof using.
-  intros Hh.
-  construct_texan_triple "(Htc & Hthunk & Htoken)".
+  intros Hh ?. construct_texan_triple "(Htc & Hthunk & Htoken)".
   deconstruct_thunk.
   assert (Hh': lies_below h' b) by eauto using leq_lies_below.
-  rewrite /HToken.
-  rewrite (carve_out_gens_below_gen _ _ Hh').
+  rewrite /token /HToken (carve_out_gens_below_gen _ _ Hh').
   iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
   { set_solver. }
   (* Both tokens are required here. *)
@@ -256,8 +254,7 @@ Lemma hthunk_pay_force p h b t d φ :
     « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof.
-  intros Hh.
-  iIntros "#HtickInv" (Φ) "!# ((Htc1 & Htc2) & #Hthunk & Htoken) Post".
+  intros Hh ?. iIntros "#HtickInv" (Φ) "!# ((Htc1 & Htc2) & #Hthunk & Htoken) Post".
   iMod (hthunk_pay with "Hthunk Htc2") as "#Hthunk'"; [ done |].
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   wp_apply (hthunk_force with "[$] [$Htc1 Hthunk $Htoken]").

@@ -119,7 +119,7 @@ Section TickSpec.
 
   Lemma TC_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
-    TC n₁ -∗ TC n₂.
+    TC n₁ ⊢ TC n₂.
   Proof.
     rewrite /TC.
     iIntros (?) "[%Heqn1 | Hn1]".

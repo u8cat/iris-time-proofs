@@ -124,11 +124,10 @@ Section Definitions.
   Proof using. by rewrite (eq_refl : S n = 1 + n)%nat TC_plus. Qed.
   Lemma TC_weaken (n₁ n₂ : nat) :
     (n₂ ≤ n₁)%nat →
-    TC n₁ -∗ TC n₂.
+    TC n₁ ⊢ TC n₂.
   Proof using.
-    rewrite /TC ; destruct useTC.
-    - by apply own_auth_nat_weaken.
-    - done.
+    rewrite /TC ; destruct useTC; [|done].
+    iIntros. by iApply own_auth_nat_weaken.
   Qed.
 
   Lemma TC_timeless n :
