@@ -1,5 +1,4 @@
 From iris.base_logic Require Import invariants.
-From iris.algebra Require Import lib.gmap_view.
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris_time Require Import Auth_nat Reduction.
 From iris_time Require Export TimeCredits.

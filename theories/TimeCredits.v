@@ -1,6 +1,5 @@
 From iris_time Require Import Base.
 From iris.base_logic Require Import invariants.
-From iris.algebra Require Import lib.gmap_view.
 From iris.proofmode Require Import coq_tactics.
 From iris_time.heap_lang Require Import proofmode notation adequacy lang.
 From iris_time Require Import Auth_nat Reduction Tactics.
