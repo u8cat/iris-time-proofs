@@ -297,7 +297,9 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  Definition Sf := 11.
+  (* [Sf] is the cost of forcing a stream. *)
+
+  Definition Sf := Tf.
 
   (* Forcing a stream. *)
 
@@ -677,7 +679,9 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
-  Definition Scr := 5.
+  (* [Scr] is the cost of creating a stream suspension. *)
+
+  Definition Scr := 2 + Tcr.
 
   (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
