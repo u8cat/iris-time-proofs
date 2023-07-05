@@ -149,10 +149,12 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+Definition Tcr := 3.
+
 (* A public lemma: the specification of [create]. *)
 
 (* In short, [create] requires
-   + 3 time credits;
+   + [Tcr] time credits;
    + a permission to call f(), at most once,
      with precondition nc$ and postcondition φ.
 
@@ -163,7 +165,7 @@ Qed.
 
 Lemma thunk_create_spec p nc φ f :
   TC_invariant -∗
-  {{{ TC 3 ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; φ v }}} ) }}}
+  {{{ TC Tcr ∗ ( {{{ TC nc }}} «f #()» {{{ v, RET « v » ; φ v }}} ) }}}
   «create f»
   {{{ (t : loc), RET «#t» ; Thunk p t nc φ }}}.
 Proof.
@@ -183,6 +185,8 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+Definition Tf := 11.
+
 (* A public lemma: the specification of [force]. *)
 
 (* Forcing a thunk [t] requires a token of the form [na_own p F], where [F]
@@ -197,13 +201,13 @@ Qed.
    only if the cost of forcing this thunk has already been paid for (perhaps
    in several increments) using [thunk_pay]. *)
 
-(* Forcing a thunk has (amortized) constant time complexity. It requires 11$. *)
+(* Forcing a thunk has (amortized) constant time complexity. It requires [Tf]$. *)
 
 Lemma thunk_force_spec p F t φ :
   ↑(thunkN t) ⊆ F →
   (∀ (v : val), φ v -∗ φ v ∗ φ v) →
   TC_invariant -∗
-  {{{ TC 11 ∗ Thunk p t 0 φ ∗ na_own p F }}}
+  {{{ TC Tf ∗ Thunk p t 0 φ ∗ na_own p F }}}
   «force #t»
   {{{ v, RET «v» ; φ v ∗ na_own p F }}}.
 Proof.

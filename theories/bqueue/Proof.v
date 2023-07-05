@@ -21,7 +21,7 @@ Context (p : na_inv_pool_name).
 
 Local Hint Resolve subdebits_reflexive : core.
 
-Local Definition K :=
+Definition K :=
   Eval compute in (30 + 11 + 19).
 
 Definition queue_debits (lenf lenr : nat) :=
@@ -119,9 +119,11 @@ Local Ltac construct_queue fl rl :=
 Local Tactic Notation "construct_queue" uconstr(fl) uconstr(rl) :=
   construct_queue fl rl.
 
+Definition Be := 13.
+
 Lemma empty_spec :
   TC_invariant -∗
-  {{{ TC 13 }}}
+  {{{ TC Be }}}
     «empty #()»
   {{{ q, RET «q»; is_queue q [] }}}.
 Proof.
@@ -140,10 +142,12 @@ Proof.
   construct_queue [] []; first iApply "Hstream'"; auto.
 Qed.
 
+Definition Bie := 42.
+
 Lemma is_empty_spec q xs :
   TC_invariant -∗
   is_queue q xs -∗
-  {{{ TC 42 }}}
+  {{{ TC Bie }}}
     «is_empty q»
   {{{ RET #(bool_decide (xs = [])); True }}}.
 Proof.
@@ -183,11 +187,13 @@ Proof.
   repeat f_equal; lia.
 Qed.
 
+Definition Bc := 48.
+
 Lemma check_spec q fl rl :
   length rl ≤ length fl + 1 →
   TC_invariant -∗
   is_queue_raw q fl rl -∗
-  {{{ TC 48 }}}
+  {{{ TC Bc }}}
     «check q»
   {{{ q', RET «q'» ; is_queue q' (fl ++ List.rev rl) }}}.
 Proof.
@@ -234,10 +240,12 @@ Proof.
     { rewrite app_nil_r //. }
 Qed.
 
+Definition Bs := 136.
+
 Lemma snoc_spec q xs x :
   TC_invariant -∗
   is_queue q xs -∗
-  {{{ TC 136 }}}
+  {{{ TC Bs }}}
     «snoc q x»
   {{{ q', RET «q'» ; is_queue q' (xs ++ [x]) }}}.
 Proof.
@@ -277,10 +285,12 @@ Qed.
 Notation token :=
   (HToken p None).
 
+Definition Bex := 165.
+
 Lemma extract_spec q x xs :
   TC_invariant -∗
   is_queue q (x :: xs) -∗
-  {{{ TC 165 ∗ token }}}
+  {{{ TC Bex ∗ token }}}
     «extract q»
   {{{ q', RET («x», «q'»); is_queue q' xs ∗ token }}}.
 Proof.

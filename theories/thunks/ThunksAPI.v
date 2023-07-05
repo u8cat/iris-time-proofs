@@ -125,7 +125,7 @@ Class CommonThunkAPI
   thunk_force p F t R φ F' :
     F ⊆ F' →
     TC_invariant -∗
-    {{{ TC 11 ∗ Thunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
+    {{{ TC Tf ∗ Thunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
       «force #t»
     {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}
   ;
@@ -193,7 +193,7 @@ Notation iProp := (iProp Σ).
 Lemma thunk_pay_force p F t n R φ F' :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC (n + 11) ∗ Thunk p F t n R φ ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC (n + Tf) ∗ Thunk p F t n R φ ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.

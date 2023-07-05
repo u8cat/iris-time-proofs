@@ -116,7 +116,7 @@ Qed.
 Lemma thunk_create p N F nc R φ f :
   ↑N ⊆ F →
   TC_invariant -∗
-  {{{ TC 3 ∗ isAction f nc R φ }}}
+  {{{ TC Tcr ∗ isAction f nc R φ }}}
     «create f»
   {{{ t, RET «#t» ; Thunk p F t nc R φ }}}.
 Proof.

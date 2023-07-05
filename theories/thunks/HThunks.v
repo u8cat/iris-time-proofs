@@ -128,7 +128,7 @@ Qed.
 Lemma hthunk_create p h n φ f :
   let token := HToken p (Some h) in
   TC_invariant -∗
-  {{{ TC 3 ∗ isAction f n token φ }}}
+  {{{ TC Tcr ∗ isAction f n token φ }}}
     « create f »
   {{{ t, RET «#t» ; HThunk p h t n φ }}}.
 Proof.
@@ -205,7 +205,7 @@ Lemma hthunk_force p h b t φ :
   lies_below h b →
   let token := HToken p b in
   TC_invariant -∗
-  {{{ TC 11 ∗ HThunk p h t 0 φ ∗ token }}}
+  {{{ TC Tf ∗ HThunk p h t 0 φ ∗ token }}}
     « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof using.
@@ -250,7 +250,7 @@ Lemma hthunk_pay_force p h b t d φ :
   lies_below h b →
   let token := HToken p b in
   TC_invariant -∗
-  {{{ TC (11 + d) ∗ HThunk p h t d φ ∗ token }}}
+  {{{ TC (Tf + d) ∗ HThunk p h t d φ ∗ token }}}
     « force #t »
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ token }}}.
 Proof.

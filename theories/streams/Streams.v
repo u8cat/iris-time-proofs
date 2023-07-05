@@ -297,6 +297,8 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
+  Definition Sf := 11.
+
   (* Forcing a stream. *)
 
   Lemma stream_force h t ds xs b :
@@ -304,7 +306,7 @@ Section Proofs.
     let token := HToken p b in
     Stream h t (0 :: ds) xs -∗
     TC_invariant -∗
-    {{{ TC 11 ∗ token }}}
+    {{{ TC Sf ∗ token }}}
       « force #t »
     {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token }}}.
   Proof.
@@ -325,7 +327,7 @@ Section Proofs.
     Stream h t (d :: ds) xs -∗
     ThunkVal t c -∗
     TC_invariant -∗
-    {{{ TC 11 ∗ token }}}
+    {{{ TC Sf ∗ token }}}
       « force #t »
     {{{ RET «c» ; token }}}.
   Proof.
@@ -344,7 +346,7 @@ Section Proofs.
     let token := HToken p b in
     Stream h t (d :: ds) xs -∗
     TC_invariant -∗
-    {{{ TC (11 + d) ∗ token }}}
+    {{{ TC (Sf + d) ∗ token }}}
       « force #t »
     {{{ c, RET «c» ; ThunkVal t c ∗ StreamCell h c ds xs ∗ token }}}.
   Proof.
@@ -695,6 +697,8 @@ Section Proofs.
 
 (* -------------------------------------------------------------------------- *)
 
+  Definition Scr := 5.
+
   (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
      and must produce a stream cell, costs 5 credits now and returns a stream
      whose front cell has [d] debits. *)
@@ -705,7 +709,7 @@ Section Proofs.
 
   Lemma stream_create h d e ds xs :
     TC_invariant -∗
-    {{{ TC 5 ∗ isCellAction h d e ds xs }}}
+    {{{ TC Scr ∗ isCellAction h d e ds xs }}}
       « lazy e »
     {{{ t, RET #t ; Stream h t (d :: ds) xs }}}.
   Proof.
@@ -734,12 +738,13 @@ Section Proofs.
   Qed.
 
   (* As a special case, if [c] is an existing cell, then the expression [lazy c]
-     costs 5 credits now and returns a stream whose front cell has [0] debits. *)
+     costs [Scr] credits now and returns a stream whose front cell has [0]
+     debits. *)
 
   Lemma stream_create_val h c ds xs :
     StreamCell h c ds xs -∗
     TC_invariant -∗
-    {{{ TC 5 }}}
+    {{{ TC Scr }}}
       « lazy c »
     {{{ t, RET #t ; Stream h t (0 :: ds) xs }}}.
   Proof.
@@ -985,6 +990,9 @@ Section Proofs.
     eauto.
   Qed.
 
+  Definition Sr := 13.
+  Definition R := 19.
+
   (* A specification for [revl]. *)
 
   (* The function call [revl v] itself has time complexity O(1). It returns
@@ -995,10 +1003,10 @@ Section Proofs.
     let n := length xs in
     isList v xs -∗
     TC_invariant -∗
-    {{{ TC 13 }}}
+    {{{ TC Sr }}}
       « revl v »
     {{{ t, RET «#t» ;
-        Stream h t ((19 * n) :: repeat 0 n) (List.rev xs) }}}.
+        Stream h t ((R * n) :: repeat 0 n) (List.rev xs) }}}.
   Proof.
     intros.
     iIntros "#Hv".
@@ -1118,6 +1126,8 @@ Section Proofs.
       simpl length. rewrite IH. lia. }
   Qed.
 
+  Definition Sa := 8.
+
   (* A specification for [append]. *)
 
   (* [append t1 t2] costs O(1) and returns a stream whose debits are
@@ -1132,7 +1142,7 @@ Section Proofs.
     Stream h t1 ds1 xs1 -∗
     Stream h t2 ds2 xs2 -∗
     TC_invariant -∗
-    {{{ TC 8 }}}
+    {{{ TC Sa }}}
       « append #t1 #t2 »
     {{{ t, RET «#t» ;
         Stream (h + 1) t (debit_append ds1 ds2) (xs1 ++ xs2) }}}.

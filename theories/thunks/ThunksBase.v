@@ -351,8 +351,10 @@ Qed.
 
 (* A public lemma: the specification of [create]. *)
 
+Definition Tcr := 3.
+
 (* In short, [create] requires
-   + 3 time credits;
+   + [Tcr] time credits;
    + a permission to call f(), at most once,
      with precondition nc$ and postcondition φ.
 
@@ -364,7 +366,7 @@ Qed.
 Lemma base_thunk_create p N F nc R φ f :
   ↑N ⊆ F →
   TC_invariant -∗
-  {{{ TC 3 ∗ isAction f nc R φ }}}
+  {{{ TC Tcr ∗ isAction f nc R φ }}}
     «create f»
   {{{ t, RET «#t» ; BaseThunk p F t nc R φ }}}.
 Proof.
@@ -391,12 +393,14 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+Definition Tf := 11.
+
 (* This law is part of the common thunk API. *)
 
 Lemma base_thunk_force p F F' t R φ :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ BaseThunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC Tf ∗ BaseThunk p F t 0 R φ ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ v, RET «v» ; □ φ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
@@ -462,7 +466,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* Forcing a thunk that has already been forced requires 11 time credits,
+(* Forcing a thunk that has already been forced requires [Tf] time credits,
    regardless of the apparent debt associated with this thunk. *)
 
 (* The value that is returned must be the value [v] predicted by the
@@ -478,7 +482,7 @@ Qed.
 
 Lemma thunk_force_forced t v :
   TC_invariant -∗
-  {{{ TC 11 ∗ ThunkVal t v }}}
+  {{{ TC Tf ∗ ThunkVal t v }}}
     «force #t»
   {{{ RET «v» ; True }}}.
 Proof.
