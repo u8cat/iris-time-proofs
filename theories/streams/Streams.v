@@ -684,11 +684,11 @@ Section Proofs.
   Definition Scr := 2 + Tcr.
 
   (* Evaluating [lazy e], where the expression [e] consumes [d] time credits
-     and must produce a stream cell, costs 5 credits now and returns a stream
-     whose front cell has [d] debits. *)
+     and must produce a stream cell, costs [Scr] credits now and returns a
+     stream whose front cell has [d] debits. *)
 
-  (* We could prove a slightly more precise spec, stating that the cost is 4
-     credits now and that the front cell has [d+1] debits. The simpler
+  (* We could prove a slightly more precise spec, stating that the cost is
+     [Scr-1] credits now and that the front cell has [d+1] debits. The simpler
      specification seems preferable and is just as useful in practice. *)
 
   Lemma stream_create h d e ds xs :
@@ -814,26 +814,30 @@ Section Proofs.
 
   (* A specification for the expression [nil]. *)
 
+  Definition Snil := 1 + Scr.
+
   Lemma stream_nil h :
     TC_invariant -∗
-    {{{ TC 6 }}}
+    {{{ TC Snil }}}
       « nil »
     {{{ t, RET #t ; Stream h t (0 :: []) [] }}}.
   Proof.
     construct_texan_triple "Htc".
-    iDestruct "Htc" as "(H1 & H5)".
+    iDestruct "Htc" as "(H1 & Htc)".
     (* [nil] is defined as [lazy NIL], and [NIL] is an expression,
        not a value, so [stream_create_val] is not applicable. *)
-    wp_apply (stream_create with "[$] [$H5 H1]"); last eauto 2.
+    wp_apply (stream_create with "[$] [$Htc H1]"); last eauto 2.
     iApply (iscellaction_NIL with "[$] H1").
   Qed.
 
   (* A specification for the function [cons]. *)
 
+  Definition Scons := 3 + Scr.
+
   Lemma stream_cons h t ds x xs :
     Stream h t ds xs -∗
     TC_invariant -∗
-    {{{ TC 8 }}}
+    {{{ TC Scons }}}
       « cons x #t »
     {{{ t', RET #t' ; Stream h t' (2 :: ds) (x :: xs) }}}.
   Proof.
@@ -858,12 +862,14 @@ Section Proofs.
   (* The front thunk must have zero debit
      and the stream must be nonempty. *)
 
+  Definition Suncons := 11 + Sf.
+
   Lemma stream_uncons h t ds x xs b :
     lies_below h b →
     let token := HToken p b in
     Stream h t (0 :: ds) (x :: xs) -∗
     TC_invariant -∗
-    {{{ TC 22 ∗ token }}}
+    {{{ TC Suncons ∗ token }}}
       « uncons #t »
     {{{ t', RET («x», #t'); Stream h t' ds xs ∗ token }}}.
   Proof.
@@ -872,7 +878,7 @@ Section Proofs.
     construct_texan_triple "(Htc & Htoken)".
     wp_tick_lam.
     (* Force the stream [t]. *)
-    divide_credit "Htc" 10 11.
+    divide_credit "Htc" 10 Sf.
     wp_apply (stream_force with "[#] [$] [$Htc' $Htoken]");
       first eauto with thunks;
       first done.
