@@ -37,10 +37,10 @@ Implicit Type f v : val.
 (* -------------------------------------------------------------------------- *)
 
 (* The definition of the predicate [Thunk] is essentially an iterated
-   application of [ProxyThunk] over [BasicThunk]. The application is repeated
-   a number of times, [d], which is then existentially quantified:
-   this allows us to prove that it has both the creation rule and
-   the consequence rule. *)
+   application of [ProxyThunk] over [BasicThunk]. The application is
+   repeated a number of times, [d], which is then existentially quantified:
+   this allows us to prove that it supports both the creation rule and the
+   consequence rule. *)
 
 Fixpoint Thunk_rec d p F t n R φ : iProp :=
   match d with

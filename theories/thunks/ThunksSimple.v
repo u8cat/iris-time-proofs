@@ -149,6 +149,8 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+(* [Tcr] is the cost of [create]. *)
+
 Definition Tcr := 3.
 
 (* A public lemma: the specification of [create]. *)
@@ -184,6 +186,8 @@ Proof.
 Qed.
 
 (* -------------------------------------------------------------------------- *)
+
+(* [Tf] is the cost of [force]. *)
 
 Definition Tf := 11.
 

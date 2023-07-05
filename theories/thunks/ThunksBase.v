@@ -351,6 +351,8 @@ Qed.
 
 (* A public lemma: the specification of [create]. *)
 
+(* [Tcr] is the cost of [create]. *)
+
 Definition Tcr := 3.
 
 (* In short, [create] requires
