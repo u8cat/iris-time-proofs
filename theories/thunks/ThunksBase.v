@@ -393,6 +393,8 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
+(* [Tf] is the cost of forcing a thunk. *)
+
 Definition Tf := 11.
 
 (* This law is part of the common thunk API. *)
