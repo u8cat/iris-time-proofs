@@ -191,7 +191,7 @@ Qed.
 Local Lemma proxythunk_force_spec p F F' t R ψ :
   F ⊆ F' →
   TC_invariant -∗
-  {{{ TC 11 ∗ ProxyThunk p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
+  {{{ TC Tf ∗ ProxyThunk p F t 0 R ψ ∗ ThunkToken p F' ∗ R }}}
     «force #t»
   {{{ v, RET «v» ; □ ψ v ∗ ThunkVal t v ∗ ThunkToken p F' ∗ R }}}.
 Proof.
