@@ -319,26 +319,6 @@ Section Proofs.
     iIntros (c) "(Hc & #Hval & Htoken)". iApply "Post". eauto.
   Qed.
 
-  (* Forcing an already-forced stream. *)
-
-  Lemma stream_force_forced h t d ds xs c b :
-    lies_below h b →
-    let token := HToken p b in
-    Stream h t (d :: ds) xs -∗
-    ThunkVal t c -∗
-    TC_invariant -∗
-    {{{ TC Sf ∗ token }}}
-      « force #t »
-    {{{ RET «c» ; token }}}.
-  Proof.
-    intros.
-    iIntros "#Hstream #Hval".
-    construct_texan_triple "(Htc & Htoken)".
-    unfold_stream. deconstruct_stream.
-    wp_apply (thunk_force_forced with "[$] [$Htc $Hval]"); iIntros.
-    by iApply ("Post" with "Htoken").
-  Qed.
-
   (* The combination of [pay] and [force]. *)
 
   Lemma stream_pay_force h t d ds xs b :
