@@ -225,7 +225,7 @@ Proof.
     rewrite queue_debits_app_front; last lia.
     eapply subdebits_app; [ eapply subdebits_repeat; unfold A,K; lia |].
     rewrite Hlen' Nat.add_1_r queue_debits_cons_front; last lia.
-    constructor; [ unfold A,B,K; lia |].
+    constructor; [ unfold A,B,K,R; lia |].
     eapply (subdebits_covariant_in_slack 0); last lia.
     rewrite repeat_succ_last queue_debits_no_rear.
     eapply subdebits_app; last by eauto.
