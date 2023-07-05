@@ -480,7 +480,7 @@ Qed.
    basic thunks one can prove [□ φ v], but for full thunks this cannot
    be proved. *)
 
-Lemma thunk_force_forced t v :
+Lemma thunkval_force t v :
   TC_invariant -∗
   {{{ TC Tf ∗ ThunkVal t v }}}
     «force #t»

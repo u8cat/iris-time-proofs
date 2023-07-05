@@ -248,7 +248,7 @@ Proof.
     iApply wp_fupd.
     (* Force this thunk, which we know has been forced already.
        The result must be [v]. *)
-    iApply (thunk_force_forced with "Htickinv [$Hcredits $Hval]").
+    iApply (thunkval_force with "Htickinv [$Hcredits $Hval]").
     iNext. iIntros.
     iDestruct "Hv" as "#Hv".
     (* We do not need [□ φ v], which is fortunate, as we do not have it. *)
