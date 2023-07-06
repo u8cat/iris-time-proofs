@@ -17,9 +17,11 @@ Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
 Context (p : na_inv_pool_name).
 
+Definition ISc := 4.
+
 Lemma stream_create h n φ e :
   TC_invariant -∗
-  {{{ TC 4 ∗ isAction (λ: <>, e) n (HToken p (Some h)) φ }}}
+  {{{ TC ISc ∗ isAction (λ: <>, e) n (HToken p (Some h)) φ }}}
     « lazy e »
   {{{ t, RET «#t» ; HThunk p h t n φ }}}.
 Proof.
@@ -30,6 +32,8 @@ Proof.
   wp_apply (hthunk_create p h with "[$] [$Htc Haction]"); eauto.
   rewrite -lock //.
 Qed.
+
+#[global] Opaque ISc.
 
 (******)
 
@@ -147,7 +151,10 @@ Local Ltac inv :=
     is_tree_inv | is_digit01_inv | is_digit12_inv
     | digit01_len | digit12_len | list_inv ].
 
-Definition K := 150.
+Definition Iie := 20.
+Definition Ihead := 25.
+
+Definition K := ISc + Tf + Iie + Ihead + 50.
 
 Fixpoint is_queue (h : height) (level : nat) (q : val) (vs : list val) : iProp Σ :=
   match h with
@@ -247,7 +254,7 @@ Proof. iExists 0, ZEROV; eauto. Qed.
 Lemma is_empty_is_queue_spec h q level vs :
   TC_invariant -∗
   is_queue h level q vs -∗
-  {{{ TC 20 }}}
+  {{{ TC Iie }}}
     «is_empty q»
   {{{ (b:bool), RET #b ;
       ⌜if b then vs = [] else
@@ -269,10 +276,12 @@ Proof.
       split; eauto using is_tree_length. }
 Qed.
 
+#[global] Opaque Iie.
+
 Lemma is_empty_spec q vs :
   TC_invariant -∗
   iqueue q vs -∗
-  {{{ TC 20 }}}
+  {{{ TC Iie }}}
     «is_empty q»
   {{{ RET #(bool_decide (vs = [])); True }}}.
 Proof.
@@ -286,13 +295,15 @@ Proof.
     by intros [-> ->]%app_eq_nil.
 Qed.
 
-Definition B := 200.
+Definition B := K + 50.
+
+Definition Isnoc := (B + ISc) + 50.
 
 Lemma snoc_is_queue_spec h level q y ys vs :
   is_tree level y ys →
   TC_invariant -∗
   is_queue h level q vs -∗
-  {{{ TC (B + 50) }}}
+  {{{ TC Isnoc }}}
     «snoc q y»
   {{{ q', RET «q'»;
       is_queue (S h) level q' (vs ++ ys) }}}.
@@ -301,7 +312,7 @@ Proof.
   pose SNOC x y := snoc x y. rewrite -/(SNOC _ _).
   iLöb as "IH" forall (h level q y ys vs Hy) "Hqueue".
   iIntros "!#" (Φ) "Htc Post". rewrite {2}/SNOC.
-  iDestruct (TC_plus with "Htc") as "[HtcB Htc]".
+  iDestruct "Htc" as "[[HtcB TCcr] Htc]".
   deconstruct_is_queue.
   (* SHALLOW case *)
   { inversion Hd; subst; inv.
@@ -313,11 +324,10 @@ Proof.
       wp_tick_lam. wp_tick_let. repeat wp_tick_match. repeat wp_tick_inj.
       untranslate.
       push_subst.
-      divide_credit "Htc" 32 8.
+      divide_credit "Htc" 35 5.
       wp_apply (stream_create (S h) (2*K) (λ q', is_queue h (S level) q' [])
-                 with "[$] [Htc']").
-      { divide_credit "Htc'" 4 4. iFrame "Htc''".
-        iIntros "? ?" (?) "H". iRevert "Htc'"; iIntros "Htc'".
+                 with "[$] [$TCcr Htc']").
+      { iIntros "? ?" (?) "H". iRevert "Htc'"; iIntros "Htc'".
         wp_tick_lam. repeat wp_tick_inj.
         iApply ("H" $! (SHALLOWV ZEROV) with "[$]"). iModIntro.
         iApply is_queue_eq; iLeft; eauto. }
@@ -337,7 +347,7 @@ Proof.
       iMod (hthunk_pay with "Hthunk HtcB") as "Hthunk'"; first solve_ndisj.
       iDestruct (hthunk_increase_debt _ _ _ _ (K * (lenf - 1)) with "Hthunk'")
         as "Hthunk'".
-      { unfold K, B; lia. }
+      { unfold B; nia. }
       iMod (hthunk_consequence _ _ _ _ 0 _ (λ q', is_queue (S h') (S level) q' mvs)
               with "[] Hthunk'") as "Hthunk'".
       { iIntros (v) "_ #Hq".
@@ -355,28 +365,26 @@ Proof.
       repeat (wp_tick_let; repeat wp_tick_proj).
       wp_tick_match. wp_tick_inj.
       rewrite untranslate_litv. untranslate. push_subst.
-      divide_credit "Htc" 20 8.
+      divide_credit "Htc" 24 4.
       wp_apply (stream_create (S (S h')) (K * lenf)
                           (λ q', is_queue (S h') (S level) q' (mvs ++ rvs ++ ys))
-                  with "[$] [HtcB Htc']").
-      { divide_credit "Htc'" 4 4. iFrame "Htc''".
-        iIntros "Htok Htc" (ψ) "Hψ". iRevert "Htc'"; iIntros "Htc'".
+                  with "[$] [$TCcr HtcB Htc']").
+      { iIntros "Htok Htc" (ψ) "Hψ". iRevert "Htc'"; iIntros "Htc'".
         wp_tick_lam. wp_tick_pair.
         rewrite untranslate_litv !untranslate_val untranslate_app.
         assert (1 <= lenf). { inversion Hlenf; eauto. }
-        rewrite (_: K * lenf = K + K * (lenf - 1)); last (unfold K; lia).
-        iDestruct (TC_plus with "Htc") as "[HtcK Htc]".
+        rewrite (_: K * lenf = K + K * (lenf - 1)); last (unfold K; nia).
+        iDestruct "Htc" as "[HtcK Htc]".
         iMod (hthunk_pay with "Hthunk Htc") as "Hthunk'"; first solve_ndisj.
         rewrite Nat.sub_diag.
-        rewrite {2}/K; divide_credit "HtcK" 139 11.
-        wp_apply (hthunk_force with "[$] [$Htok $HtcK' $Hthunk']").
+        rewrite {2}/K; iDestruct "HtcK" as "[[[[TCSc TCf] _] _] HtcK']".
+        wp_apply (hthunk_force with "[$] [$Htok $TCf $Hthunk']").
         { unfold lies_below; lia. }
         iIntros (q') "(#Hq' & ? & Htok)". untranslate.
-        divide_credit "HtcK" 89 50.
         untranslate. rewrite /SNOC.
-        wp_apply ("IH" $! _ _ q' with "[%] Hq' [HtcB HtcK']");
+        wp_apply ("IH" $! _ _ q' with "[%] Hq' [HtcB TCSc HtcK']");
           first by eauto.
-        { iApply TC_plus. iFrame. }
+        { rewrite /Isnoc. do 2 (iApply TC_plus; iFrame). }
         iClear "IH Hq'". iIntros (q'') "#Hq''".
         by iApply ("Hψ" with "Htok"). }
       iIntros (t) "#Hthunk'". repeat wp_tick_pair. wp_tick_inj.
@@ -386,10 +394,12 @@ Proof.
       rewrite app_nil_r -!app_assoc //. } }
 Qed.
 
+#[global] Opaque Isnoc.
+
 Lemma snoc_spec q vs y :
   TC_invariant -∗
   iqueue q vs -∗
-  {{{ TC (B + 50) }}}
+  {{{ TC Isnoc }}}
     «snoc q y»
   {{{ q', RET «q'»; iqueue q' (vs ++ [y]) }}}.
 Proof.
@@ -404,7 +414,7 @@ Lemma head_is_queue_spec h level q ys vs :
   length ys = 2 ^ level →
   TC_invariant -∗
   is_queue h level q (ys ++ vs) -∗
-  {{{ TC 25 }}}
+  {{{ TC Ihead }}}
     «head q»
   {{{ y, RET «y»; ⌜is_tree level y ys⌝ }}}.
 Proof.
@@ -432,10 +442,12 @@ Proof.
     wp_tick_proj. wp_tick_let. by iApply "Post". }
 Qed.
 
+#[global] Opaque Ihead.
+
 Lemma head_spec q v vs :
   TC_invariant -∗
   iqueue q (v :: vs) -∗
-  {{{ TC 25 }}}
+  {{{ TC Ihead }}}
     «head q»
   {{{ RET «v»; True }}}.
 Proof.
@@ -445,11 +457,13 @@ Proof.
   iIntros (? ?). inv. by iApply "Post".
 Qed.
 
+Definition Itail := B + Tf + Iie + Ihead + ISc + 100.
+
 Lemma tail_is_queue_spec h level q vs :
   2 ^ level ≤ length vs →
   TC_invariant -∗
   is_queue h level q vs -∗
-  {{{ TC (B + 100) ∗ HToken p (Some (S h)) }}}
+  {{{ TC Itail ∗ HToken p (Some (S h)) }}}
     «tail q»
   {{{ q', RET «q'» ;
       is_queue h level q' (drop (2 ^ level) vs) ∗
@@ -459,7 +473,7 @@ Proof.
   pose TAIL x := tail x. rewrite -/(TAIL _).
   iLöb as "IH" forall (h level q vs Hlevel) "Hqueue".
   iIntros "!#" (Φ) "[Htc Htok] Post". rewrite {2}/TAIL.
-  iDestruct (TC_plus with "Htc") as "[HtcB Htc]".
+  iDestruct "Htc" as "[[[[[TCB TCf] TCie] TChead] TCSc] TC]".
   deconstruct_is_queue.
   (* SHALLOW case *)
   { inversion Hd; subst; inv.
@@ -478,16 +492,14 @@ Proof.
       wp_tick_match. rewrite untranslate_litv. untranslate.
       assert (lenr <= 1) by (inversion Hlenr; subst; lia).
       rewrite (_: B = K * (1 - lenr) + (B - K * (1 - lenr)));
-        last (unfold B,K; lia).
-      iDestruct (TC_plus with "HtcB") as "[HtcK HtcBK]".
+        last (unfold B; nia).
+      iDestruct "TCB" as "[HtcK HtcBK]".
       iMod (hthunk_pay with "Hthunk HtcK") as "Hthunk'"; first solve_ndisj.
       rewrite Nat.sub_diag.
-      divide_credit "Htc" 70 11.
-      wp_apply (hthunk_force with "[$] [$Htc' $Htok $Hthunk']");
+      wp_apply (hthunk_force with "[$] [$TCf $Htok $Hthunk']");
         first (unfold lies_below; cbn; lia).
       iIntros (q') "(#Hqueue' & ? & Htok)".
       wp_tick_let. untranslate.
-      divide_credit "Htc" 48 20.
       wp_apply (is_empty_is_queue_spec with "[$] Hqueue' [$]").
       iIntros ([|] Hempty).
       { (* is_empty q *)
@@ -498,27 +510,27 @@ Proof.
       { (* ¬ is_empty q *)
         destruct Hempty as (mvs1 & mvs2 & -> & Hlen).
         wp_tick_if. untranslate.
-        divide_credit "Htc" 22 25.
         wp_apply (head_is_queue_spec with "[$] Hqueue' [$]"); first done.
         iIntros (t1 Ht1). inv. wp_tick_let. do 2 (wp_tick_proj; wp_tick_let).
         rewrite untranslate_litv. untranslate. push_subst.
         rewrite -untranslate_val. (* argh *)
-        divide_credit "Htc" 8 6.
-        divide_credit "Htc'" 2 4.
+        divide_credit "TC" 16 54.
         wp_apply (stream_create (S h') (K * (2 - lenr))
                             (λ q', is_queue h' (S level) q' mvs2)
-                   with "[$] [$Htc'' HtcBK Htc']").
+                   with "[$] [$TCSc HtcBK TC']").
         { iIntros "Htok Htc" (ψ) "Hψ". wp_tick_lam. untranslate.
-          iDestruct (TC_plus with "[$Htc $HtcBK]") as "Htc".
-          assert (B >= K) by (unfold K,B; lia).
+          iCombine "Htc" "HtcBK" as "Htc".
+          assert (B >= K) by (unfold B; lia).
           rewrite (_: K * (2 - lenr) + (B - K * (1 - lenr)) = K + B); last nia.
-          iDestruct (TC_plus with "Htc") as "[HtcK HtcB]".
+          iDestruct "Htc" as "[HtcK HtcB]".
           rewrite /TAIL.
-          iApply ("IH" with "[] Hqueue' [$Htok HtcK HtcB]").
+          iApply ("IH" with "[] Hqueue' [$Htok HtcK HtcB TC']").
           { iPureIntro. rewrite app_length Hlen. lia. }
-          { rewrite (_: K * (1 - lenr) + (B - K * (1 - lenr)) = B); last nia.
-            iApply TC_plus. iFrame "HtcB".
-            unfold K; by divide_credit "HtcK" 100 50. }
+          { rewrite /Itail. rewrite /K.
+            iDestruct "HtcK" as "[[[[? ?] ?] ?] TC'']".
+            iApply TC_plus. iSplitR "TC' TC''".
+            { repeat (iApply TC_plus; iFrame). }
+            iCombine "TC' TC''" as "TC". iApply (TC_weaken with "TC"); lia. }
           iIntros "!>" (q'') "[#Hqueue'' Htok]".
           rewrite drop_app_alt //. iApply ("Hψ" with "Htok Hqueue''"). }
         iIntros (t) "Hthunk'". wp_tick_pair. wp_tick_inj. repeat wp_tick_pair.
@@ -532,8 +544,8 @@ Proof.
       repeat (wp_tick_let; repeat wp_tick_proj).
       wp_tick_match. wp_tick_proj. wp_tick_let. wp_tick_proj.
       wp_tick_let. wp_tick_inj. repeat wp_tick_pair.
-      iMod (hthunk_pay K with "Hthunk [HtcB]") as "Hthunk'"; first solve_ndisj.
-      { unfold B, K. by divide_credit "HtcB" 50 150. }
+      iMod (hthunk_pay K with "Hthunk [TCB]") as "Hthunk'"; first solve_ndisj.
+      { unfold B. iDestruct "TCB" as "[? _]"; eauto. }
       rewrite (_: K * (2 - lenr) - K = K * (1 - lenr)); last nia.
       wp_tick_inj.
       iApply ("Post" $! (DEEPV (ONEbV v2) #m r)). iFrame "Htok".
@@ -541,12 +553,14 @@ Proof.
       rewrite -app_assoc drop_app_alt// (is_tree_length level v1) //. } }
 Qed.
 
+#[global] Opaque Itail.
+
 Notation token := (HToken p None).
 
 Lemma tail_spec q v vs :
   TC_invariant -∗
   iqueue q (v :: vs) -∗
-  {{{ TC (B + 100) ∗ token }}}
+  {{{ TC Itail ∗ token }}}
     «tail q»
   {{{ q', RET «q'»; iqueue q' vs ∗ token }}}.
 Proof.
@@ -563,6 +577,9 @@ Proof.
 Qed.
 
 End IQueue.
+
+#[global] Opaque B.
+#[global] Opaque K.
 
 Local Definition public_api :=
   (@empty_spec, @is_empty_spec, @snoc_spec, @head_spec, @tail_spec).

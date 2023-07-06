@@ -21,8 +21,7 @@ Context (p : na_inv_pool_name).
 
 Local Hint Resolve subdebits_reflexive : core.
 
-Definition K :=
-  Eval compute in (30 + 11 + 19).
+Definition K := 2 + A + B + R.
 
 Definition queue_debits (lenf lenr : nat) :=
   repeat K (lenf - lenr) ++ repeat 0 (S (min lenf lenr)).
@@ -119,7 +118,7 @@ Local Ltac construct_queue fl rl :=
 Local Tactic Notation "construct_queue" uconstr(fl) uconstr(rl) :=
   construct_queue fl rl.
 
-Definition Be := 13.
+Definition Be := 7 + Snil.
 
 Lemma empty_spec :
   TC_invariant -∗
@@ -129,7 +128,7 @@ Lemma empty_spec :
 Proof.
   iIntros "#Hickinv !#" (Φ) "Htc HΦ".
   wp_tick_lam. rewrite /NIL. wp_tick_inj.
-  divide_credit "Htc" 5 6.
+  divide_credit "Htc" 5 Snil.
   wp_apply (stream_nil p 1 with "[$] Htc'").
   iIntros (rs) "#Hstream".
   (* pay for the thunk now *)
@@ -141,6 +140,8 @@ Proof.
   iApply ("HΦ" $! (#0, #rs, #0, InjLV #())%V).
   construct_queue [] []; first iApply "Hstream'"; auto.
 Qed.
+
+#[global] Opaque Be.
 
 Definition Bie := 42.
 
@@ -164,17 +165,21 @@ Proof.
     { by intros [-> ?]%app_nil. } }
 Qed.
 
+#[global] Opaque Bie.
+
+Definition Bcons := 26 + Scons.
+
 Lemma stream_cons x q xs :
   TC_invariant -∗
   is_queue q xs -∗
-  {{{ TC 34 }}}
+  {{{ TC Bcons }}}
     «cons x q»
   {{{ q', RET «q'» ; is_queue q' (x :: xs) }}}.
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_queue. deconstruct_queue_raw.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
-  divide_credit "Htc" 4 8.
+  divide_credit "Htc" 4 Scons.
   wp_apply (stream_cons with "[$] [$] [$]").
   iIntros (t') "#Hstream'".
   (* Increase the debit of the new thunk to match the invariant. *)
@@ -187,13 +192,15 @@ Proof.
   repeat f_equal; lia.
 Qed.
 
-Definition Bc := 48.
+#[global] Opaque Bcons.
+
+Definition Bchk := 27 + (Sr + Sa).
 
 Lemma check_spec q fl rl :
   length rl ≤ length fl + 1 →
   TC_invariant -∗
   is_queue_raw q fl rl -∗
-  {{{ TC Bc }}}
+  {{{ TC Bchk }}}
     «check q»
   {{{ q', RET «q'» ; is_queue q' (fl ++ List.rev rl) }}}.
 Proof.
@@ -210,11 +217,11 @@ Proof.
   (* interesting case: |rl| = |fl| + 1 *)
   assert (length rl = length fl + 1) as Hlen' by lia. clear Hlen Hlen_rev.
   rewrite bool_decide_false; [|lia]. wp_tick_if. wp_tick_inj.
-  untranslate. divide_credit "Htc" 12 13.
+  untranslate. divide_credit "Htc" (4 + Sa) Sr.
   wp_apply (stream_revl with "[] [$] Htc'").
   by iPureIntro; reflexivity.
   iIntros (trev) "#Hstream_rev".
-  divide_credit "Htc" 4 8.
+  iDestruct "Htc" as "[Htc ?]".
   wp_apply (stream_append with "Hstream Hstream_rev [$] [$]").
   iIntros (tapp) "#Hstream_app".
   rewrite queue_debits_no_front; last lia.
@@ -223,9 +230,9 @@ Proof.
     with "Hstream_app []") as "#Hstream_app'"; [|solve_ndisj|iApply zero_TC_now|].
   { rewrite repeat_succ_last debit_append_join_middle map_repeat Nat.add_0_r.
     rewrite queue_debits_app_front; last lia.
-    eapply subdebits_app; [ eapply subdebits_repeat; unfold A,K; lia |].
+    eapply subdebits_app; [ eapply subdebits_repeat; unfold K; lia |].
     rewrite Hlen' Nat.add_1_r queue_debits_cons_front; last lia.
-    constructor; [ unfold A,B,K,R; lia |].
+    constructor; [ unfold K; nia |].
     eapply (subdebits_covariant_in_slack 0); last lia.
     rewrite repeat_succ_last queue_debits_no_rear.
     eapply subdebits_app; last by eauto.
@@ -240,7 +247,9 @@ Proof.
     { rewrite app_nil_r //. }
 Qed.
 
-Definition Bs := 136.
+#[global] Opaque Bchk.
+
+Definition Bs := 28 + (K + Bchk).
 
 Lemma snoc_spec q xs x :
   TC_invariant -∗
@@ -251,6 +260,8 @@ Lemma snoc_spec q xs x :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_queue. deconstruct_queue_raw.
+  rewrite /Bs Nat.add_comm.
+  iDestruct "Htc" as "[Htc' Htc]".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_pair. wp_tick_inj. wp_tick_op. repeat wp_tick_pair.
   untranslate.
@@ -259,11 +270,11 @@ Proof.
   untranslate. (* sigh *)
   (* we possibly need to pay for one debit of the front stream in order to
      preserve the invariant *)
-  divide_credit "Htc" 48 60.
+  iDestruct "Htc'" as "[Htc1 Htc2]".
   iMod (stream_forward_debt _ _ _
    (* ds2:  *) (queue_debits (length fl) (S (length rl)))
    (* rest: *) 0
-    with "Hstream Htc'") as "#Hstream'"; [|solve_ndisj|].
+    with "Hstream Htc1") as "#Hstream'"; [|solve_ndisj|].
   { (* if the rear list is full, we are breaking the invariant anyway and
        [check] will rebalance the queue, so there is nothing to do. *)
     destruct (decide (length fl = length rl)) as [<-|].
@@ -272,20 +283,21 @@ Proof.
     rewrite queue_debits_split_middle; last lia.
     rewrite queue_debits_cons_rear; last lia.
     eapply subdebits_app; first by eauto.
-    unfold K.
     constructor; eauto using subdebits_reflexive with lia.
   }
-  wp_apply (check_spec _ fl (x :: rl) with "[$] [] Htc").
+  wp_apply (check_spec _ fl (x :: rl) with "[$] [] Htc2").
   { cbn; lia. }
   { construct_queue_raw; first iApply "Hstream'".
     repeat f_equal; cbn; eauto with lia. }
   { iIntros (q'). rewrite /= app_assoc. iApply "Post". }
 Qed.
 
+#[global] Opaque Bs.
+
 Notation token :=
   (HToken p None).
 
-Definition Bex := 165.
+Definition Bex := 40 + (Suncons + K + Bchk).
 
 Lemma extract_spec q x xs :
   TC_invariant -∗
@@ -299,6 +311,8 @@ Proof.
   rewrite /HToken (carve_out_gens_below_gen (h+1) None) //.
   iDestruct (na_own_union with "Htok") as "[Htok Htok_rest]".
   by apply disjoint_difference_r1.
+  rewrite /Bex Nat.add_comm.
+  iDestruct "Htc" as "[Htc' Htc]".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   rewrite (untranslate_litv fs). untranslate.
   destruct fl as [|y fl].
@@ -306,11 +320,11 @@ Proof.
     cbn in Hl; congruence. }
   cbn in Hl, Hlen. inversion Hl; subst; clear Hl. cbn [length].
   (* we need to pay for the first thunk before forcing it *)
-  divide_credit "Htc" 85 60.
+  iDestruct "Htc'" as "[[Htc0 Htc1] Htc2]".
   iMod (stream_forward_debt _ _ _
     (* ds2:  *) (0 :: queue_debits (length fl) (length rl))
     (* rest: *) 0
-    with "Hstream Htc'") as "#Hstream'"; [|solve_ndisj|].
+    with "Hstream Htc1") as "#Hstream'"; [|solve_ndisj|].
   { (* if the rear list is full, the first thunk has in fact already been paid
        for, so there is nothing to do. *)
     destruct (decide (length rl = S (length fl))).
@@ -318,8 +332,7 @@ Proof.
     (* otherwise, pay for the first thunk *)
     rewrite queue_debits_cons_front; last lia.
     constructor; eauto with lia. }
-  divide_credit "Htc" 63 22.
-  wp_apply (stream_uncons with "[$] [$] [$Htc' Htok]").
+  wp_apply (stream_uncons with "[$] [$] [$Htc0 Htok]").
   { eauto with thunks. }
   { iFrame "Htok". }
   iIntros (t') "[#Hstream_tail Htok]".
@@ -328,7 +341,6 @@ Proof.
   rewrite (_: (S (length fl) - 1) = length fl)%Z; [|lia].
   rewrite (untranslate_litv (length fl)) (untranslate_litv (length rl)).
   rewrite (untranslate_litv t'). untranslate.
-  divide_credit "Htc" 3 48.
   wp_apply (check_spec _ fl rl with "[$] [] [$]").
   { cbn in *; lia. }
   { construct_queue_raw; eauto. }
@@ -337,7 +349,11 @@ Proof.
   rewrite na_own_union; first by iFrame. by apply disjoint_difference_r1.
 Qed.
 
+#[global] Opaque Bex.
+
 End BQueue.
+
+#[global] Opaque K.
 
 Local Definition public_api :=
   (@empty_spec, @is_empty_spec, @snoc_spec, @extract_spec).

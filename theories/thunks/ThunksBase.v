@@ -393,6 +393,8 @@ Proof.
   construct_thunk.
 Qed.
 
+#[global] Opaque Tcr.
+
 (* -------------------------------------------------------------------------- *)
 
 (* [Tf] is the cost of forcing a thunk. *)
@@ -497,6 +499,8 @@ Proof.
   wp_tick_match.
   by iApply "Post".
 Qed.
+
+#[global] Opaque Tf.
 
 (* -------------------------------------------------------------------------- *)
 

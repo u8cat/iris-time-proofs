@@ -341,6 +341,8 @@ Section Proofs.
     iIntros (c) "(Hval & #Hc & Htoken)". iApply "Post". eauto.
   Qed.
 
+  #[global] Opaque Sf.
+
 (* -------------------------------------------------------------------------- *)
 
   (* Subtyping on sequences of debits. *)
@@ -738,6 +740,8 @@ Section Proofs.
     iApply (iscellaction_value with "Hc").
   Qed.
 
+  #[global] Opaque Scr.
+
 (* -------------------------------------------------------------------------- *)
 
 (* Specifications for the expressions [nil] and [cons x #t]. *)
@@ -830,6 +834,8 @@ Section Proofs.
     iApply (iscellaction_NIL with "[$] H1").
   Qed.
 
+  #[global] Opaque Snil.
+
   (* A specification for the function [cons]. *)
 
   Definition Scons := 3 + Scr.
@@ -854,6 +860,8 @@ Section Proofs.
     { iIntros (t') "Hstream'". iApply "Post". iFrame. }
     { iApply (iscellaction_CONS with "Hstream [$]"). }
   Qed.
+
+  #[global] Opaque Scons.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -892,6 +900,8 @@ Section Proofs.
     (* Conclude. *)
     iApply ("Post" with "[$Hstream' $Htoken]").
   Qed.
+
+  #[global] Opaque Suncons.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1019,6 +1029,9 @@ Section Proofs.
     iIntros (c') "Hc'".
     iApply ("Post" with "Hc' Htoken").
   Qed.
+
+  #[global] Opaque Sr.
+  #[global] Opaque R.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -1241,6 +1254,10 @@ Section Proofs.
       iApply ("Post" with "Hc Htoken").
     }
   Qed.
+
+  #[global] Opaque A.
+  #[global] Opaque B.
+  #[global] Opaque Sa.
 
   (* In some applications of streams, the client does not care about the
      height of the stream, and uses the strong token [HToken p None] when

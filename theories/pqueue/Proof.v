@@ -4,7 +4,7 @@ From iris.algebra Require Import auth excl excl_auth agree csum.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time.heap_lang Require Import notation.
 From iris_time Require Import TimeCredits.
-From iris_time.thunks Require Import HThunks.
+From iris_time.thunks Require Import ThunksBase HThunks.
 From iris_time.pqueue Require Import Code.
 
 (* TODO can we reuse Streams.ListV? *)
@@ -45,9 +45,12 @@ Proof using.
     f_equal. rewrite reverse_cons cons_middle app_assoc //. }
 Qed.
 
+Definition PSr := 6.
+Definition PSR := 8.
+
 Lemma stream_revl (l : list val) :
   TC_invariant -∗
-  {{{ TC (6 + 8 * length l) }}}
+  {{{ TC (PSr + PSR * length l) }}}
     «rev (list_val l)»
   {{{ l', RET «l'»; ⌜l' = list_val (reverse l)⌝ }}}.
 Proof using.
@@ -56,9 +59,15 @@ Proof using.
   iIntros "!>" (l'' ->). rewrite app_nil_r. by iApply "HΦ".
 Qed.
 
+#[global] Opaque PSr.
+#[global] Opaque PSR.
+
+Definition PSa := 5.
+Definition PSA := 8.
+
 Lemma stream_append (l1 l2 : list val) :
   TC_invariant -∗
-  {{{ TC (5 + 8 * length l1) }}}
+  {{{ TC (PSa + PSA * length l1) }}}
     «append (list_val l1) (list_val l2)»
   {{{ l', RET «l'»; ⌜l' = list_val (l1 ++ l2)⌝ }}}.
 Proof using.
@@ -66,12 +75,12 @@ Proof using.
   iInduction l1 as [|x l1] "IH" forall (Φ).
   { rewrite /=. wp_tick_rec. wp_tick_let. wp_tick_op. wp_tick_if.
     by iApply "HΦ". }
-  { replace (5 + 8 * length (x :: l1))%nat
-       with (8 + (5 + 8 * length l1))%nat by (cbn; lia).
+  { replace (PSa + PSA * length (x :: l1))%nat
+       with (PSA + (PSa + PSA * length l1))%nat by (cbn; lia).
     wp_tick_rec. wp_tick_let. wp_tick_op. wp_tick_if.
     wp_tick_proj.
-    rewrite (_: (S (S (5 + 8 * length l1)))
-                = 2 + (5 + 8 * length l1))%nat; [|lia].
+    rewrite (_: (S (S (PSa + PSA * length l1)))
+                = 2 + (PSa + PSA * length l1))%nat; [|lia].
     iDestruct "TC" as "[TC1 TC2]".
     wp_apply ("IH" with "TC2"). iIntros (l' ->).
     wp_tick_proj. wp_tick_pair.
@@ -79,8 +88,13 @@ Proof using.
     by iApply "HΦ". }
 Qed.
 
+#[global] Opaque PSa.
+#[global] Opaque PSA.
+
+Definition K := PSA + PSR.
+
 Definition thunk_debt (w fl rl : list val) : nat :=
-  min (16 * length w) (8 * length fl - 8 * length rl).
+  min (2 * K * length w) (K * length fl - K * length rl).
 
 Definition is_queue_raw
   (q : val)
@@ -105,9 +119,11 @@ Instance is_queue_persistent l q :
   Persistent (is_queue l q).
 Proof using. exact _. Qed.
 
+Definition Pe := 10.
+
 Lemma empty_spec :
   TC_invariant -∗
-  {{{ TC 10 }}}
+  {{{ TC Pe }}}
     «empty #()»
   {{{ q, RET «q»; is_queue q nil }}}.
 Proof.
@@ -128,11 +144,15 @@ Proof.
   done.
 Qed.
 
+#[global] Opaque Pe.
+
+Definition Pchkw := 33 + Tf.
+
 (* [checkw (w, lenf, f, lenr, r)] restores the invariant that [w] is empty only
    if [f] is empty. *)
 Lemma checkw_spec q l w fl rl :
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 44 ∗ HToken p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC Pchkw ∗ HToken p None }}}
     «checkw q»
   {{{ q' w', RET «q'»;
       is_queue_raw q' l w' fl rl ∗ HToken p None
@@ -144,8 +164,8 @@ Proof using.
   repeat (wp_tick_let; repeat wp_tick_proj).
   destruct w as [|? w'] eqn:Hw.
   { wp_tick_op. wp_tick_if.
-    rewrite (_: 15 = 11 + 4) //. iDestruct "TC" as "[TC1 TC]".
-    wp_apply (hthunk_force with "[//] [$HT $Htok $TC1]"). done.
+    divide_credit "TC" 4 Tf.
+    wp_apply (hthunk_force with "[//] [$HT $Htok $TC']"). done.
     iIntros (fv) "(-> & TV & Htok)". repeat wp_tick_pair.
     iApply ("HΦ" $! (list_val fl, #(length fl), #t, #(length rl), list_val rl)%V fl).
     iFrame "Htok". iSplit.
@@ -160,13 +180,17 @@ Proof using.
     { iPureIntro. intros ->; inversion Hw. } }
 Qed.
 
+#[global] Opaque Pchkw.
+
+Definition Pchk := 50 + (Tf + PSr + PSa + Tcr + K + PSR + Pchkw).
+
 (* [check (w, lenf, f, lenr, r)] restores the two invariants required by [is_queue]:
    - that [w] is empty only if [f] is empty
    - that [lenr ≤ lenf] *)
 Lemma check_spec q l w fl rl :
   length rl ≤ length fl + 1 →
   TC_invariant -∗
-  {{{ is_queue_raw q l w fl rl ∗ TC 121 ∗ HToken p None }}}
+  {{{ is_queue_raw q l w fl rl ∗ TC Pchk ∗ HToken p None }}}
     «check q»
   {{{ q' w' fl' rl', RET «q'»;
       is_queue_raw q' l w' fl' rl'
@@ -176,72 +200,77 @@ Lemma check_spec q l w fl rl :
 Proof.
   intros Hlen. iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Htok) HΦ".
   iDestruct "Hq" as (t ? ? h) "[(-> & -> & -> & -> & %) HT]".
+  rewrite /Pchk Nat.add_comm.
+  iDestruct "TC" as "[TC' TC]".
   wp_tick_lam.
   repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_op.
   destruct (decide (length rl ≤ length fl)) as [Hle|Hgt].
   { rewrite bool_decide_eq_true_2; [| lia]. wp_tick_if.
-    rewrite (_: 92 = 44 + 48) //. iDestruct "TC" as "[TC1 TC]".
+    iDestruct "TC'" as "[_ TC']".
     wp_apply (checkw_spec (list_val w, #(length fl), #t, #(length rl), list_val rl)%V
-               with "[//] [$TC1 $Htok]").
+               with "[//] [$TC' $Htok]").
     { iExists _, _, _, _. iSplit. done. iFrame "HT". }
     iIntros (q' w') "(Hq' & Hna & %)". iApply "HΦ". by iFrame. }
   { rewrite bool_decide_eq_false_2; [| lia]. wp_tick_if.
-    rewrite (_: 92 = 11 + 81) //. iDestruct "TC" as "[TC1 TC]".
+    iDestruct "TC'" as "[[[[[[TCf TCr] TCa] TCcr] TCK] TCR] TCchk]".
     rewrite (_: thunk_debt w fl rl = 0).
-    2: { rewrite /thunk_debt (_: 8 * length fl - 8 * length rl = 0)%nat; lia. }
-    wp_apply (hthunk_force with "[//] [$HT $Htok $TC1]"). done.
+    2: { rewrite /thunk_debt (_: K * length fl - K * length rl = 0)%nat; nia. }
+    wp_apply (hthunk_force with "[//] [$HT $Htok $TCf]"). done.
     iIntros (flv) "(-> & ? & Htok)". wp_tick_let.
     wp_tick_closure.
-    rewrite (_: 78 = 3 + 75) //. iDestruct "TC" as "[TC1 TC]".
-    rewrite (_: 75 = S (5 + (6 + 8)) + 55) //. iDestruct "TC" as "[TC2 TC]".
+    divide_credit "TC" 15 3.
     (* we can assign namespace id 0 to this thunk as it doesn't need to force
        other thunks. *)
-    iPoseProof (hthunk_create _ 0 (16 * length fl)
+    iPoseProof (hthunk_create _ 0 (2 * K * length fl)
                             (λ flv', ⌜flv' = list_val (fl ++ reverse rl)⌝)%I
                             (λ: <>, append (list_val fl) (rev (list_val rl)))%V
-               with "[//] [$TC1 TC2]") as "S".
+               with "[//] [$TCcr TCr TC' TCR TCa]") as "S".
     { iIntros "Htok TC" (ψ) "Hψ". wp_tick_lam.
-      rewrite (_: 16 * length fl = 8 * length fl + 8 * length fl); [|lia].
-      iDestruct "TC" as "[TCa TCr]". iDestruct "TC2" as "[TC2 TCrc]".
-      iCombine "TCrc TCr" as "TCr".
-      wp_apply (stream_revl with "[//] [TCr]"). iApply (TC_weaken with "TCr"); lia.
+      rewrite (_: 2 * K * length fl = K * length fl + K * length fl); [|lia].
+      iDestruct "TC" as "[TC TCr']". iCombine "TCr TCr'" as "TCr".
+      iCombine "TCR TCr" as "TCr".
+      wp_apply (stream_revl with "[//] [TCr]").
+      { iApply (TC_weaken with "TCr"). unfold K. nia. }
       iIntros (rrl) "->".
-      iCombine "TC2 TCa" as "TCa".
-      wp_apply (stream_append with "[//] [$TCa]").
+      iCombine "TCa TC" as "TC".
+      wp_apply (stream_append with "[//] [TC]").
+      { iApply (TC_weaken with "TC"). unfold K. nia. }
       iIntros (l') "->". by iApply ("Hψ" with "Htok"). }
     rewrite -lock. (* XXX *) wp_apply "S".
     iIntros (t') "#HT'". wp_tick_let. wp_tick_op. repeat wp_tick_pair.
-    rewrite (_: 48 = 44 + 4) //. iDestruct "TC" as "[TC1 TC]".
     wp_apply (checkw_spec (list_val fl, #(length fl + length rl), #t', #0, #())%V
                           (fl ++ reverse rl) fl (fl ++ reverse rl) nil
-               with "[//] [$TC1 $Htok]").
+               with "[//] [$TCchk $Htok]").
     { iExists _, (length fl + length rl), 0, 0. iSplit. iPureIntro. split.
       - repeat f_equal. lia.
       - rewrite app_length reverse_length app_nil_r. repeat split. by apply prefix_app_r.
       - iApply (hthunk_increase_debt with "HT'"). rewrite /thunk_debt.
-        rewrite app_length reverse_length Nat.sub_0_r. lia. }
+        rewrite app_length reverse_length Nat.sub_0_r. nia. }
     iIntros (q' w') "(Hq' & Htok & %)". iApply "HΦ". iFrame. iPureIntro; split; try done.
     rewrite app_length reverse_length /=. lia. }
 Qed.
 
+#[global] Opaque Pchk.
+
+Definition Ppush := 40 + K + Pchk.
+
 Lemma push_spec q l x :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 170 ∗ HToken p None }}}
+  {{{ is_queue q l ∗ TC Ppush ∗ HToken p None }}}
     «push q x»
   {{{ q', RET «q'»; is_queue q' (l ++ [x]) ∗ HToken p None }}}.
 Proof.
-  iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Htok) HΦ".
+  iIntros "#Htickinv !#" (Φ) "(#Hq & [[TC TCK] TCchk] & Htok) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & % & %)".
   iDestruct "Hqr" as (t ? ? h) "[(-> & -> & -> & -> & %) HT]".
+  iRevert "TC"; iIntros "TC".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   wp_tick_pair. wp_tick_op. repeat wp_tick_pair.
-  rewrite (_: 135 = 8 + 127) //. iDestruct "TC" as "[TC1 TC]".
-  iDestruct (hthunk_pay with "HT TC1") as ">#HT'". done.
-  rewrite (_: 127 = 121 + 6) //. iDestruct "TC" as "[TC1 TC]".
+  iDestruct (hthunk_pay with "HT TCK") as ">#HT'". done.
   wp_apply (check_spec (list_val w, #(length fl), #t, #(length rl + 1), list_val (x::rl))%V
                        (fl ++ reverse rl ++ [x]) w fl (x :: rl)
-            with "[//] [$TC1 $Htok]").
+            with "[//] [$TCchk $Htok]").
   { cbn; lia. }
   { iExists _, (length fl), (length rl + 1), _. iSplit. iPureIntro. split.
     - repeat f_equal. lia.
@@ -251,9 +280,13 @@ Proof.
   iFrame "Htok". rewrite app_assoc //. iExists _, _, _. by iFrame "Hq'".
 Qed.
 
+#[global] Opaque Ppush.
+
+Definition Ppop := 50 + 2*K + Tcr + Tf + Pchk.
+
 Lemma pop_spec q l :
   TC_invariant -∗
-  {{{ is_queue q l ∗ TC 250 ∗ HToken p None }}}
+  {{{ is_queue q l ∗ TC Ppop ∗ HToken p None }}}
     «pop q»
   {{{ r, RET «r»;
       match l with
@@ -262,9 +295,10 @@ Lemma pop_spec q l :
       end ∗
       HToken p None }}}.
 Proof.
-  iIntros "#Htickinv !#" (Φ) "(#Hq & TC & Htok) HΦ".
+  iIntros "#Htickinv !#" (Φ) "(#Hq & [[[[TC TCK] TCcr] TCf] TCchk] & Htok) HΦ".
   iDestruct "Hq" as (w fl rl) "(Hqr & %Hlen & %Hw)".
   iDestruct "Hqr" as (t ? ? h) "[(-> & -> & -> & -> & %Hpref) HT]".
+  iRevert "TC"; iIntros "TC".
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
   destruct w as [|x w'] eqn:Hweq.
   { wp_tick_op. wp_tick_if. wp_tick_inj.
@@ -276,32 +310,29 @@ Proof.
     apply prefix_cons_inv_2 in Hpref.
     wp_tick_op. wp_tick_if. do 2 (wp_tick_proj; wp_tick_let).
     wp_tick_closure.
-    rewrite (_: 214 = 3 + 211) //. iDestruct "TC" as "[TC1 TC]".
-    rewrite (_: 211 = 29 + 182) //. iDestruct "TC" as "[TC2 TC]".
-    (* increas the hthunk height: we need to be able to force the thunk we are
+    divide_credit "TC" 11 3.
+    (* increase the hthunk height: we need to be able to force the thunk we are
        wrapping, and all the thunks it may then need to force. *)
     iPoseProof (hthunk_create _ (S h) (thunk_debt w' fl rl)
                             (λ flv, ⌜flv = list_val fl⌝)%I
                             (λ: <>, Snd (ThunksCode.force #t))%V
-               with "[//] [$TC1 TC2]") as "S".
+               with "[//] [$TCcr TCK TCf TC']") as "S".
     { iIntros "Htok TC" (ψ) "Hψ". wp_tick_lam.
-      rewrite (_: 28 = 12 + 16) //. iDestruct "TC2" as "[TC1 TC2]".
-      iCombine "TC2 TC" as "TC".
+      iCombine "TCK TC" as "TC".
       iDestruct (hthunk_pay (thunk_debt (x :: w') (x :: fl) rl)
                             with "HT [TC]") as ">#HTpaid". done.
       { iApply (TC_weaken with "TC"). rewrite /thunk_debt.
-        rewrite !(_: ∀ x l, length (x :: l) = S (length l)); [|done..]. lia. }
+        rewrite !(_: ∀ x l, length (x :: l) = S (length l)); [|done..].
+        cbn in *. nia. }
       rewrite Nat.sub_diag.
-      iDestruct "TC1" as "[TC1 TC2]".
-      wp_apply (hthunk_force with "[//] [$TC2 $HTpaid $Htok]"). cbn; lia.
+      wp_apply (hthunk_force with "[//] [$TCf $HTpaid $Htok]"). cbn; lia.
       iIntros (flv) "(-> & _ & Htok)". rewrite /=. wp_tick_proj.
       by iApply ("Hψ" with "Htok"). }
     rewrite -lock. (* XXX *) wp_apply "S". iIntros (t') "#HT'".
     wp_tick_let. wp_tick_op. repeat wp_tick_pair.
-    rewrite (_: 175 = 121 + 54) //. iDestruct "TC" as "[TC1 TC]".
     wp_apply (check_spec (list_val w', #(S (length fl) - 1), #t', #(length rl), list_val rl)%V
                          (fl ++ reverse rl) w' fl rl
-               with "[//] [$TC1 $Htok]").
+               with "[//] [$TCchk $Htok]").
     { cbn in Hlen; lia. }
     { iExists _, _, _, _. iSplit. iPureIntro. repeat split; auto.
       - repeat f_equal. lia.
@@ -312,7 +343,11 @@ Proof.
     iExists q'. iSplit; first done. iExists _, _, _. by iFrame. }
 Qed.
 
+#[global] Opaque Ppop.
+
 End PQueue.
+
+#[global] Opaque K.
 
 Local Definition public_api := (@push_spec, @pop_spec).
 Print Assumptions public_api.
