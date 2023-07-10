@@ -49,7 +49,7 @@ opam update
 echo "Installing Coq and the necessary Coq libraries."
 echo "This will take a while (perhaps over 10 minutes)..."
 
-make builddep
+make OPAMFLAGS="--yes" builddep
 
 echo "Now compiling the Coq proofs."
 echo "This can take a few minutes..."
