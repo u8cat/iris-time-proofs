@@ -22,6 +22,7 @@ cp -r \
   theories \
   setup.sh \
   _CoqProject \
+  *.opam \
   ${ARCHIVE}
 
 $TAR cvfz ${ARCHIVE}.tar.gz \
