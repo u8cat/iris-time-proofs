@@ -21,7 +21,7 @@ Context (p : na_inv_pool_name).
 
 Local Hint Resolve subdebits_reflexive : core.
 
-Definition K := 2 + A + B + R.
+Definition K := A + B + R.
 
 Definition queue_debits (lenf lenr : nat) :=
   repeat K (lenf - lenr) ++ repeat 0 (S (min lenf lenr)).
@@ -167,7 +167,7 @@ Qed.
 
 #[global] Opaque Bie.
 
-Definition Bcons := 26 + Scons.
+Definition Bcons := 28 + Scons.
 
 Lemma stream_cons x q xs :
   TC_invariant -∗
@@ -179,12 +179,13 @@ Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_queue. deconstruct_queue_raw.
   wp_tick_lam. repeat (wp_tick_let; repeat wp_tick_proj).
-  divide_credit "Htc" 4 Scons.
+  divide_credit "Htc" 6 Scons.
   wp_apply (stream_cons with "[$] [$] [$]").
+  divide_credit "Htc" 4 2.
   iIntros (t') "#Hstream'".
   (* Increase the debit of the new thunk to match the invariant. *)
-  iMod (stream_forward_debt _ _ _ (queue_debits (S (length fl)) (length rl))
-    with "Hstream' []") as "#Hstream''"; [|solve_ndisj|iApply zero_TC_now|].
+  iMod (stream_forward_debt _ 2 _ (queue_debits (S (length fl)) (length rl))
+    with "Hstream' Htc'") as "#Hstream''"; [|solve_ndisj|].
   { rewrite queue_debits_cons_front //. constructor; unfold K; eauto with lia. }
   wp_tick_op. repeat wp_tick_pair.
   iApply ("Post" $! (#(length fl + 1), #t', #(length rl), ListV rl)%V).
