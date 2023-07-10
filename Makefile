@@ -25,7 +25,6 @@ Makefile.coq: _CoqProject Makefile
 	"$(COQBIN)coq_makefile" -f _CoqProject -o Makefile.coq $(EXTRA_COQFILES)
 
 # Install build-dependencies
-OPAMFLAGS=--yes
 OPAMFILES=$(wildcard *.opam)
 BUILDDEPFILES=$(addsuffix -builddep.opam, $(addprefix builddep/,$(basename $(OPAMFILES))))
 
