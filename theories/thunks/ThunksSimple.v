@@ -58,8 +58,8 @@ Implicit Type f v : val.
    appears in the public specification of [force]. It is abstract: its
    definition is not meant to be exposed to the user. *)
 
-Definition thunkN t : namespace :=
-  nroot .@ "thunk" .@ string_of_pos t.
+Definition thunkN (t: positive) : namespace :=
+  nroot .@ "thunk" .@ t.
 
 (* The internal predicate [ThunkInv t γ nc φ] is the thunk's invariant. *)
 
