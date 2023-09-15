@@ -139,7 +139,13 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the common thunk API. *)
+(* These law are part of the common thunk API. *)
+
+Local Lemma proxythunk_mask_subseteq p E1 E2 t n R  ψ :
+  E1 ⊆ E2 → ProxyThunk p E1 t n R  ψ -∗ ProxyThunk p E2 t n R  ψ.
+Proof.
+  iIntros (?) "Hthunk". destruct_thunk. construct_thunk. iFrame "Hthunk Hpiggy". auto with set_solver.
+Qed.
 
 Local Lemma proxythunk_increase_debt p F t n1 n2 R ψ :
   n1 ≤ n2 →
@@ -291,6 +297,7 @@ Global Instance step_thunk_api :
 Proof.
   constructor.
   { tc_solve. }
+  { eauto using proxythunk_mask_subseteq. }
   { eauto using proxythunk_increase_debt. }
   { eauto using proxythunk_force_spec. }
   { eauto using proxythunk_pay. }

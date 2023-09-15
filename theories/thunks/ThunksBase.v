@@ -334,7 +334,14 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* This law is part of the common thunk API. *)
+(* These law are part of the common thunk API. *)
+
+Lemma base_thunk_mask_subseteq p F1 F2 t n R φ :
+  F1 ⊆ F2 → BaseThunk p F1 t n R φ -∗ BaseThunk p F2 t n R φ.
+Proof.
+  iIntros (?) "Hthunk".
+  destruct_thunk. construct_thunk. iFrame "Hmeta Hpiggy". auto with set_solver.
+Qed.
 
 Lemma base_thunk_increase_debt p F t n1 n2 R φ :
   n1 ≤ n2 →

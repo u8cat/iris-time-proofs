@@ -92,6 +92,11 @@ Class CommonThunkAPI
 
   thunk_persistent p F t n R φ :> Persistent (Thunk p F t n R φ);
 
+ (* The predicate [Thunk F t n R φ] must be covariant in the parameter [F],
+    which is the mask used for forcing. *)
+  thunk_mask_subseteq p F1 F2 t n R φ :
+    F1 ⊆ F2 → Thunk p F1 t n R φ -∗ Thunk p F2 t n R φ;
+
   (* The predicate [Thunk F t n R φ] must be covariant in the parameter [n],
      which represents the debt (that is, the number of debits) associated with
      this thunk. Therefore, the parameter [n] represents an over-approximation
@@ -170,6 +175,7 @@ Global Instance base_thunk_api :
 Proof.
   constructor.
   { tc_solve. }
+  { eauto using base_thunk_mask_subseteq. }
   { eauto using base_thunk_increase_debt. }
   { eauto using base_thunk_force. }
   { eauto using base_thunk_pay. }
