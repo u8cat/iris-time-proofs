@@ -34,7 +34,7 @@ Section PiggyBank.
 
 Context `{timeCreditHeapG Σ}.        (* time credits are needed *)
 Context `{inG Σ (authR max_natUR)}.  (* camera for the ghost cell γpaid *)
-Context `{na_invG Σ}.                (* non-atomic invariants are needed *)
+Context `{na_invG Σ}.                (* non-atomic invariant tokens are needed *)
 Notation iProp := (iProp Σ).
 
 Local Existing Instance na_inv_inG.
@@ -51,7 +51,8 @@ Local Existing Instance na_inv_inG.
    has been forced. *)
 
 (* The piggy bank internally involves an atomic invariant in the namespace [P]
-   and a non-atomic invariant in the pool [p] and namespace [N]. *)
+   and resuses the non-atomic invariant token mechanisms in the pool [p] and
+   namespace [N]. *)
 
 Variable LeftBranch  : (* nc: *) nat → iProp.
 Variable RightBranch :                 iProp.
@@ -60,13 +61,7 @@ Variable p           :      na_inv_pool_name.
 Variable N           :             namespace.
 
 (* We typically use [n] for a number of debits, [nc] for a number of necessary
-   time credits, and [ac] a number of available time credits. We use [forced]
-   for a Boolean flag that determines whether the piggy bank has been forced.
-
-   The ghost cell [γforced] stores the Boolean flag [forced]. This ghost cell
-   is used to synchronize the two invariants and ensure that they both (and
-   only they) have access to [forced]. Two exclusive tokens [●E] and [◯E] are
-   used to keep track of the value of [forced].
+   time credits, and [ac] a number of available time credits.
 
    The ghost cell [γpaid] keeps track of the number of time credits that have
    been paid so far. It is a monotonic cell: its authoritative value [● ac]
@@ -78,8 +73,7 @@ Variable N           :             namespace.
    zero. *)
 
 Implicit Type n nc ac : nat.
-Implicit Type forced : bool.
-Implicit Type γforced γpaid : gname.
+Implicit Type γpaid : gname.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -99,58 +93,45 @@ Implicit Type γforced γpaid : gname.
    valid state. Paying is safe at all times, though, including while the piggy
    bank is being forced. *)
 
-(* One might expect the piggy bank to involve one invariant, stating that
-   either we are in the left branch and we have [ac] time credits at hand, or
-   we are in the right branch. A definition based on a single invariant is
-   possible indeed, but not would be satisfactory. Out of necessity, this
-   invariant would have to be a non-atomic invariant, because [force] is not
-   an atomic operation. As a result, [pay] would necessarily be forbidden
-   while the piggy bank is being forced. (That is, [pay] would require a
-   [na_own] token.)
+(* The piggy bank invariant uses a ghost variable [γpaid], which stores the
+   amount of credits paid to the piggy bank. It uses the camera
+   [authR max_natUR] so that the [PiggyBank] assertion, owned by clients, is
+   persistent: client only know a lower bound on the authoritative number of
+   paid credits, associated with the authoritative ressource owned by the piggy
+   bank invariant.
 
-   We are able to avoid this limitation by using two distinct invariants. A
-   non-atomic invariant governs the state of the piggy bank: if the piggy bank
-   has not been forced yet, then [LeftBranch nc] holds, otherwise
-   [RightBranch] holds. An atomic invariant governs the time credits that have
-   been accumulated: if the piggy bank has not been forced yet, then [ac] time
-   credits are stored, otherwise no time credits are stored. (In the latter
-   case, we have [nc ≤ ac].)
-
-   Paying requires opening the atomic invariant only, so does not require a
-   [na_own] token. Forcing requires opening both invariants simultanesously,
-   so does require a [na_own] token.
-
-   The two invariants must agree on the status of the piggy bank: either
-   forced or not forced. To this end, they share the ghost cell [γforced]. One
-   invariant holds [●E forced], the other holds [◯E forced']. Opening both
-   invariants at once allows concluding [forced = forced'] and allows setting
-   [γforced] to a new value. Opening just one invariant allows reading
-   [γforced] but does not allow updating it. *)
+   The piggy bank invariant is an atomic invariant with three states:
+     - In state (1), the piggy bank is not yet forced. The invariant owns
+       [LeftBranch nc] and the [ac] paid time credits.
+     - In state (2), the piggy bank is in the process of being forced. The
+       invariant knows ⌜ nc ≤ ac ⌝ (i.e., enough credits have been paid), but
+       don't own anything since the resources are owned by the forcing
+       code.
+     - In state (3), the piggy bank has already been forced. The invariant knows
+       ⌜ nc ≤ ac ⌝ and owns [RightBranch].
+    In addition, the invariant mimicks the protocol used in non-atomic
+    invariants to guarantee the a piggy bank is forced only once at a time.
+    Hence, in state (2), the invariant own the token [na_own p N], guaranteeing
+    that nobody can attempt to force the piggy bank. Dually, in states (1) and
+    (3), the invariant owns the token [own p (ε, GSet {[i]})]. *)
 
 Let PiggyBankInvariant i γpaid nc : iProp :=
   ∃ ac,
     own γpaid (● MaxNat ac)
   ∗ (own p (ε, GSet {[i]}) ∗ LeftBranch nc ∗ TC ac ∨
-     na_own p {[i]} ∗ ⌜ nc ≤ ac ⌝ ∨
+     na_own p (↑N) ∗ ⌜ nc ≤ ac ⌝ ∨
      own p (ε, GSet {[i]}) ∗ RightBranch ∗ ⌜ nc ≤ ac ⌝).
 
 Definition PiggyBank n : iProp :=
   ∃ i γpaid nc,
-      ⌜i ∈ (↑N:coPset)⌝
-      ∗ inv P (PiggyBankInvariant i γpaid nc) ∗ own γpaid (◯ MaxNat (nc - n)).
+    inv P (PiggyBankInvariant i γpaid nc) ∗ own γpaid (◯ MaxNat (nc - n)).
 
 (* -------------------------------------------------------------------------- *)
 
 (* Local tactics, for clarity. *)
 
 Local Ltac destruct_piggy :=
-  iDestruct "Hpiggy" as (i γpaid nc) "(% & Hinv & Hγpaid◯)".
-
-Local Ltac open_na_invariant :=
-  iDestruct (na_inv_acc with "Hnainv Htoken")
-    as ">(Hcontent & Htoken & Hclose)";
-    [set_solver | set_solver |];
-  iDestruct "Hcontent" as (forced) "(>Hγforced● & Hbranch)".
+  iDestruct "Hpiggy" as (i γpaid nc) "(Hinv & Hγpaid◯)".
 
 Local Ltac open_invariant :=
   iMod (inv_acc with "Hinv") as "[Hcontent Hclose]"; [ done |];
@@ -164,6 +145,7 @@ Local Ltac duplicate_itok :=
 Local Ltac duplicate_toki :=
   iDestruct "Hcontent" as "(>Htoki' & _)";
   iDestruct (na_own_disjoint with "Htoki Htoki'") as %?;
+  destruct (fresh_inv_name ∅ N) as (?&_&?);
   by set_solver.
 
 Local Ltac case_analysis :=
@@ -190,38 +172,10 @@ Local Ltac increase_black_bullet k :=
 Local Ltac close_invariant pat :=
   iMod ("Hclose" with pat) as "_";
   [ iExists _; iFrame "Hγpaid●"; by auto 10 with iFrame lia |].
-(*
-iMod ("Hclose" with "[Hγpaid● Htoki]") as "_".
-{ iExists _; iFrame "Hγpaid●"; iRight; iLeft; iFrame "Htoki"; auto with lia. }
-
-iMod ("Hclose" with "[Hγpaid● Hright Hitok]") as "_".
-{ iExists _; iFrame "Hγpaid●"; iRight; iRight; iFrame "Hright Hitok"; auto with lia. }
-*)
-Local Ltac construct_na_invariant :=
-  try iNext; iExists _; iFrame "Hγforced●"; simpl; eauto.
-
-Local Ltac construct_at_invariant :=
-  try iNext; iExists _, _; iFrame "Hγforced◯ Hγpaid●"; simpl; eauto with lia.
-
-Local Ltac close_na_invariant :=
-  iMod ("Hclose" with "[-]") as "$"; [
-    (* Subgoal: prove that the invariant holds *)
-    iFrame "Htoken"; construct_na_invariant
-  | (* Subgoal: after the invariant is closed *)
-    iModIntro; (* We assume that we do not need the modality any more. *)
-    eauto 2    (* Kill the goal if possible *)
-  ].
-
-Local Ltac close_at_invariant :=
-  first [
-    iMod ("Hclose" with "[Hγforced◯ Hγpaid● Hac]")
-  | iMod ("Hclose" with "[Hγforced◯ Hγpaid●]")
-  ];
-  [ construct_at_invariant |].
 
 Local Ltac construct_piggy :=
   try iModIntro;
-  iExists _, _, _; iSplit; [done|]; iFrame "Hinv"; weaken_white_bullet.
+  iExists _, _, _; iFrame "Hinv"; weaken_white_bullet.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -267,9 +221,8 @@ Proof.
   iMod (own_updateP with "Hempty") as ([m1 m2]) "[Hm Hitok]".
   { apply prod_updateP'.
     - apply cmra_updateP_id, (reflexivity (R:=eq)).
-    - apply (gset_disj_alloc_empty_updateP_strong' (λ i, i ∈ (↑N:coPset)))=> Ef.
-      apply fresh_inv_name. }
-  simpl. iDestruct "Hm" as %(<- & i & -> & ?).
+    - apply gset_disj_alloc_empty_updateP'. }
+  simpl. iDestruct "Hm" as %(<- & i & ->).
   (* Allocate the invariant. *)
   iAssert (PiggyBankInvariant i γpaid nc) with "[-]" as "Hcontent".
   { iExists _; iFrame "Hγpaid●"; iLeft; iFrame "Hitok Hleft Hac". }
@@ -406,8 +359,8 @@ Proof.
 
   (* Massage the tokens. *)
   rewrite /token /token' [F as X in na_own p X](union_difference_L (↑N) F) //.
-  rewrite [X in (X ∪ _)](union_difference_L {[i]} (↑N)) ?na_own_union; [|set_solver..].
-  iDestruct "Htoken" as "[[Htoki $] $]".
+  rewrite ?na_own_union; [|set_solver..].
+  iDestruct "Htoken" as "[Htoki $]".
 
   (* Open invariant. *)
   open_invariant.
