@@ -37,11 +37,11 @@ export OPAMYES=true
 opam switch create \
   --no-install \
   --repositories=default,coq-released=https://coq.inria.fr/opam/released,iris-dev=git+https://gitlab.mpi-sws.org/iris/opam.git \
-  . ocaml-base-compiler.4.14.1
+  . ocaml-base-compiler.5.1.0
 
 eval "$(opam env)"
 
-opam pin add -n coq 8.16.1
+opam pin add -n coq 8.17.1
 
 echo "Updating our local copy of the opam package database (again)..."
 opam update
