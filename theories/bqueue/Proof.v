@@ -13,9 +13,7 @@ Section BQueue.
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γt *)
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
-Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
 Context `{na_invG Σ}.
 Context (p : na_inv_pool_name).
 

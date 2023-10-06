@@ -17,7 +17,6 @@ From iris_time Require Import ThunksCode ThunksBase ThunksAPI.
 Section Step.
 Context `{CommonThunkAPI Σ Thunk}.
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
@@ -98,6 +97,27 @@ Definition ProxyThunk p F t n R ψ : iProp :=
         p N n
 
 .
+
+Local Lemma proxythunk_proper p F t n :
+  Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (ProxyThunk p F t n).
+Proof.
+  unfold ProxyThunk, LeftBranch, RightBranch, isUpdate. intros ?? A ?? B.
+  setoid_rewrite A. setoid_rewrite B. done.
+Qed.
+
+Local Lemma proxythunk_ne m p F t n :
+  Proper ((dist m) ==> pointwise_relation _ (dist m) ==> (dist m)) (ProxyThunk p F t n).
+Proof.
+  unfold ProxyThunk, LeftBranch, RightBranch, isUpdate. intros ?? A ?? B.
+  setoid_rewrite A. setoid_rewrite B. done.
+Qed.
+
+Local Lemma proxythunk_contractive m p F t n :
+  Proper ((dist_later m) ==> pointwise_relation _ (dist_later m) ==> (dist m)) (ProxyThunk p F t n).
+Proof.
+  unfold ProxyThunk, LeftBranch, RightBranch, isUpdate. intros ??????. (repeat f_equiv)=>//.
+  apply PiggyBank_contractive=>//; [intro|]; dist_later_intro; repeat f_equiv; done.
+Qed.
 
 (* A payment into the proxy thunk is implemented simply as a payment into the
    piggy bank; it is not propagated down as a payment into the underlying
@@ -297,6 +317,9 @@ Global Instance step_thunk_api :
 Proof.
   constructor.
   { tc_solve. }
+  { eauto using proxythunk_proper. }
+  { eauto using proxythunk_ne. }
+  { eauto using proxythunk_contractive. }
   { eauto using proxythunk_mask_subseteq. }
   { eauto using proxythunk_increase_debt. }
   { eauto using proxythunk_force_spec. }
@@ -305,4 +328,4 @@ Qed.
 
 End Step.
 
-Arguments ProxyThunk {_ _ _ _} _ {_ _} _ _ _ _ _ _.
+Arguments ProxyThunk {_ _ _ _} _ {_} _ _ _ _ _ _.

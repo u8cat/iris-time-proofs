@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import auth excl excl_auth agree csum.
+From iris.algebra Require Import auth excl excl_auth agree csum gset coPset.
 From iris_time.heap_lang Require Import proofmode notation.
 From iris_time Require Import TimeCredits Auth_max_nat.
 
@@ -34,9 +34,10 @@ Section PiggyBank.
 
 Context `{timeCreditHeapG Σ}.        (* time credits are needed *)
 Context `{inG Σ (authR max_natUR)}.  (* camera for the ghost cell γpaid *)
-Context `{inG Σ (excl_authR boolO)}. (* camera for the ghost cell γforced *)
 Context `{na_invG Σ}.                (* non-atomic invariants are needed *)
 Notation iProp := (iProp Σ).
+
+Local Existing Instance na_inv_inG.
 
 (* The following parameters of the predicate [PiggyBank] are fixed throughout
    this file. *)
@@ -126,54 +127,24 @@ Implicit Type γforced γpaid : gname.
    [γforced] to a new value. Opening just one invariant allows reading
    [γforced] but does not allow updating it. *)
 
-Local Definition PiggyBankNonAtomicInvariant γforced nc : iProp :=
-  ∃ forced,
-      own γforced (●E forced)
-    ∗ if negb forced then LeftBranch nc else RightBranch.
-
-Local Definition PiggyBankAtomicInvariant γforced γpaid nc : iProp :=
-  ∃ forced ac,
-      own γforced (◯E forced)
-    ∗ own γpaid (● MaxNat ac)
-    ∗ if negb forced then TC ac else ⌜ nc ≤ ac ⌝.
+Let PiggyBankInvariant i γpaid nc : iProp :=
+  ∃ ac,
+    own γpaid (● MaxNat ac)
+  ∗ (own p (ε, GSet {[i]}) ∗ LeftBranch nc ∗ TC ac ∨
+     na_own p {[i]} ∗ ⌜ nc ≤ ac ⌝ ∨
+     own p (ε, GSet {[i]}) ∗ RightBranch ∗ ⌜ nc ≤ ac ⌝).
 
 Definition PiggyBank n : iProp :=
-  ∃ γforced γpaid nc,
-      na_inv p N (PiggyBankNonAtomicInvariant γforced nc)
-    ∗ inv P (PiggyBankAtomicInvariant γforced γpaid nc)
-    ∗ own γpaid (◯ MaxNat (nc - n)).
-
-(* -------------------------------------------------------------------------- *)
-
-(* Local lemmas about the ghost cell γforced. *)
-
-Local Lemma agree_forced γforced forced forced' :
-  own γforced (●E forced) -∗
-  own γforced (◯E forced') -∗
-  ⌜ forced' = forced ⌝.
-Proof.
-  iIntros "Hγforced● Hγforced◯".
-  iCombine "Hγforced● Hγforced◯" gives "%Hvalid".
-  iPureIntro. symmetry. eauto using excl_auth_agree_L.
-Qed.
-
-Local Lemma update_forced γforced forced forced' :
-  own γforced (●E forced) -∗
-  own γforced (◯E forced) ==∗
-  own γforced (●E forced') ∗
-  own γforced (◯E forced').
-Proof.
-  iIntros "Hγforced● Hγforced◯".
-  iMod (own_update_2 with "Hγforced● Hγforced◯") as "[$ $]"; [| done ].
-  eapply excl_auth_update.
-Qed.
+  ∃ i γpaid nc,
+      ⌜i ∈ (↑N:coPset)⌝
+      ∗ inv P (PiggyBankInvariant i γpaid nc) ∗ own γpaid (◯ MaxNat (nc - n)).
 
 (* -------------------------------------------------------------------------- *)
 
 (* Local tactics, for clarity. *)
 
 Local Ltac destruct_piggy :=
-  iDestruct "Hpiggy" as (γforced γpaid nc) "(Hnainv & Hatinv & Hγpaid◯)".
+  iDestruct "Hpiggy" as (i γpaid nc) "(% & Hinv & Hγpaid◯)".
 
 Local Ltac open_na_invariant :=
   iDestruct (na_inv_acc with "Hnainv Htoken")
@@ -181,32 +152,25 @@ Local Ltac open_na_invariant :=
     [set_solver | set_solver |];
   iDestruct "Hcontent" as (forced) "(>Hγforced● & Hbranch)".
 
-Local Ltac open_at_invariant forced :=
-  iMod (inv_acc with "Hatinv") as "[Hcontent Hatclose]"; [ done |];
-  iDestruct "Hcontent" as (forced ac) "(>Hγforced◯ & >Hγpaid● & Hac)".
+Local Ltac open_invariant :=
+  iMod (inv_acc with "Hinv") as "[Hcontent Hclose]"; [ done |];
+  iDestruct "Hcontent" as (ac) "(>Hγpaid● & Hcontent)".
 
-Local Ltac open_both_invariants :=
-  (* Open the two invariants. *)
-  open_na_invariant;
-  let forced' := fresh in
-  open_at_invariant forced';
-  (* The two invariants must agree on the value of the ghost cell γforced. *)
-  iDestruct (agree_forced with "Hγforced● Hγforced◯") as "%Hagree";
-  subst forced'.
+Local Ltac duplicate_itok :=
+  iDestruct "Hcontent" as "(>Hitok' & _ & _)";
+  iCombine "Hitok Hitok'" gives %[_ Hval%gset_disj_valid_op];
+  by set_solver.
 
-Local Ltac case_analysis forced :=
-  (* Perform case analysis on the Boolean value [forced]. *)
-  destruct forced;
-  (* We want to handle the case [forced = false] first,
-     so we swap the subgoals. *)
-  swap 1 2;
-  (* Simplify the conditionals that depend on [forced]. *)
-  simpl;
-  (* If the atomic invariant is currently opened, simplify the hypothesis
-     "Hac", which is either [▷ TC ac] or [▷ ⌜ nc ≤ ac ⌝]. *)
-  [
-    try iDestruct "Hac" as ">Hac"
-  | try iDestruct "Hac" as ">%Hac"
+Local Ltac duplicate_toki :=
+  iDestruct "Hcontent" as "(>Htoki' & _)";
+  iDestruct (na_own_disjoint with "Htoki Htoki'") as %?;
+  by set_solver.
+
+Local Ltac case_analysis :=
+  iDestruct "Hcontent" as "[Hcontent|[Hcontent|Hcontent]]"; [
+    (iDestruct "Hcontent" as "(>Hitok & Hleft & >Hac)" || duplicate_itok) |
+    (iDestruct "Hcontent" as "(>Htoki & >%)" || duplicate_toki) |
+    (iDestruct "Hcontent" as "(>Hitok & Hright & >%)" || duplicate_itok)
   ].
 
 Local Ltac create_white_bullet :=
@@ -223,10 +187,16 @@ Local Ltac exploit_white_bullet :=
 Local Ltac increase_black_bullet k :=
   iMod (auth_max_nat_update_incr _ _ k with "Hγpaid●") as "Hγpaid●".
 
-Local Ltac update_forced b :=
-  iMod (update_forced _ _ b with "Hγforced● Hγforced◯")
-    as "[Hγforced● Hγforced◯]".
+Local Ltac close_invariant pat :=
+  iMod ("Hclose" with pat) as "_";
+  [ iExists _; iFrame "Hγpaid●"; by auto 10 with iFrame lia |].
+(*
+iMod ("Hclose" with "[Hγpaid● Htoki]") as "_".
+{ iExists _; iFrame "Hγpaid●"; iRight; iLeft; iFrame "Htoki"; auto with lia. }
 
+iMod ("Hclose" with "[Hγpaid● Hright Hitok]") as "_".
+{ iExists _; iFrame "Hγpaid●"; iRight; iRight; iFrame "Hright Hitok"; auto with lia. }
+*)
 Local Ltac construct_na_invariant :=
   try iNext; iExists _; iFrame "Hγforced●"; simpl; eauto.
 
@@ -244,14 +214,14 @@ Local Ltac close_na_invariant :=
 
 Local Ltac close_at_invariant :=
   first [
-    iMod ("Hatclose" with "[Hγforced◯ Hγpaid● Hac]")
-  | iMod ("Hatclose" with "[Hγforced◯ Hγpaid●]")
+    iMod ("Hclose" with "[Hγforced◯ Hγpaid● Hac]")
+  | iMod ("Hclose" with "[Hγforced◯ Hγpaid●]")
   ];
   [ construct_at_invariant |].
 
 Local Ltac construct_piggy :=
   try iModIntro;
-  iExists _, _, _; iFrame "Hnainv Hatinv"; weaken_white_bullet.
+  iExists _, _, _; iSplit; [done|]; iFrame "Hinv"; weaken_white_bullet.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -289,23 +259,21 @@ Proof.
   iIntros "Hleft".
   (* Allocate the ghost cell [γpaid]. Its initial value is 0. *)
   iMod (auth_max_nat_alloc 0) as (γpaid) "[Hγpaid● #Hγpaid◯]".
-  (* Allocate the ghost cell [γforced]. Its initial value is [false]. *)
-  iMod (own_alloc (●E false ⋅ ◯E false)) as (γforced) "[Hγforced● Hγforced◯]".
-  { apply excl_auth_valid. }
-  (* Allocate the non-atomic invariant. *)
-  iAssert (PiggyBankNonAtomicInvariant γforced nc)
-    with "[Hγforced● Hleft]"
-    as "Hcontent".
-  { construct_na_invariant. }
-  iMod (na_inv_alloc with "Hcontent") as "Hnainv".
   (* We initially have 0 time credits at hand. *)
-  iAssert (TC 0) as "Htc".
+  iAssert (TC 0) as "Hac".
   { iApply zero_TC_now. }
-  (* Allocate the atomic invariant. *)
-  iAssert (PiggyBankAtomicInvariant γforced γpaid nc)
-    with "[Hγforced◯ Hγpaid●]" as "Hcontent".
-  { construct_at_invariant. }
-  iMod (inv_alloc with "Hcontent") as "Hatinv".
+  (* Allocate the NA ghost token. *)
+  iMod (own_unit (prodUR coPset_disjUR (gset_disjUR positive)) p) as "Hempty".
+  iMod (own_updateP with "Hempty") as ([m1 m2]) "[Hm Hitok]".
+  { apply prod_updateP'.
+    - apply cmra_updateP_id, (reflexivity (R:=eq)).
+    - apply (gset_disj_alloc_empty_updateP_strong' (λ i, i ∈ (↑N:coPset)))=> Ef.
+      apply fresh_inv_name. }
+  simpl. iDestruct "Hm" as %(<- & i & -> & ?).
+  (* Allocate the invariant. *)
+  iAssert (PiggyBankInvariant i γpaid nc) with "[-]" as "Hcontent".
+  { iExists _; iFrame "Hγpaid●"; iLeft; iFrame "Hitok Hleft Hac". }
+  iMod (inv_alloc with "Hcontent") as "Hinv".
   (* Done. *)
   construct_piggy.
 Qed.
@@ -323,8 +291,8 @@ Proof.
   iIntros "#Hpiggy Hk".
   destruct_piggy.
 
-  (* Open the atomic invariant (and only this one). *)
-  open_at_invariant forced.
+  (* Open the invariant. *)
+  open_invariant.
 
   (* We learn [nc - n ≤ ac]. *)
   exploit_white_bullet.
@@ -335,30 +303,40 @@ Proof.
   create_white_bullet.
 
   (* Perform a case analysis. *)
-  case_analysis forced.
+  case_analysis.
 
-  (* Case: left branch. *)
+  (* Case: piggy bank is not broken. *)
   {
     (* We have [ac + k] time credits. *)
     iCombine "Hac Hk" as "Hac".
     (* The invariant can be closed. *)
-    close_at_invariant.
+    close_invariant "[-]".
     (* Our updated fragmentary view of the ghost cell γpaid
        allows us to produce an updated [PiggyBank] assertion. *)
     construct_piggy.
   }
 
-  (* Case: right branch. *)
+  (* Case: piggy bank is being broken. *)
   {
     (* In this case, no new time credits are stored in the invariant.
        The payment is wasted. *)
     iClear "Hk".
     (* The invariant can be closed. *)
-    close_at_invariant.
+    close_invariant "[-]".
     (* We conclude in the same way as above. *)
     construct_piggy.
   }
 
+  (* Case: piggy bank is broken *)
+  {
+    (* In this case, no new time credits are stored in the invariant.
+       The payment is wasted. *)
+    iClear "Hk".
+    (* The invariant can be closed. *)
+    close_invariant "[-]".
+    (* We conclude in the same way as above. *)
+    construct_piggy.
+  }
 Qed.
 
 (* Forcing (or breaking) the piggy bank is the most complex operation. It is
@@ -424,49 +402,60 @@ Proof.
   iIntros "#Hpiggy Htoken".
   destruct_piggy.
   rewrite Nat.sub_0_r. (* nc - 0 = nc *)
-
-  (* Open both invariants. *)
-  open_both_invariants.
-
-  (* Part of the goal can be met. *)
   iExists nc.
-  iFrame "Htoken".
+
+  (* Massage the tokens. *)
+  rewrite /token /token' [F as X in na_own p X](union_difference_L (↑N) F) //.
+  rewrite [X in (X ∪ _)](union_difference_L {[i]} (↑N)) ?na_own_union; [|set_solver..].
+  iDestruct "Htoken" as "[[Htoki $] $]".
+
+  (* Open invariant. *)
+  open_invariant.
 
   (* Perform case analysis. *)
-  case_analysis forced.
+  case_analysis.
 
-  (* Case: left branch. *)
+  (* Case: piggy bank is not broken. *)
   {
     (* The number of debits is zero, so we learn [nc ≤ ac]. *)
     exploit_white_bullet.
     (* Therefore, we have the necessary time credits at hand. *)
     iDestruct (TC_weaken _ _ Hleq with "Hac") as "Htc".
-    (* Set γforced to [true]. *)
-    update_forced true.
-    (* Close the atomic invariant now. *)
-    close_at_invariant. iModIntro.
+
+    (* The invariant can be closed. *)
+    close_invariant "[Hγpaid● Htoki]".
     (* We are in the left-hand branch of the disjunction. *)
-    iSplitL "Hbranch Htc".
-    { iLeft. iFrame "Hbranch Htc". }
+    iModIntro. iSplitL "Hleft Htc".
+    { iLeft. iFrame "Hleft Htc". }
     (* Once the user performs a state change to [RightBranch],
-       we will be able to close the non-atomic invariant. *)
-    iIntros "Hbranch Htoken".
-    close_na_invariant.
+       we will be able to re-open the invariant. *)
+    iIntros "Hright $". clear ac Hleq.
+    (* Open invariant. *)
+    open_invariant.
+    (* Perform case analysis and keep only the relevent case. *)
+    case_analysis.
+    (* The invariant can be closed in the new final state. *)
+    iFrame "Htoki".
+    by close_invariant "[-]".
   }
 
-  (* Case: right branch. This case is trivial. *)
+  (* Case: piggy bank is broken. *)
   {
-    (* Close the atomic invariant now. *)
-    close_at_invariant. iModIntro.
+    (* Close the invariant now. *)
+    close_invariant "[Hγpaid● Htoki]".
     (* We are in the right-hand branch of the disjunction. *)
-    iSplitL "Hbranch".
-    { iRight. iFrame "Hbranch". }
+    iSplitL "Hright".
+    { by iRight. }
     (* Once the user performs a state change to [RightBranch],
-       we will be able to close the non-atomic invariant. *)
-    iIntros "Hbranch Htoken".
-    close_na_invariant.
+       we will be able to restore the invariant to its final state. *)
+    clear dependent ac. iIntros "!> Hright $".
+    open_invariant.
+    (* Perform case analysis and keep only the relevent case. *)
+    case_analysis.
+    (* The invariant can be closed in the new final state. *)
+    iFrame "Htoki".
+    by close_invariant "[-]".
   }
-
 Qed.
 
 (* The following law may be viewed as more exotic and less essential than
@@ -495,14 +484,14 @@ Lemma piggybank_peek φ n E F :
   token.
 Proof.
   intros.
-  iIntros "#Hpiggy Htoken Hcontradiction Hextractor".
+  iIntros "#Hpiggy Htoki Hcontradiction Hextractor".
   destruct_piggy.
-  open_both_invariants.
-  case_analysis forced.
+  open_invariant.
+  case_analysis.
 
   (* Case: left branch. This is impossible. *)
-  { iDestruct ("Hcontradiction" with "Hbranch") as ">contradiction".
-      (* Because the goal is an update, we can strip a ▷ modality. *)
+  { iDestruct ("Hcontradiction" with "Hleft") as ">contradiction".
+    (* Because the goal is an update, we can strip a ▷ modality. *)
     iExFalso. eauto. }
 
   (* Case: right branch. *)
@@ -512,15 +501,32 @@ Proof.
      This will allow us to argue that this piggy bank has debt zero. *)
   create_white_bullet.
   (* Extract ▷ □ φ. *)
-  iPoseProof ("Hextractor" with "Hbranch") as "#Hφ".
-  (* Close the atomic invariant. *)
-  close_at_invariant.
-  (* Close the non-atomic invariant. *)
-  close_na_invariant.
+  iPoseProof ("Hextractor" with "Hright") as "#$".
+  (* Close the invariant. *)
+  iFrame "Htoki".
+  close_invariant "[-]".
   (* Done. *)
-  iFrame "Hφ".
   construct_piggy.
-
 Qed.
 
 End PiggyBank.
+
+Section PiggyBank_proper.
+
+Context `{timeCreditHeapG Σ}.        (* time credits are needed *)
+Context `{inG Σ (authR max_natUR)}.  (* camera for the ghost cell γpaid *)
+Context `{na_invG Σ}.
+
+Global Instance PiggyBank_proper :
+  Proper (pointwise_relation _ (≡) ==> (≡) ==> (=) ==> (=) ==> (=) ==> (=) ==> (≡)) PiggyBank.
+Proof. solve_proper. Qed.
+
+Global Instance PiggyBank_ne n :
+  Proper (pointwise_relation _ (dist n) ==> (dist n) ==> (=) ==> (=) ==> (=) ==> (=) ==> (dist n)) PiggyBank.
+Proof. solve_proper. Qed.
+
+Global Instance PiggyBank_contractive n :
+  Proper (pointwise_relation _ (dist_later n) ==> (dist_later n) ==> (=) ==> (=) ==> (=) ==> (=) ==> (dist n)) PiggyBank.
+Proof. solve_contractive. Qed.
+
+End PiggyBank_proper.

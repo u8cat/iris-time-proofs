@@ -23,7 +23,6 @@ Section HThunks.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -89,6 +88,18 @@ Definition HThunk p h t n φ : iProp :=
   let F := ↑(gen_ns h') in
   let R := HToken p (Some h') in
   Thunk p F t n R φ.
+
+Global Instance hthunk_proper p h t n :
+  Proper (pointwise_relation _ (≡) ==> (≡)) (HThunk p h t n).
+Proof. solve_proper. Qed.
+
+Global Instance hthunk_ne m p h t n :
+  Proper (pointwise_relation _ (dist m) ==> (dist m)) (HThunk p h t n).
+Proof. unfold HThunk. intros ?? A. by setoid_rewrite A. Qed.
+
+Global Instance hthunk_contractive m p h t n :
+  Proper (pointwise_relation _ (dist_later m) ==> (dist m)) (HThunk p h t n).
+Proof. solve_contractive. Qed.
 
 (* -------------------------------------------------------------------------- *)
 

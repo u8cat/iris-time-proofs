@@ -19,7 +19,6 @@ Section Proofs.
   Notation valO := (valO heap_lang).
   Context `{timeCreditHeapG Σ}.
   Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γt *)
-  Context `{inG Σ (authR $ optionUR $ exclR boolO)}.    (* γforced *)
   Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
   Context `{na_invG Σ}.
   Notation iProp := (iProp Σ).
@@ -70,7 +69,9 @@ Section Proofs.
   (* The following definition can be ignored; it is reformulated below in
      a more readable way. *)
 
-  Fixpoint Stream h t ds xs : iProp :=
+  Let Fix_ofe := loc -d> debits -d> list val -d> iProp.
+
+  Definition Stream_rec h (Stream : Fix_ofe) : Fix_ofe := λ t ds xs,
     match ds with
     | []    =>
         False
@@ -78,9 +79,19 @@ Section Proofs.
         HThunk p h t d (λ c,
           match xs with
           | []      =>       ⌜c = NILV⌝ ∗ ⌜ ds = [] ⌝
-          | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ Stream h t' ds xs
+          | x :: xs => ∃ t', ⌜c = CONSV x #t'⌝ ∗ Stream t' ds xs
           end)
     end%I.
+
+  Instance Stream_rec_contractive :
+    ∀ h, Contractive (Stream_rec h).
+  Proof.
+    unfold Stream_rec. intros ???? A ???. do 3 f_equiv. dist_later_intro. f_equiv.
+    by setoid_rewrite (A _ _ _).
+  Qed.
+
+  Definition Stream h :=
+    fixpoint (Stream_rec h).
 
   (* The assertion [StreamCell h c ds xs] describes a stream cell [c] that has
      been obtained by forcing a stream. If the stream has no elements then [c]
@@ -104,14 +115,12 @@ Section Proofs.
      that [StreamCell h c ds xs] holds. *)
 
   Lemma unfold_stream h t ds xs :
-    Stream h t ds xs =
+    Stream h t ds xs ≡
       match ds with
       | []      => False%I
       | d :: ds => HThunk p h t d (λ c, StreamCell h c ds xs)
       end.
-  Proof.
-    destruct ds; reflexivity.
-  Qed.
+  Proof. by rewrite /Stream (fixpoint_unfold (Stream_rec h) _ _ _). Qed.
 
 (* -------------------------------------------------------------------------- *)
 
@@ -177,11 +186,15 @@ Section Proofs.
 
   (* [Stream] is persistent. *)
 
-  Global Instance stream_persistent :
-    ∀ ds xs h t,
+  Global Instance stream_persistent h t ds xs :
     Persistent (Stream h t ds xs).
   Proof.
-    induction ds; destruct xs; exact _.
+    apply (fixpoint_ind (Stream_rec h) (λ Stream, ∀ t ds xs, Persistent (Stream t ds xs))).
+    - clear. intros ?? EQ ? t ds xs. specialize (EQ t ds xs). by rewrite -EQ.
+    - exists (λ _ _ _, True%I). apply _.
+    - intros ??? []; tc_solve.
+    - repeat (apply limit_preserving_forall=>?). apply bi.limit_preserving_Persistent.
+      intros ??? EQ. apply (EQ _ _ _).
   Qed.
 
   (* [StreamCell] is persistent. *)
@@ -195,10 +208,8 @@ Section Proofs.
   (* The list [ds] cannot be empty. *)
 
   Lemma unfold_stream_contradictory h t xs :
-    Stream h t [] xs = False%I.
-  Proof.
-    reflexivity.
-  Qed.
+    Stream h t [] xs ≡ False%I.
+  Proof. apply unfold_stream. Qed.
 
   (* So, [length ds] must be positive. *)
 
@@ -207,9 +218,9 @@ Section Proofs.
     Stream h t ds xs -∗
     ⌜length ds > 0⌝.
   Proof.
-    destruct ds; intros; simpl.
+    destruct ds; intros; rewrite unfold_stream.
     { eauto. }
-    { iIntros "_". iPureIntro. lia. }
+    { iIntros "_ !% /=". lia. }
   Qed.
 
   (* In [StreamCell h c ds xs], if [ds] is empty then this must be a nil

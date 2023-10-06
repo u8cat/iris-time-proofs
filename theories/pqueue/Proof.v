@@ -18,7 +18,6 @@ Section PQueue.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.

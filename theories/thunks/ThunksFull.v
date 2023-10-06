@@ -18,7 +18,6 @@ Section Full.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -75,6 +74,13 @@ Proof.
   constructor; intros.
 
   { tc_solve. (* persistent *) }
+
+  { solve_proper. (* thunk_proper *) }
+
+  { (* thunk_ne *)
+    unfold Thunk. intros ??????. do 5 f_equiv. by apply thunk_ne. }
+
+  { solve_contractive. (* thunk_contractive *) }
 
   { (* thunk_mask_subseteq *)
     iIntros "#Hthunk". destruct_thunk.

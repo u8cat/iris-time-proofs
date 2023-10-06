@@ -36,6 +36,7 @@ Context `{timeCreditHeapG Σ}.
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* needed by ThunkVal *)
 Context `{na_invG Σ}.
 Notation iProp := (iProp Σ).
+Notation iPropO := (iPropO Σ).
 Open Scope nat_scope.
 
 (* -------------------------------------------------------------------------- *)
@@ -84,13 +85,20 @@ Class CommonThunkAPI
     loc →
     nat →
     iProp →
-    (val → iProp) →
+    (val → iPropO) →
     iProp
   )
 
 := {
 
   thunk_persistent p F t n R φ :> Persistent (Thunk p F t n R φ);
+
+  thunk_proper p F t n :>
+    Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (Thunk p F t n);
+  thunk_ne m p F t n :>
+    Proper ((dist m) ==> pointwise_relation _ (dist m) ==> (dist m)) (Thunk p F t n);
+  thunk_contractive m p F t n :>
+    Proper ((dist_later m) ==> pointwise_relation _ (dist_later m) ==> (dist m)) (Thunk p F t n);
 
  (* The predicate [Thunk F t n R φ] must be covariant in the parameter [F],
     which is the mask used for forcing. *)
@@ -164,7 +172,6 @@ Section BaseInstance.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -175,6 +182,9 @@ Global Instance base_thunk_api :
 Proof.
   constructor.
   { tc_solve. }
+  { eauto using base_thunk_proper. }
+  { eauto using base_thunk_ne. }
+  { eauto using base_thunk_contractive. }
   { eauto using base_thunk_mask_subseteq. }
   { eauto using base_thunk_increase_debt. }
   { eauto using base_thunk_force. }

@@ -27,7 +27,6 @@ Section Proofs.
 
 Notation valO := (valO heap_lang).
 Context `{timeCreditHeapG Σ}.
-Context `{inG Σ (excl_authR boolO)}.                  (* γforced *)
 Context `{inG Σ (authR max_natUR)}.                   (* γpaid *)
 Context `{inG Σ (csumR (exclR unitO) (agreeR valO))}. (* γdecided *)
 Context `{na_invG Σ}.
@@ -155,6 +154,27 @@ Definition BaseThunk p F t n R φ : iProp :=
         p N n
 
 .
+
+Lemma base_thunk_proper p F t n :
+  Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (BaseThunk p F t n).
+Proof.
+  unfold BaseThunk, LeftBranch, RightBranch, isAction. intros ?? A ?? B.
+  setoid_rewrite A. setoid_rewrite B. done.
+Qed.
+
+Lemma base_thunk_ne m p F t n :
+  Proper ((dist m) ==> pointwise_relation _ (dist m) ==> (dist m)) (BaseThunk p F t n).
+Proof.
+  unfold BaseThunk, LeftBranch, RightBranch, isAction. intros ?? A ?? B.
+  setoid_rewrite A. setoid_rewrite B. done.
+Qed.
+
+Lemma base_thunk_contractive m p F t n :
+  Proper ((dist_later m) ==> pointwise_relation _ (dist_later m) ==> (dist m)) (BaseThunk p F t n).
+Proof.
+  unfold BaseThunk, LeftBranch, RightBranch, isAction. intros ??????. repeat f_equiv.
+  apply PiggyBank_contractive=>//; [intro|]; dist_later_intro; repeat f_equiv; done.
+Qed.
 
 (* The predicate [ThunkVal t v] is public. It is an abstract predicate:
    its definition is not meant to be exposed to the user. *)
