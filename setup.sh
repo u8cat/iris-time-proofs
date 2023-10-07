@@ -44,7 +44,7 @@ eval "$(opam env)"
 echo "Updating our local copy of the opam package database (again)..."
 opam update
 
-opam pin add -n coq 8.17.1
+opam pin add -n coq 8.16.1
 
 echo "Installing Coq and the necessary Coq libraries."
 echo "This will take a while (perhaps over 10 minutes)..."

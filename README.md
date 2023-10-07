@@ -23,7 +23,7 @@ In an opam switch as created above, the commands
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam repo add iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
     opam update
-    opam pin add -n coq 8.17.1
+    opam pin add -n coq 8.16.1
     make builddep
 
 will pin and install the dependencies at the correct version.
