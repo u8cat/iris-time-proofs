@@ -505,7 +505,7 @@ Proof.
         subst mvs. wp_tick_if. wp_tick_inj.
         iApply ("Post" $! (SHALLOWV r)). iFrame "Htok".
         construct_is_queue_shallow; cbn. eexists _; split; eauto.
-        rewrite drop_app_alt // (is_tree_length level v) //. }
+        rewrite drop_app_length' // (is_tree_length level v) //. }
       { (* ¬ is_empty q *)
         destruct Hempty as (mvs1 & mvs2 & -> & Hlen).
         wp_tick_if. untranslate.
@@ -531,11 +531,11 @@ Proof.
             { repeat (iApply TC_plus; iFrame). }
             iCombine "TC' TC''" as "TC". iApply (TC_weaken with "TC"); lia. }
           iIntros "!>" (q'') "[#Hqueue'' Htok]".
-          rewrite drop_app_alt //. iApply ("Hψ" with "Htok Hqueue''"). }
+          rewrite drop_app_length' //. iApply ("Hψ" with "Htok Hqueue''"). }
         iIntros (t) "Hthunk'". wp_tick_pair. wp_tick_inj. repeat wp_tick_pair.
         wp_tick_inj. iApply ("Post" $! (DEEPV (TWOV v1 v2) #t r)).
         iFrame "Htok".
-        rewrite drop_app_alt; last by (symmetry; eauto using is_tree_length).
+        rewrite drop_app_length'; last by (symmetry; eauto using is_tree_length).
         construct_is_queue_deep; first iFrame "Hthunk'"; split_and!; eauto.
         rewrite !app_assoc //. } }
     (* DEEP (TWO (_, y), m, r) case *)
@@ -549,7 +549,7 @@ Proof.
       wp_tick_inj.
       iApply ("Post" $! (DEEPV (ONEbV v2) #m r)). iFrame "Htok".
       construct_is_queue_deep; first iFrame "Hthunk'"; split_and!; eauto.
-      rewrite -app_assoc drop_app_alt// (is_tree_length level v1) //. } }
+      rewrite -app_assoc drop_app_length'// (is_tree_length level v1) //. } }
 Qed.
 
 #[global] Opaque Itail.
