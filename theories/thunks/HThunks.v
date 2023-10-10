@@ -50,8 +50,8 @@ Definition HToken p b :=
 Lemma gtoken_alloc :
   ⊢ |==> ∃ p, HToken p None.
 Proof using.
-    iApply na_alloc.
-  Qed.
+  iApply na_alloc.
+Qed.
 
 (* -------------------------------------------------------------------------- *)
 
