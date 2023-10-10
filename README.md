@@ -41,7 +41,7 @@ If opam (≥ 2.0) is already installed:_ Create a local switch for the
 project in the current directory:
 
     opam update
-    opam switch create --no-install . ocaml-base-compiler.5.1.0
+    opam switch create --no-install . ocaml-base-compiler.4.14.1
     eval $(opam env)
 
 ### Step 2: Installing the dependencies
