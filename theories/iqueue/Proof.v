@@ -145,7 +145,7 @@ Local Ltac list_inv :=
   | H : [] = _ ++ _ |- _ => symmetry in H; apply app_eq_nil in H as [? ?]; subst
   end.
 
-Local Ltac inv :=
+Local Ltac invert :=
   repeat first [
     is_tree_inv | is_digit01_inv | is_digit12_inv
     | digit01_len | digit12_len | list_inv ].
@@ -261,12 +261,12 @@ Lemma is_empty_is_queue_spec h q level vs :
 Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_is_queue.
-  { inversion Hd; subst; inv;
+  { inversion Hd; subst; invert;
       wp_tick_lam; repeat wp_tick_match.
     - by iApply "Post".
     - iApply ("Post" $! false); iPureIntro. exists vs, [].
       rewrite app_nil_r. split; eauto using is_tree_length. }
-  { inversion Hf; subst; clear Hf; inv;
+  { inversion Hf; subst; clear Hf; invert;
       wp_tick_lam; repeat wp_tick_match; wp_tick_proj;
       repeat (wp_tick_let; repeat wp_tick_proj);
       iApply ("Post" $! false); iPureIntro.
@@ -314,7 +314,7 @@ Proof.
   iDestruct "Htc" as "[[HtcB TCcr] Htc]".
   deconstruct_is_queue.
   (* SHALLOW case *)
-  { inversion Hd; subst; inv.
+  { inversion Hd; subst; invert.
     { (* case 1 : SHALLOW ZERO -> SHALLOW (ONEa y) *)
       wp_tick_lam. wp_tick_let. repeat wp_tick_match. repeat wp_tick_inj.
       iApply ("Post" $! (SHALLOWV (ONEaV y))).
@@ -336,7 +336,7 @@ Proof.
       construct_is_queue_deep. 2: split_and!; eauto. iApply "Hthunk".
       rewrite !app_nil_r//. } }
   (* DEEP case *)
-  { inversion Hr; subst; inv.
+  { inversion Hr; subst; invert.
     { (* case 3 : DEEP (f, m, ZERO) -> DEEP (f, m, ONEa y) *)
       wp_tick_lam. wp_tick_let. repeat wp_tick_match. wp_tick_proj.
       repeat (wp_tick_let; repeat wp_tick_proj). wp_tick_match.
@@ -420,11 +420,11 @@ Proof.
   intros Hys. iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_is_queue.
   (* SHALLOW *)
-  { inversion Hd; subst; inv.
+  { inversion Hd; subst; invert.
     { cbn in Hys; pose proof (pow2_pos level); lia. }
     { wp_tick_lam. repeat wp_tick_match. by iApply "Post". } }
   (* DEEP *)
-  inversion Hf; subst; clear Hf; inv.
+  inversion Hf; subst; clear Hf; invert.
   { (* DEEP ONEb *)
     assert (ys = fvs ∧ vs = mvs ++ rvs) as [-> ->].
     { apply app_inj_1; eauto. rewrite (is_tree_length level v fvs) //. }
@@ -453,7 +453,7 @@ Proof.
   iIntros "#Hc #Hqueue !#" (Φ) "Htc Post".
   deconstruct_iqueue. rewrite (_: v :: vs = [v] ++ vs) //.
   wp_apply (head_is_queue_spec with "[$] Hqueue [$]"); first done.
-  iIntros (? ?). inv. by iApply "Post".
+  iIntros (? ?). invert. by iApply "Post".
 Qed.
 
 Definition Itail := B + Tf + Iie + Ihead + ISc + 100.
@@ -475,7 +475,7 @@ Proof.
   iDestruct "Htc" as "[[[[[TCB TCf] TCie] TChead] TCSc] TC]".
   deconstruct_is_queue.
   (* SHALLOW case *)
-  { inversion Hd; subst; inv.
+  { inversion Hd; subst; invert.
     { (* SHALLOW ZERO case: impossible *)
       cbn in Hlevel; pose proof (pow2_pos level); lia. }
     { (* SHALLOW (ONEa _) case *)
@@ -484,7 +484,7 @@ Proof.
       rewrite drop_ge; last by rewrite (is_tree_length level v) //.
       construct_is_queue_shallow; eauto. } }
   (* DEEP case *)
-  { inversion Hf; subst; clear Hf; inv.
+  { inversion Hf; subst; clear Hf; invert.
     (* DEEP (ONEbV _, m, r) case *)
     { wp_tick_lam. wp_tick_match. wp_tick_proj.
       repeat (wp_tick_let; repeat wp_tick_proj).
@@ -510,7 +510,7 @@ Proof.
         destruct Hempty as (mvs1 & mvs2 & -> & Hlen).
         wp_tick_if. untranslate.
         wp_apply (head_is_queue_spec with "[$] Hqueue' [$]"); first done.
-        iIntros (t1 Ht1). inv. wp_tick_let. do 2 (wp_tick_proj; wp_tick_let).
+        iIntros (t1 Ht1). invert. wp_tick_let. do 2 (wp_tick_proj; wp_tick_let).
         rewrite untranslate_litv. untranslate. push_subst.
         rewrite -untranslate_val. (* argh *)
         divide_credit "TC" 16 54.
