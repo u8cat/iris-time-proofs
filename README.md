@@ -14,35 +14,39 @@ compiled, and all the software needed to compile it.  When booting, it
 should automatically log in. In case it is necessary, it can be logged
 in using the user "vagrant" and the password "vagrant".
 
-The relevent files are in the directory coq-iris-time on the
+The relevant files are in the directory coq-iris-time on the
 desktop. They can be seen using Coqide, which can be run using the
 icon on the desktop.
 
 ## Building the artifact from the archive
 
-The archive can be compiled by following the instructions bellow.
+The archive can be compiled by following the instructions below.
 
 ### Step 1: Creating an opam switch
 
-If opam is not already installed:_ See instructions [there][install-opam] to
-install it; then:
+[opam](http://opam.ocaml.org/) (version ≥ 2.0) is needed.
+Please proceed as follows:
 
-    opam init
-    eval $(opam env)
+* If opam is not already installed, [install it][install-opam] first,
+  then run the following commands:
 
-(This will create a `~/.opam` directory.)
+      opam init
+      eval $(opam env)
 
-Extract the archive, and move to the directory:
+  (This will create a `~/.opam` directory.)
 
-    tar -xzvf coq-iris-time.tar.gz
-    cd coq-iris-time
+* Extract the archive, and move down into the `coq-iris-time`
+  directory:
 
-If opam (≥ 2.0) is already installed:_ Create a local switch for the
-project in the current directory:
+      tar -xzvf coq-iris-time.tar.gz
+      cd coq-iris-time
 
-    opam update
-    opam switch create --no-install . ocaml-base-compiler.4.14.1
-    eval $(opam env)
+* If opam is already installed, create a local switch for the
+  project in the current directory:
+
+      opam update
+      opam switch create --no-install . ocaml-base-compiler.4.14.1
+      eval $(opam env)
 
 ### Step 2: Installing the dependencies
 
@@ -78,82 +82,93 @@ Other recipes are available, such as `all`, `clean` and `userinstall`.
 
 The piggy bank construction is formalized in file
 `theories/thunks/PiggyBank.v`. Each rule in Figure 2 of the paper is
-formalized by a lemma in this file, named after the name of the rule.
+formalized by a lemma in this file, named after the rule.
 
 ### Thunks
 
 The common interface of thunks, base thunks and proxy thunks is
-defined as the `CommonThunkAPI` typeclass in file
-`theories/thunks/ThunksAPI.v`. Lemma `base_thunk_api` shows that base
-thunks implement this API (second part of Theorem 4.1).
+defined as the `CommonThunkAPI` type class in the file
+`theories/thunks/ThunksAPI.v`.
+The lemma `base_thunk_api` shows that base
+thunks implement this API
+(this is the second claim in Theorem 4.1).
 
 Base thunks and the `ThunkVal` predicate are defined in file
-`theories/thunks/ThunksBase.v`. Rules in Figure 7 are proved by lemmas
-in the same file, named after the name of the rule (last part of
-Theorem 4.1). The rule Thunk-Create for base thunks is proved by lemma
-`base_thunk_create` (first part of Theorem 4.1). 
+`theories/thunks/ThunksBase.v`. Each rule in Figure 7 is proved
+by a lemma in the same file, named after the rule
+(this is the last claim in Theorem 4.1).
+The rule Thunk-Create for base thunks is proved by lemma
+`base_thunk_create`
+(this is the first claim in Theorem 4.1).
 
-Proxy thunks are defined in file
-`theories/thunks/ThunksStep.v`. Theorem 4.2 is proved by instance
-`step_thunk_api` and lemma `proxythunk_consequence`.
+Proxy thunks are defined in the file
+`theories/thunks/ThunksStep.v`.
+Theorem 4.2 is proved
+by the lemma `proxythunk_consequence`
+and by the instance declaration `step_thunk_api`.
 
-Thunks are defined in file `theories/thunks/ThunksFull.v`. Theorem 4.3
-is proved by instance `thunk_api`, lemma `thunk_create` and lemma
-`thunk_consequence`.
+Thunks are defined in the file `theories/thunks/ThunksFull.v`.
+Theorem 4.3
+is proved by
+the lemmas `thunk_create` and `thunk_consequence`.
+and by the instance declaration `thunk_api`.
 
 ### Height-indexed thunks
 
-Height-indexed thunks are defined in file
-`theories/thunks/HThunks.v`. Rules in Figure 11 are formalized in
+Height-indexed thunks are defined in the file
+`theories/thunks/HThunks.v`. The rules in Figure 11 are formalized by
 lemmas whose name should be self-explanatory, except for rule
-HThunk-Inc-Height-Debit, split into lemmas `hthunk_covariant_in_h` and
+`HThunk-Inc-Height-Debit`, which is split into two lemmas,
+named `hthunk_covariant_in_h` and
 `hthunk_increase_debt`.
 
 ### Streams
 
-The code of the stream library is given in file
-`theories/streams/StreamsCode.v`, and its specification formalized in
+The code of the stream library is given in the file
+`theories/streams/StreamsCode.v`, and its specification is formalized in
 file `theories/streams/Streams.v`.
 
-Rules of Figure 13 are formalized by lemmas with the same name, except
-for Stream-Increase-Height, which is backed by lemma
+The rules of Figure 13 are formalized by lemmas with the same name, except
+for `Stream-Increase-Height`, which is proved by the lemma
 `stream_covariant`.
 
-Rules of Figure 14 are constructor of inductive predicate `subdebits`.
+The rules of Figure 14 are constructors of
+the inductive predicate `subdebits`.
 
-Rule Sub-Variance is split into lemmas `subdebits_covariant_in_slack`
+Rule `Sub-Variance` is split into two lemmas,
+`subdebits_covariant_in_slack`
 and `subdebits_contravariant_in_rest`.
 
-Rule Sub-Refl is backed by lemma `subdebits_reflexive`.
+Rule `Sub-Refl` is backed by lemma `subdebits_reflexive`.
 
-Rule Sub-Trans is backed by lemma `subdebits_transitive`.
+Rule `Sub-Trans` is backed by lemma `subdebits_transitive`.
 
-Rule Sub-Append is backed by lemma `subdebits_app`.
+Rule `Sub-Append` is backed by lemma `subdebits_app`.
 
-Rule Sub-Add-Slack is backed by lemma `subdebits_add_slack`.
+Rule `Sub-Add-Slack` is backed by lemma `subdebits_add_slack`.
 
-Rule Sub-Repeat is backed by lemma `subdebits_repeat`.
+Rule `Sub-Repeat` is backed by lemma `subdebits_repeat`.
 
 Lemma 6.1 is backed by lemma `subdebits_alternate_characterization`.
 
 ### Banker's queue
 
-The code of the banker's queue is in file
-`theories/bqueue/Code.v`. Its specification is in file
+The code of the banker's queue is in the file
+`theories/bqueue/Code.v`. Its specification is in the file
 `theories/bqueue/Proof.v`.
 
-Rule Banker-Persistent is proved by lemma `is_queue_persistent`.
+Rule `Banker-Persistent` is proved by lemma `is_queue_persistent`.
 
-Rule Banker-Empty is proved by lemma `empty_spec`.
+Rule `Banker-Empty` is proved by lemma `empty_spec`.
 
-Rule Banker-Snoc is proved by lemma `snoc_spec`.
+Rule `Banker-Snoc` is proved by lemma `snoc_spec`.
 
-Rule Banker-Extract is proved by lemma `extract_spec`.
+Rule `Banker-Extract` is proved by lemma `extract_spec`.
 
-Rule Banker-Check is proved by lemma `check_spec`.
+Rule `Banker-Check` is proved by lemma `check_spec`.
 
-### The physiscist's queue, implicit queues.
+### The physicist's queue, implicit queues.
 
-The physiscist's queue is formalized in directory `theories/pqueue`.
+The physicist's queue is formalized in the directory `theories/pqueue`.
 
-Implicit queus are formalized in directory `theories/iqueue`.
+Implicit queues are formalized in the directory `theories/iqueue`.
