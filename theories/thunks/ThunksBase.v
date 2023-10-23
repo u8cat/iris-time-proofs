@@ -34,7 +34,7 @@ Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
 Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
+Implicit Type T : namespace.
 Implicit Type E F : coPset.
 Implicit Type t : loc.
 Implicit Type n nc ac : nat.
@@ -121,7 +121,7 @@ Local Definition ownDecided γdecided v :=
      this is needed to synchronize [BaseThunk] and [ThunkVal] without exposing
      [γdecided] in the public API;
 
-   + the piggy bank is indexed by [p] and [N], where [↑N ⊆ F] holds, which
+   + the piggy bank is indexed by [p] and [T], where [↑T ⊆ F] holds, which
      means that the token [ThunkToken p F] suffices to force this piggy bank;
 
    + the piggy bank is indexed by [ThunkPayment], which means that paying
@@ -144,14 +144,14 @@ Definition ThunkPayment : namespace :=
 
 Definition BaseThunk p F t n R φ : iProp :=
 
-  ∃ γdecided N,
-      ⌜ ↑N ⊆ F ⌝
+  ∃ γdecided T,
+      ⌜ ↑T ⊆ F ⌝
     ∗ meta t nroot γdecided
     ∗ PiggyBank
         (LeftBranch t γdecided R φ)
         (RightBranch t γdecided φ)
         ThunkPayment
-        p N n
+        p T n
 
 .
 
@@ -305,7 +305,6 @@ Qed.
 
 Lemma confront_base_thunk_thunkval p F t n R φ v F' E :
   ↑ThunkPayment ⊆ E →
-  F ⊆ E →
   F ⊆ F' →
   BaseThunk p F t n R φ -∗
   ThunkVal t v -∗
@@ -329,7 +328,7 @@ Proof.
      have zero debit. *)
   iMod (piggybank_peek with "Hpiggy Htoken [] []")
     as "(#Hpiggy0 & $ & $)";
-    [ eassumption | set_solver | set_solver | | | construct_thunk ].
+    [ eassumption | set_solver | | | construct_thunk ].
 
   (* Subgoal 1: we must prove that in the left branch
      we are able to obtain a contradiction. *)
@@ -392,8 +391,8 @@ Definition Tcr := 3.
 
    The pool [p] is arbitrarily chosen by the user. *)
 
-Lemma base_thunk_create p N F nc R φ f :
-  ↑N ⊆ F →
+Lemma base_thunk_create p T F nc R φ f :
+  ↑T ⊆ F →
   TC_invariant -∗
   {{{ TC Tcr ∗ isAction f nc R φ }}}
     «create f»
@@ -446,7 +445,7 @@ Proof.
   (* Break the bank! *)
   iMod (piggybank_break with "Hpiggy Htoken")
     as (nc) "(Hbank & Htoken & Hclose)";
-    [ set_solver | set_solver | set_solver |].
+    [ set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)

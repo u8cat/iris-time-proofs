@@ -25,7 +25,7 @@ Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
 Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
+Implicit Type T : namespace.
 Implicit Type E F : coPset.
 Implicit Type t : loc.
 Implicit Type n : nat.
@@ -48,14 +48,14 @@ Fixpoint Thunk_rec d p F t n R φ : iProp :=
   end.
 
 Definition Thunk p F t n R φ : iProp :=
-  ∃ N d, ⌜ ↑N ⊆ F ⌝ ∗ Thunk_rec d p (F ∖ ↑N) t n R φ.
+  ∃ T d, ⌜ ↑T ⊆ F ⌝ ∗ Thunk_rec d p (F ∖ ↑T) t n R φ.
 
 (* -------------------------------------------------------------------------- *)
 
 (* Local tactics, for clarity. *)
 
 Local Ltac destruct_thunk :=
-  iDestruct "Hthunk" as (N d) "(%HNF & #Hthunk)".
+  iDestruct "Hthunk" as (T d) "(%HTF & #Hthunk)".
 
 Local Ltac pure_conjunct :=
   iSplitR; [ iPureIntro; eauto |].
@@ -84,7 +84,7 @@ Proof.
 
   { (* thunk_mask_subseteq *)
     iIntros "#Hthunk". destruct_thunk.
-    iExists N, _. pure_conjunct; [set_solver|]. iApply thunk_mask_subseteq; [|done]. set_solver. }
+    iExists T, _. pure_conjunct; [set_solver|]. iApply thunk_mask_subseteq; [|done]. set_solver. }
 
   { (* thunk_increase_debt *)
     iIntros "#Hthunk". destruct_thunk.
@@ -95,7 +95,7 @@ Proof.
     iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $ HR] Post"). set_solver. }
 
   { (* thunk_pay *)
-    iIntros "#Hthunk Hk". destruct_thunk. iExists N, d. pure_conjunct.
+    iIntros "#Hthunk Hk". destruct_thunk. iExists T, d. pure_conjunct.
     by iApply (thunk_pay with "Hthunk Hk"). }
 Qed.
 
@@ -103,8 +103,8 @@ Qed.
 
 (* A public reasoning rule: the construction of a thunk. *)
 
-Lemma thunk_create p N F nc R φ f :
-  ↑N ⊆ F →
+Lemma thunk_create p T F nc R φ f :
+  ↑T ⊆ F →
   TC_invariant -∗
   {{{ TC Tcr ∗ isAction f nc R φ }}}
     «create f»
@@ -113,12 +113,12 @@ Proof.
   intros ?.
   iIntros "#Htickinv" (Φ) "!> [Htc Hf] Post".
   (* Allocate a base thunk. *)
-  iApply (base_thunk_create p (N.@1) with "Htickinv [$Htc $Hf]").
+  iApply (base_thunk_create p (T.@1) with "Htickinv [$Htc $Hf]").
   { reflexivity. }
   iIntros "!>" (t) "Hthunk".
   iApply "Post".
   (* Wrap this base thunk as a Thunk. *)
-  iExists (N.@0), 0. iSplit; [solve_ndisj|].
+  iExists (T.@0), 0. iSplit; [solve_ndisj|].
   iApply (thunk_mask_subseteq (Thunk:=Thunk_rec _)); [|done]. solve_ndisj.
 Qed.
 
@@ -133,13 +133,13 @@ Lemma thunk_consequence E p F t n1 n2 R φ ψ :
 Proof.
   iIntros "#Hthunk Hupdate". destruct_thunk.
   (* Wrap this thunk into a fresh ghost thunk. *)
-  iMod (proxythunk_consequence (N.@1) with "Hthunk Hupdate") as "Hthunk'".
+  iMod (proxythunk_consequence (T.@1) with "Hthunk Hupdate") as "Hthunk'".
   { reflexivity. }
   { solve_ndisj. }
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   iModIntro.
   (* Pack existentials. *)
-  iExists (N.@0), (S d). iSplit; [solve_ndisj|].
+  iExists (T.@0), (S d). iSplit; [solve_ndisj|].
   iApply (thunk_mask_subseteq (Thunk:=Thunk_rec _)); [|done]. solve_ndisj.
 Qed.
 

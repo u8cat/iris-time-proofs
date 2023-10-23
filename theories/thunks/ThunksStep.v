@@ -21,7 +21,7 @@ Notation iProp := (iProp Σ).
 Open Scope nat_scope.
 
 Implicit Type p : na_inv_pool_name.
-Implicit Type N : namespace.
+Implicit Type T : namespace.
 Implicit Type E F : coPset.
 Implicit Type t : loc.
 Implicit Type n : nat.
@@ -75,7 +75,7 @@ Local Definition RightBranch t ψ : iProp :=
 
    Things are set up so that the masks required to force the underlying thunk
    and to force the piggy bank are disjoint. The underlying thunk needs [F1],
-   while the piggy bank needs [↑N], and we require these masks to be disjoint.
+   while the piggy bank needs [↑T], and we require these masks to be disjoint.
    This is required in the verification of [force]: the piggy bank must be
    broken at the beginning (so as to liberate the time credits stored in it)
    and cannot be closed until the underlying thunk has been forced. In other
@@ -86,16 +86,15 @@ Local Definition RightBranch t ψ : iProp :=
 
 Definition ProxyThunk p F t n R ψ : iProp :=
 
-  ∃ nc1 nc2 φ F1 N,
-      ⌜ F1 ∪ ↑N ⊆ F ⌝
-    ∗ ⌜ F1 ## ↑N ⌝
+  ∃ nc1 nc2 φ F1 T,
+      ⌜ F1 ∪ ↑T ⊆ F ⌝
+    ∗ ⌜ F1 ## ↑T ⌝
     ∗ Thunk p F1 t nc1 R φ
     ∗ PiggyBank
         (LeftBranch R φ ψ nc1 nc2)
         (RightBranch t ψ)
         ThunkPayment
-        p N n
-
+        p T n
 .
 
 Local Lemma proxythunk_proper p F t n :
@@ -132,7 +131,7 @@ Qed.
 
 Local Ltac destruct_thunk :=
   iDestruct "Hthunk"
-    as (nc1 nc2 φ F1 N) "(%HuF & %HnF & Hthunk & #Hpiggy)".
+    as (nc1 nc2 φ F1 T) "(%HuF & %HnF & Hthunk & #Hpiggy)".
 
 Local Ltac destruct_left_branch :=
   unfold LeftBranch;
@@ -188,9 +187,9 @@ Qed.
    heterogenous: it takes a thunk and produces a proxy thunk. A homogeneous
    consequence rule is obtained later on, in ThunksFull.v. *)
 
-Lemma proxythunk_consequence N F E p F1 t n1 n2 R φ ψ :
-  F1 ∪ ↑N ⊆ F →
-  F1 ## ↑N →
+Lemma proxythunk_consequence T F E p F1 t n1 n2 R φ ψ :
+  F1 ∪ ↑T ⊆ F →
+  F1 ## ↑T →
   Thunk p F1 t n1 R φ -∗
   isUpdate n2 R φ ψ ={E}=∗
   ProxyThunk p F t (n1 + n2) R ψ.
@@ -203,7 +202,7 @@ Proof.
                 (LeftBranch R φ ψ n1 n2)
                 (RightBranch t ψ)
                 ThunkPayment
-                p N (n1 + n2)
+                p T (n1 + n2)
               with "[Hupdate]") as "#Hpiggy".
   { unfold LeftBranch. eauto. }
   (* Done. *)
@@ -227,8 +226,7 @@ Proof.
 
   (* Break the bank! *)
   iMod (piggybank_break with "Hpiggy Htoken")
-    as (nc) "(Hbank & Htoken & Hclose)";
-    [ set_solver | set_solver | set_solver |].
+    as (nc) "(Hbank & Htoken & Hclose)"; [ set_solver | set_solver |].
 
   (* This places us in one of two situations: either the bank has never
      been broken yet, or it has been broken before. *)

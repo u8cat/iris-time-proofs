@@ -23,7 +23,7 @@ From iris_time Require Import TimeCredits Auth_max_nat.
    transition from [LeftBranch nc] to [RightBranch]; if it is forced again,
    it remains in the state [RightBranch]. *)
 
-(* This file defines the predicate [PiggyBank LeftBranch RightBranch P p N n]
+(* This file defines the predicate [PiggyBank LeftBranch RightBranch A p N n]
    and provides a number of reasoning rules for this predicate. *)
 
 (* -------------------------------------------------------------------------- *)
@@ -50,15 +50,15 @@ Local Existing Instance na_inv_inG.
 (* The assertion [RightBranch] describes the state of the piggy bank after it
    has been forced. *)
 
-(* The piggy bank internally involves an atomic invariant in the namespace [P]
+(* The piggy bank internally involves an atomic invariant in the namespace [N]
    and resuses the non-atomic invariant token mechanisms in the pool [p] and
-   namespace [N]. *)
+   namespace [T]. *)
 
 Variable LeftBranch  : (* nc: *) nat → iProp.
 Variable RightBranch :                 iProp.
-Variable P           :             namespace.
-Variable p           :      na_inv_pool_name.
 Variable N           :             namespace.
+Variable p           :      na_inv_pool_name.
+Variable T           :             namespace.
 
 (* We typically use [n] for a number of debits, [nc] for a number of necessary
    time credits, and [ac] a number of available time credits.
@@ -119,12 +119,12 @@ Let PiggyBankInvariant i γpaid nc : iProp :=
   ∃ ac,
     own γpaid (● MaxNat ac)
   ∗ (own p (ε, GSet {[i]}) ∗ LeftBranch nc ∗ TC ac ∨
-     na_own p (↑N) ∗ ⌜ nc ≤ ac ⌝ ∨
+     na_own p (↑T) ∗ ⌜ nc ≤ ac ⌝ ∨
      own p (ε, GSet {[i]}) ∗ RightBranch ∗ ⌜ nc ≤ ac ⌝).
 
 Definition PiggyBank n : iProp :=
   ∃ i γpaid nc,
-    inv P (PiggyBankInvariant i γpaid nc) ∗ own γpaid (◯ MaxNat (nc - n)).
+    inv N (PiggyBankInvariant i γpaid nc) ∗ own γpaid (◯ MaxNat (nc - n)).
 
 (* -------------------------------------------------------------------------- *)
 
@@ -145,7 +145,7 @@ Local Ltac duplicate_itok :=
 Local Ltac duplicate_toki :=
   iDestruct "Hcontent" as "(>Htoki' & _)";
   iDestruct (na_own_disjoint with "Htoki Htoki'") as %?;
-  destruct (fresh_inv_name ∅ N) as (?&_&?);
+  destruct (fresh_inv_name ∅ T) as (?&_&?);
   by set_solver.
 
 Local Ltac case_analysis :=
@@ -235,7 +235,7 @@ Qed.
    from [n] to [n-k]. It is a ghost update. *)
 
 Lemma piggybank_pay k E n :
-  ↑P ⊆ E →
+  ↑N ⊆ E →
   PiggyBank n -∗
   TC k ={E}=∗
   PiggyBank (n-k).
@@ -300,7 +300,7 @@ Qed.
 
    Forcing the piggy bank requires the token [na_own p F]. While forcing is
    in progress (that is, in between the two updates), this token is replaced
-   with the weaker token [na_own p (F ∖ ↑N)]. This forbids forcing the piggy
+   with the weaker token [na_own p (F ∖ ↑T)]. This forbids forcing the piggy
    bank while it is already being forced. At the end, the stronger token
    [na_own p F] re-appears.
 
@@ -330,11 +330,10 @@ Qed.
 Lemma piggybank_break E F :
   (* The strong token and the weak token: *)
   let token := na_own p F in
-  let token' := na_own p (F ∖ ↑N) in
+  let token' := na_own p (F ∖ ↑T) in
   (* Side conditions about masks: *)
-  ↑P ⊆ E →
   ↑N ⊆ E →
-  ↑N ⊆ F →
+  ↑T ⊆ F →
   (* Forcing requires a piggy bank whose debt is zero.
      It also requires [token]. *)
   PiggyBank 0 -∗
@@ -358,7 +357,7 @@ Proof.
   iExists nc.
 
   (* Massage the tokens. *)
-  rewrite /token /token' [F as X in na_own p X](union_difference_L (↑N) F) //.
+  rewrite /token /token' [F as X in na_own p X](union_difference_L (↑T) F) //.
   rewrite ?na_own_union; [|set_solver..].
   iDestruct "Htoken" as "[Htoki $]".
 
@@ -421,9 +420,8 @@ Lemma piggybank_peek φ n E F :
   (* The token: *)
   let token := na_own p F in
   (* Side conditions about masks: *)
-  ↑P ⊆ E →
   ↑N ⊆ E →
-  ↑N ⊆ F →
+  ↑T ⊆ F →
   (* A piggy bank with debit [n] and a token. *)
   PiggyBank n -∗
   token -∗
