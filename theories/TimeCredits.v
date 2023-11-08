@@ -261,7 +261,7 @@ Section Tick_lemmas.
     }
     assert (¬ safe (#() #()) (<[ℓ := #0]> σ)) as Hnotsafe.
     {
-      apply stuck_not_safe, head_stuck_stuck, ectxi_language_sub_redexes_are_values.
+      apply stuck_not_safe, base_stuck_stuck, ectxi_language_sub_redexes_are_values.
       - split ; first done. inversion 1.
       - intros [] ; try discriminate 1 ; inversion 1 ; by eauto.
     }

@@ -6,7 +6,7 @@ From iris_time Require Import TimeCredits PiggyBank.
 From iris_time Require Import ThunksCode.
 
 (* TODO *)
-Local Notation "l ↦□ v" := (mapsto l DfracDiscarded v)
+Local Notation "l ↦□ v" := (pointsto l DfracDiscarded v)
   (at level 20, format "l  ↦□  v") : bi_scope.
 
 (* This file defines the predicate [ThunkVal]. It also provides a definition
@@ -469,7 +469,7 @@ Proof.
     iApply "Post".
     iFrame "Hv HR".
     (* Make the thunk immutable forever. *)
-    iMod (mapsto_persist with "Ht") as "#Ht".
+    iMod (pointsto_persist with "Ht") as "#Ht".
     iSplitR.
     (* Subgoal: establish [ThunkVal t v]. *)
     { construct_thunkval. }

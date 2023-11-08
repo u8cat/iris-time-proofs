@@ -127,14 +127,14 @@ Notation Phi := (Phi 1).
    quantifies existentially over [F/K/M], which therefore are not exposed to the
    client. *)
 
-Definition mapsto_M M : iProp Σ :=
-  ([∗ map] l ↦ c ∈ M, from_option (mapsto l (DfracOwn 1)) False (val_of_content c))%I.
+Definition pointsto_M M : iProp Σ :=
+  ([∗ map] l ↦ c ∈ M, from_option (pointsto l (DfracOwn 1)) False (val_of_content c))%I.
 
 Definition UF D R V : iProp Σ :=
   (∃ F K M,
   ⌜ Inv D F K R V ⌝ ∗
   ⌜ Mem D F K V M ⌝ ∗
-  mapsto_M M ∗
+  pointsto_M M ∗
   TC (11 * Phi D F K) ∗
   TR (card D))%I.
 
@@ -463,41 +463,41 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-(* Private lemmas about the representation predicate and about [mapsto_M]. *)
+(* Private lemmas about the representation predicate and about [pointsto_M]. *)
 
 
-Lemma mapsto_M_acc : forall M x c,
+Lemma pointsto_M_acc : forall M x c,
   M !! x = Some c ->
-  mapsto_M M -∗
+  pointsto_M M -∗
     ∃ v, ⌜val_of_content c = Some v⌝ ∗ x ↦ v ∗
      (∀ c' v', ⌜val_of_content c' = Some v'⌝ -∗
-               x ↦ v' -∗ mapsto_M (<[x:=c']>M)).
+               x ↦ v' -∗ pointsto_M (<[x:=c']>M)).
 Proof.
   introv HM. iIntros "HM".
-  rewrite -[in mapsto_M M](insert_id M _ _ HM) -insert_delete_insert /mapsto_M.
+  rewrite -[in pointsto_M M](insert_id M _ _ HM) -insert_delete_insert /pointsto_M.
   rewrite big_sepM_insert ?lookup_delete //. iDestruct "HM" as "[Hc HM]".
   destruct (val_of_content c); [|done]. iExists _. iFrame. iSplit; [done|].
   iIntros (c' v' Hv') "?".
   rewrite -insert_delete_insert big_sepM_insert ?lookup_delete // Hv'. iFrame.
 Qed.
 
-Lemma mapsto_M_acc_same : forall M x c,
+Lemma pointsto_M_acc_same : forall M x c,
   M !! x = Some c ->
-  mapsto_M M -∗
-    ∃ v, ⌜val_of_content c = Some v⌝ ∗ x ↦ v ∗ (x ↦ v -∗ mapsto_M M).
+  pointsto_M M -∗
+    ∃ v, ⌜val_of_content c = Some v⌝ ∗ x ↦ v ∗ (x ↦ v -∗ pointsto_M M).
 Proof.
   introv HM. iIntros "HM".
-  iDestruct (mapsto_M_acc with "HM") as (v Hv) "[Hv HM]"; [done|].
+  iDestruct (pointsto_M_acc with "HM") as (v Hv) "[Hv HM]"; [done|].
   iExists _. iFrame. iSplit; [done|].
   iSpecialize ("HM" $! _ _ Hv). by rewrite insert_id.
 Qed.
 
 (* TODO : that should go into Iris libraries for big ops *)
-Lemma mapsto_M_union : forall M1 M2,
+Lemma pointsto_M_union : forall M1 M2,
   M1 ##ₘ M2 ->
-  mapsto_M M1 ∗ mapsto_M M2 ⊣⊢ mapsto_M (M1 ∪ M2).
+  pointsto_M M1 ∗ pointsto_M M2 ⊣⊢ pointsto_M (M1 ∪ M2).
 Proof.
-  introv HM12. unfold mapsto_M.
+  introv HM12. unfold pointsto_M.
   induction M1 as [|l x M1 ? IH] using map_ind.
   { by rewrite big_opM_empty !left_id. }
   rewrite -insert_union_l !big_sepM_insert //; last first.
@@ -506,18 +506,18 @@ Proof.
   rewrite -assoc. f_equiv. apply IH. by eapply map_disjoint_insert_l.
 Qed.
 
-Lemma mapsto_M_insert : forall M x c v,
+Lemma pointsto_M_insert : forall M x c v,
   M !! x = None ->
   val_of_content c = Some v ->
-  x ↦ v ∗ mapsto_M M ⊣⊢ mapsto_M (<[x:=c]>M).
+  x ↦ v ∗ pointsto_M M ⊣⊢ pointsto_M (<[x:=c]>M).
 Proof.
-  introv Mxc Hcv. by rewrite /mapsto_M big_sepM_insert // Hcv.
+  introv Mxc Hcv. by rewrite /pointsto_M big_sepM_insert // Hcv.
 Qed.
 
-Lemma mapsto_M_disjoint : forall M1 M2,
-  mapsto_M M1 -∗ mapsto_M M2 -∗ ⌜ M1 ##ₘ M2 ⌝.
+Lemma pointsto_M_disjoint : forall M1 M2,
+  pointsto_M M1 -∗ pointsto_M M2 -∗ ⌜ M1 ##ₘ M2 ⌝.
 Proof.
-  iIntros "* HM1 HM2" (x). unfold mapsto_M.
+  iIntros "* HM1 HM2" (x). unfold pointsto_M.
   destruct (M1!!x) eqn:HM1, (M2!!x) eqn:HM2=>//.
   iDestruct (big_sepM_lookup with "HM1") as "H1"=>//.
   iDestruct (big_sepM_lookup with "HM2") as "H2"=>//.
@@ -575,7 +575,7 @@ Proof using.
     { intro x. eapply is_repr_empty. }
     { eauto. } }
   { iIntros "!%" (??). false. }
-  { rewrite /mapsto_M. by auto. }
+  { rewrite /pointsto_M. by auto. }
   { rewrite Phi_empty. by iApply zero_TC. }
   { rewrite card_empty. by iApply zero_TR. }
 Qed.
@@ -608,7 +608,7 @@ Proof using.
 
   (* Disjointness lemmas. Trivial and painful. *)
 
-  iDestruct (mapsto_M_disjoint with "HM1 HM2") as %HM12.
+  iDestruct (pointsto_M_disjoint with "HM1 HM2") as %HM12.
 
   assert (forall x, x \in D1 -> x \in D2 -> False).
   { intros l Hl1%HM1 Hl2%HM2. specialize (HM12 l).
@@ -663,7 +663,7 @@ Proof using.
 
   iCombine "HTC1 HTC2" as "HTC".
   iCombine "TR1 TR2" as "HTR".
-  rewrite -mapsto_M_union // -Nat.mul_add_distr_l (@Phi_join 1 _ D F K); eauto.
+  rewrite -pointsto_M_union // -Nat.mul_add_distr_l (@Phi_join 1 _ D F K); eauto.
   rewrite -card_disjoint_union; eauto using is_rdsf_finite; [].
   iFrame. iPureIntro. split.
 
@@ -754,7 +754,7 @@ Proof using.
 
   repeat iSplit; try iPureIntro.
   { applys* Inv_make. } { applys* Mem_make. }
-  iApply mapsto_M_insert; [done| |by iFrame].
+  iApply pointsto_M_insert; [done| |by iFrame].
   rewrite /= /to_mach_int decide_True_pi /=; [by apply (proj2_sig mach_int_0)|].
   intros ?. by rewrite (exists_proj1_pi _ mach_int_0).
 Qed.
@@ -777,15 +777,15 @@ Lemma find_spec_inductive: forall d D R F K F' M V x,
   x \in D ->
   bw_ipc F x d F' ->
   TCTR_invariant nmax -∗
-  {{{ mapsto_M M ∗ TC (11*d+11) }}}
+  {{{ pointsto_M M ∗ TC (11*d+11) }}}
     «find #x»
-  {{{ M', RET #(R x); mapsto_M M' ∗ ⌜ Mem D F' K V M' ⌝ }}}.
+  {{{ M', RET #(R x); pointsto_M M' ∗ ⌜ Mem D F' K V M' ⌝ }}}.
 Proof using.
   intros d. induction_wf IH: Wf_nat.lt_wf d. intros d.
   introv IH HI HM Dx HC. iIntros "#?" (Φ) "!# [HM TC] HΦ /=".
   iDestruct "TC" as "[TCd TC]". wp_tick_rec.
   assert (HV := HM _ Dx). destruct (M !! x) as [c|] eqn:? =>//.
-  iDestruct (mapsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
+  iDestruct (pointsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
   iDestruct ("HM" with "Hx") as "HM".
   destruct (val_of_content_Some _ _ Hv) as [(k1 & k2 & v' & -> & -> & ?)|(y & -> & ->)].
   (* Case: Root. *)
@@ -808,7 +808,7 @@ Proof using.
     wp_apply (IH' with "[//] [$HM $TCd]").
     iIntros (M') "[HM' hM']". iDestruct "hM'" as %HM'. wp_tick_let.
     assert (HV := HM' _ Dx). destruct (M' !! x) as [c|] eqn:? =>//.
-    iDestruct (mapsto_M_acc with "HM'") as (v' Hv') "[Hx HM']"=>//.
+    iDestruct (pointsto_M_acc with "HM'") as (v' Hv') "[Hx HM']"=>//.
     wp_tick_inj. wp_tick_store. wp_tick_seq.
     iDestruct ("HM'" $! (Link (R y)) _ eq_refl with "Hx") as "HM'".
     assert (is_equiv F x y). { eauto using path_is_equiv with rtclosure. }
@@ -859,7 +859,7 @@ Proof using.
   iIntros "UF". wp_tick_let. iDestruct "UF" as (F K M HI HM) "[HM TC]".
   forwards* (Drx&Rrx): Inv_root x (R x).
   forwards* EM: Mem_root (R x).
-  iDestruct (mapsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
+  iDestruct (pointsto_M_acc_same with "HM") as (v Hv) "[Hx HM]"=>//. wp_tick_load.
   iDestruct ("HM" with "Hx") as "HM".
   destruct (val_of_content_Some_Root _ _ _ Hv) as (k1 & -> & _).
   wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_let.
@@ -890,7 +890,7 @@ Proof using.
   iIntros "UF". wp_tick_let. iDestruct "UF" as (F K M HI HM) "[HM TC]".
   forwards* (Drx&Rrx): Inv_root x (R x).
   forwards* EM: Mem_root (R x).
-  iDestruct (mapsto_M_acc with "HM") as (v' Hv') "[Hx HM]"=>//. wp_tick_load.
+  iDestruct (pointsto_M_acc with "HM") as (v' Hv') "[Hx HM]"=>//. wp_tick_load.
   destruct (val_of_content_Some_Root _ _ _ Hv') as (k1 & -> & _).
   wp_tick_match. wp_tick_proj. wp_tick_seq. wp_tick_proj. wp_tick_seq.
   wp_tick_pair. wp_tick_inj. wp_tick_store.
@@ -963,12 +963,12 @@ Proof using.
   wp_tick_if.
   forwards Hx: HM Dx. forwards Hy: HM Dy.
   destruct (M !! x) as [cx|] eqn:EQx, (M !! y) as [cy|] eqn:EQy=>//.
-  iDestruct (mapsto_M_acc_same _ x with "HM") as (v Hv) "[Hx HM]"=>//.
+  iDestruct (pointsto_M_acc_same _ x with "HM") as (v Hv) "[Hx HM]"=>//.
   wp_tick_load. iDestruct ("HM" with "Hx") as "HM".
   destruct cx; last by false; eauto using a_root_has_no_parent, R_self_is_root.
   destruct (val_of_content_Some_Root _ _ _ Hv) as (k1 & -> & ?).
   wp_tick_match. wp_tick_proj. wp_tick_let. wp_tick_proj. wp_tick_let.
-  iDestruct (mapsto_M_acc_same _ y with "HM") as (v' Hv') "[Hy HM]"=>//.
+  iDestruct (pointsto_M_acc_same _ y with "HM") as (v' Hv') "[Hy HM]"=>//.
   wp_tick_load. iDestruct ("HM" with "Hy") as "HM".
   destruct cy; last by false; eauto using a_root_has_no_parent, R_self_is_root.
   destruct (val_of_content_Some_Root _ _ _ Hv') as (k1' & -> & ?).
@@ -977,7 +977,7 @@ Proof using.
   wp_tick_op; case_bool_decide; wp_tick_if;
     [|wp_tick_op; case_bool_decide; wp_tick_if].
   (* Sub-case: [K x < K y]. *)
-  { iDestruct (mapsto_M_acc _ _ _ EQx with "HM") as (? _) "[Hx HM]".
+  { iDestruct (pointsto_M_acc _ _ _ EQx with "HM") as (? _) "[Hx HM]".
     wp_tick_inj. wp_tick_store. wp_tick_seq. iApply "HΦ". iSplit; [|by auto].
     Inv_link
     (* F' := *) (UnionFind03Link.link F x y)
@@ -990,7 +990,7 @@ Proof using.
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x > K y]. *)
-  { iDestruct (mapsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]".
+  { iDestruct (pointsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]".
     wp_tick_inj. wp_tick_store. wp_tick_seq. iApply "HΦ".
     rewrite [update2 _ _ _ _ x]update2_sym. rewrite [update2 _ _ _ _ (V x)]update2_sym.
     iSplit; [|by auto].
@@ -1005,7 +1005,7 @@ Proof using.
     rewrite TC_weaken; [iFrame "TC"|lia]. iSplit; [by eauto using Mem_link|].
     by iApply "HM". }
   (* Sub-case: [K x = K y]. *)
-  { iDestruct (mapsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]"=>//.
+  { iDestruct (pointsto_M_acc _ _ _ EQy with "HM") as (? _) "[Hy HM]"=>//.
     wp_tick_inj. wp_tick_store.
     iDestruct ("HM" $! (Link _) _ eq_refl with "Hy") as "HM".
     Inv_link
@@ -1034,7 +1034,7 @@ Proof using.
       rewrite Z.add_comm -(Nat2Z.inj_add 1). done. }
     wp_tick_seq. wp_tick_op.
     { by rewrite /bin_op_eval /= /to_mach_int decide_True_pi. }
-    iDestruct (mapsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
+    iDestruct (pointsto_M_acc _ x with "HM") as (v'' Hv'') "[Hx HM]".
     { rewrite lookup_insert_ne //. congruence. }
     wp_tick_pair. wp_tick_inj. wp_tick_store. wp_tick_seq.
     iApply "HΦ". iSplit; [|by auto].

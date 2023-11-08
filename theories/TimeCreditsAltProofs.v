@@ -77,7 +77,7 @@ Proof.
     (* — either e = Var x: *)
     + (* then Var x is stuck *)
       exfalso. eapply stuck_not_safe; [|done]. rewrite translation_fill.
-      apply stuck_fill, head_stuck_stuck.
+      apply stuck_fill, base_stuck_stuck.
       { split; [done|]. intros ???? Hstep. inversion Hstep. }
       apply ectxi_language_sub_redexes_are_values=>-[] //.
     (* — either e = K[Fork e1]: *)
