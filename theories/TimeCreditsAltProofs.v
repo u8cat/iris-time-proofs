@@ -247,10 +247,10 @@ Proof.
   iMod (gen_heap_init (<[ℓ := #m]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
   iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
   { by rewrite lookup_insert. }
-  (* allocate the ghost state associated with ℓ: *)
-  iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
   (* packing all those bits, build the heap instance necessary to use time credits: *)
   destruct HtcPreG as [[HinvPreG [HgenHeapPreInG]] HinG] ; simpl ; clear HinvPreG.
+  (* allocate the ghost state associated with ℓ: *)
+  iMod (auth_nat_alloc m) as (γ) "[Hγ● Hγ◯]".
   pose (Build_timeCreditHeapG Σ (HeapGS Σ HinvG Hheap) HinG _ γ)
     as HtcHeapG.
   (* create the invariant: *)

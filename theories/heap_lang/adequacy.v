@@ -5,8 +5,8 @@ From iris.proofmode Require Import proofmode.
 Set Default Proof Using "Type".
 
 Class heapGpreS Σ := HeapGpreS {
-  heap_preG_iris :> invGpreS Σ;
-  heap_preG_heap :> gen_heapGpreS loc val Σ
+  #[global] heap_preG_iris :: invGpreS Σ;
+  #[global] heap_preG_heap :: gen_heapGpreS loc val Σ
 }.
 
 Definition heapΣ : gFunctors := #[invΣ; gen_heapΣ loc val].

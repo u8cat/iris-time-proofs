@@ -46,19 +46,23 @@ Definition TR_interface `{irisGS heap_lang Σ, Tick}
  *)
 
 Class timeReceiptHeapPreG Σ := {
-  timeReceiptHeapPreG_heapPreG :> heapGpreS Σ ;
-  timeReceiptHeapPreG_inG1 :> inG Σ (authR natUR) ;
-  timeReceiptHeapPreG_inG2 :> inG Σ (authR max_natUR) ;
+  #[global] timeReceiptHeapPreG_heapPreG :: heapGpreS Σ ;
+  timeReceiptHeapPreG_inG1 : inG Σ (authR natUR) ;
+  timeReceiptHeapPreG_inG2 : inG Σ (authR max_natUR) ;
 }.
+Local Existing Instance timeReceiptHeapPreG_inG1.
+Local Existing Instance timeReceiptHeapPreG_inG2.
 
 Class timeReceiptHeapG Σ := {
-  timeReceiptHeapG_heapG :> heapGS Σ ;
-  timeReceiptHeapG_inG1 :> inG Σ (authR natUR) ;
-  timeReceiptHeapG_inG2 :> inG Σ (authR max_natUR) ;
-  timeReceiptHeapG_loc :> TickCounter ;
+  #[global] timeReceiptHeapG_heapG :: heapGS Σ ;
+  timeReceiptHeapG_inG1 : inG Σ (authR natUR) ;
+  timeReceiptHeapG_inG2 : inG Σ (authR max_natUR) ;
+  #[global] timeReceiptHeapG_loc :: TickCounter ;
   timeReceiptHeapG_name1 : gname ;
   timeReceiptHeapG_name2 : gname ;
 }.
+Local Existing Instance timeReceiptHeapG_inG1.
+Local Existing Instance timeReceiptHeapG_inG2.
 
 Local Notation γ1 := timeReceiptHeapG_name1.
 Local Notation γ2 := timeReceiptHeapG_name2.

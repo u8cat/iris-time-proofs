@@ -8,9 +8,9 @@ dev-repo: "git+https://gitlab.inria.fr/gmevel/iris-time-proofs.git"
 synopsis: "Iris with time credits and time credits"
 
 depends: [
-  "coq" { (>= "8.16.1" & < "8.19~") | (= "dev") }
-  "coq-iris" { (= "dev.2023-11-06.6.35f38b59") | (= "dev") }
-  "coq-tlc" { (= "20211215") }
+  "coq" { (>= "8.18.0" & < "8.19~") | (= "dev") }
+  "coq-iris" { (= "dev.2024-02-13.0.48162f10") | (= "dev") }
+  "coq-tlc" { (= "20240209") }
 ]
 
 build: [make "-j%{jobs}%"]

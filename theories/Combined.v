@@ -51,25 +51,31 @@ Definition TCTR_interface `{irisGS heap_lang Σ, Tick}
  *)
 
 Class tctrHeapPreG Σ := {
-  tctrHeapPreG_heapPreG :> heapGpreS Σ ;
-  tctrHeapPreG_inG_TC    :> inG Σ (authR natUR) ;
-  tctrHeapPreG_inG_TR    :> inG Σ (authR natUR) ;
-  tctrHeapPreG_inG_TRdup :> inG Σ (authR max_natUR) ;
+  #[global] tctrHeapPreG_heapPreG :: heapGpreS Σ ;
+  tctrHeapPreG_inG_TC : inG Σ (authR natUR) ;
+  tctrHeapPreG_inG_TR : inG Σ (authR natUR) ;
+  tctrHeapPreG_inG_TRdup : inG Σ (authR max_natUR) ;
 }.
+Local Existing Instance tctrHeapPreG_inG_TC.
+Local Existing Instance tctrHeapPreG_inG_TR.
+Local Existing Instance tctrHeapPreG_inG_TRdup.
 
 Class UseTC := useTC : bool.
 
 Class tctrHeapG Σ := {
-  tctrHeapG_heapG :> heapGS Σ ;
-  tctrHeapG_inG_TC    :> inG Σ (authR natUR) ;
-  tctrHeapG_inG_TR    :> inG Σ (authR natUR) ;
-  tctrHeapG_inG_TRdup :> inG Σ (authR max_natUR) ;
-  tctrHeapG_loc :> TickCounter ;
-  tctrHeapG_name_TC    : gname ;
-  tctrHeapG_name_TR    : gname ;
+  #[global] tctrHeapG_heapG :: heapGS Σ ;
+  tctrHeapG_inG_TC : inG Σ (authR natUR) ;
+  tctrHeapG_inG_TR : inG Σ (authR natUR) ;
+  tctrHeapG_inG_TRdup : inG Σ (authR max_natUR) ;
+  #[global] tctrHeapG_loc :: TickCounter ;
+  tctrHeapG_name_TC : gname ;
+  tctrHeapG_name_TR : gname ;
   tctrHeapG_name_TRdup : gname ;
-  tctrHeapG_useTC      :> UseTC ;
+  #[global] tctrHeapG_useTC :: UseTC ;
 }.
+Local Existing Instance tctrHeapG_inG_TC.
+Local Existing Instance tctrHeapG_inG_TR.
+Local Existing Instance tctrHeapG_inG_TRdup.
 
 Local Notation γ := tctrHeapG_name_TC.
 Local Notation γ1 := tctrHeapG_name_TR.

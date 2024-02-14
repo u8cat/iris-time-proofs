@@ -39,16 +39,19 @@ Definition TC_interface `{!irisGS heap_lang Σ, Tick}
  *)
 
 Class timeCreditHeapPreG Σ := {
-  timeCreditHeapPreG_heapPreG :> heapGpreS Σ ;
-  timeCreditHeapPreG_inG :> inG Σ (authR natUR) ;
+  #[global] timeCreditHeapPreG_heapPreG :: heapGpreS Σ ;
+  timeCreditHeapPreG_inG : inG Σ (authR natUR) ;
 }.
+Local Existing Instance timeCreditHeapPreG_inG.
 
 Class timeCreditHeapG Σ := {
-  timeCreditHeapG_heapG :> heapGS Σ ;
-  timeCreditHeapG_inG :> inG Σ (authR natUR) ;
-  timeCreditHeapG_loc :> TickCounter ;
+  #[global] timeCreditHeapG_heapG :: heapGS Σ ;
+  timeCreditHeapG_inG : inG Σ (authR natUR) ;
+  #[global] timeCreditHeapG_loc :: TickCounter ;
   timeCreditHeapG_name : gname ;
 }.
+Local Existing Instance timeCreditHeapG_inG.
+Local Existing Instance timeCreditHeapG_loc.
 
 Local Notation γ := timeCreditHeapG_name.
 Local Notation ℓ := tick_counter.

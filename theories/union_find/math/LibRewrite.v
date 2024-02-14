@@ -5,7 +5,7 @@ Require Import Coq.Lists.List.
 Require Import Coq.Sorting.Permutation.
 From TLC Require Import LibTactics.
 From iris_time.union_find.math Require Import LibNatExtra.
-Obligation Tactic := idtac.
+Local Obligation Tactic := idtac.
 
 (* A tactic that helps assert a trivial arithmetic property, prove this
    property, and immediately rewrite using this property. *)

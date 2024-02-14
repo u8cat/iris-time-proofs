@@ -10,7 +10,7 @@ Set Default Proof Using "Type".
 
 Class heapGS Σ := HeapGS {
   heapG_invG : invGS Σ;
-  heapG_gen_heapG :> gen_heapGS loc val Σ
+  #[global] heapG_gen_heapG :: gen_heapGS loc val Σ
 }.
 
 Global Instance heapG_irisG `{heapGS Σ} : irisGS heap_lang Σ := {

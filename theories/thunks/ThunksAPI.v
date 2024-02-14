@@ -91,13 +91,13 @@ Class CommonThunkAPI
 
 := {
 
-  thunk_persistent p F t n R φ :> Persistent (Thunk p F t n R φ);
+  #[global] thunk_persistent p F t n R φ :: Persistent (Thunk p F t n R φ);
 
-  thunk_proper p F t n :>
+  #[global] thunk_proper p F t n ::
     Proper ((≡) ==> pointwise_relation _ (≡) ==> (≡)) (Thunk p F t n);
-  thunk_ne m p F t n :>
+  #[global] thunk_ne m p F t n ::
     Proper ((dist m) ==> pointwise_relation _ (dist m) ==> (dist m)) (Thunk p F t n);
-  thunk_contractive m p F t n :>
+  #[global] thunk_contractive m p F t n ::
     Proper ((dist_later m) ==> pointwise_relation _ (dist_later m) ==> (dist m)) (Thunk p F t n);
 
  (* The predicate [Thunk F t n R φ] must be covariant in the parameter [F],
@@ -161,8 +161,6 @@ Class CommonThunkAPI
 }.
 
 End API.
-
-Global Existing Instance thunk_persistent.
 
 (* -------------------------------------------------------------------------- *)
 
