@@ -243,11 +243,11 @@ Proof.
                with "[//] [$TCchk $Htok]").
     { iExists _, (length fl + length rl), 0, 0. iSplit. iPureIntro. split.
       - repeat f_equal. lia.
-      - rewrite app_length reverse_length app_nil_r. repeat split. by apply prefix_app_r.
+      - rewrite app_length length_reverse app_nil_r. repeat split. by apply prefix_app_r.
       - iApply (hthunk_increase_debt with "HT'"). rewrite /thunk_debt.
-        rewrite app_length reverse_length Nat.sub_0_r. nia. }
+        rewrite app_length length_reverse Nat.sub_0_r. nia. }
     iIntros (q' w') "(Hq' & Htok & %)". iApply "HΦ". iFrame. iPureIntro; split; try done.
-    rewrite app_length reverse_length /=. lia. }
+    rewrite app_length length_reverse /=. lia. }
 Qed.
 
 #[global] Opaque Pchk.

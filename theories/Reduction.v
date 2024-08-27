@@ -61,7 +61,7 @@ Section Reduction.
   Proof.
     intros [e1 σ1_ e2 σ2_ efs t t' E1 E2 Hstep] ;
     injection E1 as -> <- ; injection E2 as -> <-.
-    repeat rewrite ? app_length ? cons_length. lia.
+    repeat rewrite ?app_length ?length_cons. lia.
   Qed.
   Lemma thread_pool_grows_after_exec t1 σ1 t2 σ2 :
     rtc erased_step (t1, σ1) (t2, σ2) →
@@ -88,7 +88,7 @@ Section Reduction.
     assert (0 < length t1)%nat as I.
     {
       destruct Hstep as [e1 σ1_ _ _ _ ta tb E1 _ _] ; injection E1 as -> _.
-      rewrite app_length cons_length. lia.
+      rewrite length_app length_cons. lia.
     }
     destruct t2.
     - apply thread_pool_grows_after_step, Nat.le_ngt in Hstep. contradiction.
@@ -118,7 +118,7 @@ Section Reduction.
       rewrite ! app_assoc.
       eapply step_atomic ; last eassumption ; reflexivity.
     (* if length ta < n: *)
-    - rewrite app_length cons_length in I.
+    - rewrite app_length length_cons in I.
       assert (  (length ta ≤ n)%nat
               ∧ (0 < n - length ta)%nat
               ∧ (n - length ta - 1 ≤ length tb)%nat )
