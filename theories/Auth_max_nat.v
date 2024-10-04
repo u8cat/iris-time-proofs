@@ -31,7 +31,7 @@ Section Auth_max_nat.
     rewrite (_ : n₁ = n₁ `max` n₂)%nat ; last lia.
     rewrite -max_nat_op auth_frag_op. iDestruct "H" as "[_$]".
   Qed.
-  Global Arguments own_auth_max_nat_weaken _ (_ _ _)%nat_scope.
+  Global Arguments own_auth_max_nat_weaken _ (_ _ _)%_nat_scope.
 
   Lemma own_auth_max_nat_zero (γ : gname) :
     ⊢ |==> own γ (◯ MaxNat 0).

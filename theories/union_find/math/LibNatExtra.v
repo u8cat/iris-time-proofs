@@ -1,8 +1,8 @@
 Set Implicit Arguments.
 Require Export Lia.
 Require Export ArithRing.
-Require Export Coq.Numbers.Natural.Peano.NPeano.
-  (* [Nat] is a sub-module of [NPeano], which seems to contain many things.
+Require Export Coq.Arith.PeanoNat.
+  (* [Nat] is a sub-module of [PeanoNat], which seems to contain many things.
      E.g. it defines [Nat.div], [Nat.pow], [Nat.log2].
      E.g. it defines [Nat.max], which is the same as [max].
      E.g. it has many properties of [max], see [Coq.Structures.GenericMinMax].
