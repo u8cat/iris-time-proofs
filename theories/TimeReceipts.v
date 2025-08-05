@@ -315,7 +315,7 @@ Section Soundness.
     (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
     iMod (gen_heap_init (<[ℓ := #(nmax-1)%nat]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
     iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
-    { by rewrite lookup_insert. }
+    { by rewrite lookup_insert_eq. }
     (* allocate the ghost state associated with ℓ: *)
     iMod (auth_nat_alloc 0) as (γ1) "[Hγ1● _]".
     iMod (auth_max_nat_alloc 0) as (γ2) "[Hγ2● _]".

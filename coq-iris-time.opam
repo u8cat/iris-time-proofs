@@ -9,7 +9,7 @@ synopsis: "Iris with time credits and time credits"
 
 depends: [
   "coq" { (>= "8.19.0" & < "8.20~") | (= "dev") }
-  "coq-iris" { (= "dev.2024-09-11.3.0203d5ca") | (= "dev") }
+  "coq-iris" { (= "dev.2025-08-02.3.3e83a7af") | (= "dev") }
   "coq-tlc" { (= "20240209") }
 ]
 

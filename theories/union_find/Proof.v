@@ -357,7 +357,7 @@ Proof using.
     rewrite /update1 fcupdate_miss; [by apply HV|].
     intro. forwards* : R_is_identity_outside_D R r.
     forwards* : Inv_root x (R x). intuition congruence. }
-  { rewrite lookup_insert /update1 fcupdate_hit //. splits.
+  { rewrite lookup_insert_eq /update1 fcupdate_hit //. splits.
     { eauto using only_roots_outside_D with is_dsf. }
     { (* We use the fact that [K] is zero outside the domain. *)
       erewrite is_rdsf_zero_rank_outside_domain; eauto. }
@@ -380,7 +380,7 @@ Proof using.
   introv HI HR Dx Rx Ry EG' HV. subst F'.
   intros a Da. specializes HR Da.
   destruct (decide (x = a)) as [->|].
-  { rewrite lookup_insert. eauto using link_appears. }
+  { rewrite lookup_insert_eq. eauto using link_appears. }
   rewrite lookup_insert_ne //. destruct (M!!a) as [[]|]; [| |done]; first last.
   { eauto using link_previous. }
   rewrite~ HV. destruct HR as (?&?&E). splits*.
@@ -413,7 +413,7 @@ Proof using.
   forwards* HV: (>> Mem_link V V' x y HM).
   sets M': (<[x := Link y]>M). clearbody M'.
   intros a Da. specializes HV Da. destruct (decide (y = a)) as [->|].
-  { rewrite lookup_insert. splits.
+  { rewrite lookup_insert_eq. splits.
     { subst F'. applys* is_root_link. applys* R_self_is_root. }
     { subst K'. subst rx. rewrite fupdate_same. math. }
     { subst v. subst V'. rewrite /update2 fcupdate_hit; by auto. } }
@@ -433,7 +433,7 @@ Lemma Mem_compress : forall D F K F' M V x y,
 Proof using.
   introv HR Dx EG'. subst.
   intros a Da. specializes HR Da. destruct (decide (x = a)) as [->|].
-  { rewrite lookup_insert. eauto using compress_x_z. }
+  { rewrite lookup_insert_eq. eauto using compress_x_z. }
   { rewrite lookup_insert_ne //. destruct (M!!a) as [[]|];
       [|by eauto using compress_preserves_other_edges|done].
     destruct HR. split*.
@@ -452,7 +452,7 @@ Lemma Mem_update1 : forall D R F K M V r x v,
 Proof using.
   introv HI HM E Rx. forwards* (Dr&Rr): Inv_root x r.
   intros y Dy. specializes HM Dy. destruct (decide (r = y)) as [->|].
-  { rewrite lookup_insert. splits.
+  { rewrite lookup_insert_eq. splits.
     { applys* R_self_is_root. }
     { done. }
     { rewrite /update1 fcupdate_hit; congruence. } }
@@ -474,11 +474,11 @@ Lemma pointsto_M_acc : forall M x c,
                x ↦ v' -∗ pointsto_M (<[x:=c']>M)).
 Proof.
   introv HM. iIntros "HM".
-  rewrite -[in pointsto_M M](insert_id M _ _ HM) -insert_delete_insert /pointsto_M.
-  rewrite big_sepM_insert ?lookup_delete //. iDestruct "HM" as "[Hc HM]".
+  rewrite -[in pointsto_M M](insert_id M _ _ HM) -insert_delete_eq /pointsto_M.
+  rewrite big_sepM_insert ?lookup_delete_eq //. iDestruct "HM" as "[Hc HM]".
   destruct (val_of_content c); [|done]. iExists _. iFrame. iSplit; [done|].
   iIntros (c' v' Hv') "?".
-  rewrite -insert_delete_insert big_sepM_insert ?lookup_delete // Hv'. iFrame.
+  rewrite -insert_delete_eq big_sepM_insert ?lookup_delete_eq // Hv'. iFrame.
 Qed.
 
 Lemma pointsto_M_acc_same : forall M x c,
@@ -502,7 +502,7 @@ Proof.
   { by rewrite big_opM_empty !left_id. }
   rewrite -insert_union_l !big_sepM_insert //; last first.
   { apply lookup_union_None; split; [done|]. specialize (HM12 l).
-    rewrite lookup_insert in HM12. revert HM12. case: (M2 !! l)=>//=. }
+    rewrite lookup_insert_eq in HM12. revert HM12. case: (M2 !! l)=>//=. }
   rewrite -assoc. f_equiv. apply IH. by eapply map_disjoint_insert_l.
 Qed.
 

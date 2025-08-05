@@ -111,7 +111,7 @@ Proof.
         apply exec_tick_success.
       }
       (* using the safety of «ki»[tick «v»], we proceed by case analysis… *)
-      eapply Hsafe in Hsteps as [ Hisval | Hred ] ; auto using elem_of_list_here.
+      eapply Hsafe in Hsteps as [ Hisval | Hred ] ; auto using list_elem_of_here.
       (* — either «ki»[«v»] is a value: this is not possible because ki is active. *)
       * simpl in Hisval. rewrite active_item_not_val in Hisval ;
         [ by apply is_Some_None in Hisval | by apply is_active_translationKi ].
@@ -131,7 +131,7 @@ Proof.
   assert (safe «e2» S«σ2, m-n») as Hsafe2.
   {
     eapply safe_exec.
-    - eapply elem_of_list_fmap_1. eassumption.
+    - eapply list_elem_of_fmap_2. eassumption.
     - eassumption.
     - change [«e»] with T«[e]». apply simulation_exec_success' ; auto.
   }
@@ -246,7 +246,7 @@ Proof.
   (* allocate the heap, including cell ℓ (on which we need to keep an eye): *)
   iMod (gen_heap_init (<[ℓ := #m]> σ')) as (Hheap) "(Hh● & Hℓ◯ & _)".
   iDestruct (big_sepM_lookup _ _ ℓ with "Hℓ◯") as "Hℓ◯".
-  { by rewrite lookup_insert. }
+  { by rewrite lookup_insert_eq. }
   (* packing all those bits, build the heap instance necessary to use time credits: *)
   destruct HtcPreG as [[HinvPreG [HgenHeapPreInG]] HinG] ; simpl ; clear HinvPreG.
   (* allocate the ghost state associated with ℓ: *)
@@ -270,7 +270,7 @@ Proof.
   iInv timeCreditN as (m') ">[Hc Hγ●]" "InvClose".
   (* derive that z = m' (that is, the relative integer is in fact a natural integer): *)
   iDestruct (gen_heap_valid with "Hheap2 Hc") as %Eq.
-  rewrite lookup_insert in Eq.
+  rewrite lookup_insert_eq in Eq.
   injection Eq as ->.
   (* close the invariant (in fact, this is not required), and conclue: *)
   iMod ("InvClose" with "[-]") as "_" ; by auto with iFrame lia.

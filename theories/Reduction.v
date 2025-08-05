@@ -601,7 +601,7 @@ Section Safety.
   Proof.
     intros E2 Hsafe1 Hsteps1to2.
     split ; first done. intros t3 σ3 e3 _ Hsteps2to3 E3.
-    apply elem_of_list_split in E2 as (t2' & t2'' & ->).
+    apply list_elem_of_split in E2 as (t2' & t2'' & ->).
     apply thread_pool_is_cons_after_exec in Hsteps2to3 as E3' ; destruct E3' as (e3' & t3' & ->).
     assert (e3 ∈ t2' ++ e3' :: t2'' ++ t3') by set_solver.
     eapply Hsafe1 ; try done.
@@ -674,7 +674,7 @@ Section Safety.
     intros t' σ' e' _ Hsteps He'.
     destruct He' as [ e' t' | e' e'0 t' He' ].
     - eapply exec_fill in Hsteps.
-      specialize (Hsafe _ _ _ eq_refl Hsteps (elem_of_list_here _ _)). clear Hsteps.
+      specialize (Hsafe _ _ _ eq_refl Hsteps (list_elem_of_here _ _)). clear Hsteps.
       destruct Hsafe as [ Hval | Hred ].
       + left. by eapply fill_val.
       + destruct (to_val e') eqn:Hnotval; [by left; eauto|]. right.
@@ -684,7 +684,7 @@ Section Safety.
         exists κ, (fill K' e''2), σ'', efs.
         by apply Ectx_step'.
     - eapply exec_fill in Hsteps.
-      eapply Hsafe ; eauto using elem_of_list_further.
+      eapply Hsafe ; eauto using list_elem_of_further.
   Qed.
 
   Lemma not_safe_fill K e σ :

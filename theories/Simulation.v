@@ -59,7 +59,7 @@ Section Tick_exec.
     eapply prim_exec_cons_nofork. (* Initial β-redex *)
     { by prim_step. }
     simpl. eapply prim_exec_cons_nofork. (* Load of ℓ *)
-    { prim_step; apply lookup_insert. }
+    { prim_step; apply lookup_insert_eq. }
     simpl. eapply prim_exec_cons_nofork. (* First redex of let *)
     { by prim_step. }
     simpl. eapply prim_exec_cons_nofork. (* Second redex of let *)
@@ -73,11 +73,11 @@ Section Tick_exec.
     { by prim_step. }
                                          (* CAS *)
     simpl. eapply (prim_exec_cons_nofork _ _ _ (if: #true then _ else _)).
-    { prim_step; [apply lookup_insert|by left]. }
+    { prim_step; [apply lookup_insert_eq|by left]. }
     eapply prim_exec_cons_nofork.        (* If *)
     { by prim_step. }
     replace (Sn - 1) with (Z.of_nat n) by lia.
-    rewrite insert_insert.
+    rewrite insert_insert_eq.
     apply prim_exec_nil.
   Qed.
 
@@ -165,7 +165,7 @@ Section SimulationLemma.
     simpl_trans;
     (try (
       assert (ℓ ≠ l) as I by (by apply lookup_insert_None in Hℓ as [ _ I ]) ;
-      rewrite translationS_insert insert_commute ; last exact I
+      rewrite translationS_insert insert_insert_ne ; last exact I
     )).
     (* RecS f x e σ : *)
     - eapply (prim_exec_cons _ _ _ _ _ [] _ _ []).
@@ -460,7 +460,7 @@ Section SimulationLemma.
           apply exec_tick_success.
         }
         (* using the safety of «ki»[tick «v»], we proceed by case analysis… *)
-        eapply Hsafe in Hsteps as [ Hisval | Hred ] ; auto using elem_of_list_here.
+        eapply Hsafe in Hsteps as [ Hisval | Hred ] ; auto using list_elem_of_here.
         (* — either «ki»[«v»] is a value: this is not possible because ki is active. *)
         * simpl in Hisval. rewrite active_item_not_val in Hisval ;
           [ by apply is_Some_None in Hisval | by apply is_active_translationKi ].
@@ -480,7 +480,7 @@ Section SimulationLemma.
     assert (safe «e2» S«σ2, m-n») as Hsafe2.
     {
       eapply safe_exec.
-      - eapply elem_of_list_fmap_1. eassumption.
+      - apply list_elem_of_fmap_2. eassumption.
       - eassumption.
       - change [«e»] with T«[e]». apply simulation_exec_success' ; [ assumption | lia | assumption ].
     }
