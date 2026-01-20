@@ -558,9 +558,9 @@ Proof using r_geq_1.
   (* Argue that compression does not affect the displeasure of [y]. This
      seems obvious, but is in fact non-trivial, as we must check that it
      affects neither the function [k] nor the predicate [top_part]. *)
+  pose proof compress_preserves_k_above_y r.
   forwards: compress_preserves_displeasure_of_y (top_part z) x y z;
-  eauto using is_repr_path, (@compress_preserves_k_above_y r),
-              compress_preserves_top_part_above_y.
+  eauto using is_repr_path, compress_preserves_top_part_above_y.
 
   (* Use the induction hypothesis. *)
   forwards: IHfw_ipc;
@@ -584,7 +584,6 @@ Proof using r_geq_1.
     erewrite displeasure_parent_if_unpleasant by eauto.
     forwards: arbitrary_Phi; eauto using is_repr_path.
     lia. }
-
 Qed.
 
 (* A corollary. *)

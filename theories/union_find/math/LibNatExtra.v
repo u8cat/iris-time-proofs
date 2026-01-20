@@ -1,11 +1,11 @@
 Set Implicit Arguments.
-Require Export Lia.
-Require Export ArithRing.
-Require Export Coq.Arith.PeanoNat.
+From Stdlib Require Export Lia.
+From Stdlib Require Export ArithRing.
+From Stdlib Require Export Arith.PeanoNat.
   (* [Nat] is a sub-module of [PeanoNat], which seems to contain many things.
      E.g. it defines [Nat.div], [Nat.pow], [Nat.log2].
      E.g. it defines [Nat.max], which is the same as [max].
-     E.g. it has many properties of [max], see [Coq.Structures.GenericMinMax].
+     E.g. it has many properties of [max], see [Stdlib.Structures.GenericMinMax].
      Unfortunately [Nat.le] is NOT the same as [le], which is [Peano.le].
      For this reason, we do NOT import [Nat]. *)
   Notation log2 := Nat.log2.

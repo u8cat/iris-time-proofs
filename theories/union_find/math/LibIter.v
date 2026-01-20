@@ -1,12 +1,12 @@
 Set Implicit Arguments.
-Require Import Coq.micromega.Lia.
+Require Import Stdlib.micromega.Lia.
 From iris_time.union_find.math Require Import LibFunOrd.
 
 Section Iter.
 
 Variable A : Type.
 
-(* This iteration function is defined in [Coq.funind.Recdef].
+(* This iteration function is defined in [Stdlib.funind.Recdef].
    We repeat its definition here so as to be self-contained. *)
 
 Fixpoint iter (n : nat) (f : A -> A) (x : A) :=

@@ -274,7 +274,7 @@ Section SimulationLemma.
     - destruct E2, E1.
       specialize (IHnsteps eq_refl t3 σ3 eq_refl).
       assert (σ3 !! ℓ = None) as Hℓ3 by (eapply loc_fresh_in_dom_nsteps ; cycle 1 ; eassumption).
-      eapply rtc_transitive.
+      etrans.
       + eapply simulation_step_success ; cycle -1 ; eassumption.
       + apply IHnsteps.
   Qed.

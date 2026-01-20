@@ -1,4 +1,4 @@
-From Coq Require Export ssreflect.
+From Stdlib Require Export ssreflect.
 From stdpp Require Export base list relations.
 
 Tactic Notation "make_eq" constr(t) "as" ident(x) ident(E) :=

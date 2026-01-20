@@ -61,7 +61,7 @@ Section Reduction.
   Proof.
     intros [e1 σ1_ e2 σ2_ efs t t' E1 E2 Hstep] ;
     injection E1 as -> <- ; injection E2 as -> <-.
-    repeat rewrite ?app_length ?length_cons. lia.
+    repeat rewrite ?length_app ?length_cons. lia.
   Qed.
   Lemma thread_pool_grows_after_exec t1 σ1 t2 σ2 :
     rtc erased_step (t1, σ1) (t2, σ2) →
@@ -118,7 +118,7 @@ Section Reduction.
       rewrite ! app_assoc.
       eapply step_atomic ; last eassumption ; reflexivity.
     (* if length ta < n: *)
-    - rewrite app_length length_cons in I.
+    - rewrite length_app length_cons in I.
       assert (  (length ta ≤ n)%nat
               ∧ (0 < n - length ta)%nat
               ∧ (n - length ta - 1 ≤ length tb)%nat )
@@ -175,7 +175,8 @@ Section Reduction.
     rtc erased_step ([e1], σ1) (e2 :: efs, σ2).
   Proof.
     unfold erased_step.
-    induction 1 ; econstructor ; eauto using prim_step_step, (exec_frame_singleton_thread_pool _ _ _ _ _ []).
+    induction 1 ; econstructor ; eauto using prim_step_step.
+    eapply (exec_frame_singleton_thread_pool _ _ _ _ _ []). eauto.
   Qed.
 
   Lemma prim_step_fill K e1 σ1 κ e2 σ2 efs :
@@ -605,7 +606,7 @@ Section Safety.
     apply thread_pool_is_cons_after_exec in Hsteps2to3 as E3' ; destruct E3' as (e3' & t3' & ->).
     assert (e3 ∈ t2' ++ e3' :: t2'' ++ t3') by set_solver.
     eapply Hsafe1 ; try done.
-    eapply rtc_transitive ; first eassumption.
+    etrans. eassumption.
     eapply exec_frame_singleton_thread_pool ; eassumption.
   Qed.
 

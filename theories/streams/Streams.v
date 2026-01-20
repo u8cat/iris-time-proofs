@@ -1099,7 +1099,7 @@ Section Proofs.
   Proof.
     revert d1 d2 ds2. induction ds1 as [| d ds1 ]; intros d1 d2 ds2; auto.
     rewrite (_: (d :: ds1) ++ [d1] = d :: (ds1 ++ [d1])) //.
-    rewrite debit_append_step. 2: rewrite app_length /=; lia.
+    rewrite debit_append_step. 2: rewrite length_app /=; lia.
     rewrite IHds1 //.
   Qed.
 

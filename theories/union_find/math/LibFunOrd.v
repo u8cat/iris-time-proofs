@@ -2,7 +2,7 @@
    such as the property of being monotonic. *)
 
 Set Implicit Arguments.
-Require Import Coq.Classes.Morphisms Coq.micromega.Lia.
+Require Import Stdlib.Classes.Morphisms Stdlib.micromega.Lia.
 From TLC Require Import LibTactics.
 
 (* -------------------------------------------------------------------------- *)
@@ -138,7 +138,7 @@ Qed.
 
 (* -------------------------------------------------------------------------- *)
 
-Require Import Coq.Arith.Arith.
+Require Import Stdlib.Arith.Arith.
 
 (* The following tactics allow proving implications between inequalities
    by contraposition, while exploiting the fact that the negation of a

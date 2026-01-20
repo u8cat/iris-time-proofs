@@ -127,7 +127,7 @@ Definition filter_image {A} ultimately `{Filter A ultimately} {B} (f : A -> B) :
 Proof.
   econstructor; unfold image.
   (* There exists an element in this filter, namely the universe. *)
-  exists (fun (_ : B) => True). eauto using filter_universe.
+  exists (fun (_ : B) => True). apply filter_universe; auto.
   (* No element of this filter is empty. *)
   intros.
   forwards [ a ? ]: filter_member_nonempty; eauto. simpl in *.

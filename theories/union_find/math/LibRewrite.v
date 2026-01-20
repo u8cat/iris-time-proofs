@@ -1,8 +1,8 @@
-Require Import Coq.Program.Basics. (* [inverse] *)
-Require Export Coq.Setoids.Setoid. (* required for [rewrite] *)
-Require Export Coq.Classes.Morphisms.
-Require Import Coq.Lists.List.
-Require Import Coq.Sorting.Permutation.
+Require Import Stdlib.Program.Basics. (* [inverse] *)
+Require Export Stdlib.Setoids.Setoid. (* required for [rewrite] *)
+Require Export Stdlib.Classes.Morphisms.
+Require Import Stdlib.Lists.List.
+Require Import Stdlib.Sorting.Permutation.
 From TLC Require Import LibTactics.
 From iris_time.union_find.math Require Import LibNatExtra.
 Local Obligation Tactic := idtac.

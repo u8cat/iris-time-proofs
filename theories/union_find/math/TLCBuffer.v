@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 From TLC Require Import LibTactics LibLogic LibEpsilon LibFun.
-Require Import Coq.micromega.Lia.
+From Stdlib Require Import micromega.Lia.
 Generalizable Variables A.
 
 (* This file contains a bunch of stuff that needs to be (possibly cleaned up
@@ -185,7 +185,7 @@ From TLC Require Import LibList.
 (* LATER: move to TLC, using TLC's comparison operator *)
 
 Open Scope set_scope.
-Require Import List.
+From Stdlib Require Import List.
 From TLC Require Import LibList LibNat LibWf LibFix LibSet.
 Close Scope comp_scope.
 
@@ -340,7 +340,7 @@ Global Hint Rewrite notin_eq' : set_norm.
 (* LibContainer or LibSet *)
 
 From TLC  Require Import LibMonoid LibSet.
-Require Export Coq.Classes.Morphisms. (* for rewriting *)
+Require Export Stdlib.Classes.Morphisms. (* for rewriting *)
 
 
 (* In my opinion, \notin should be just a notation! *)

@@ -214,8 +214,8 @@ Proof using disjointness hdsf1 hdsf2.
   unfold is_dsf in *. intros. splits.
   (* [confined] *)
   { eapply confined_union.
-    { eapply confined_contravariant; intuition eauto using incl_union_l, reflexivity. }
-    { eapply confined_contravariant; intuition eauto using incl_union_r, reflexivity. }
+    { eapply confined_contravariant. intuition eauto. apply incl_union_l. reflexivity. }
+    { eapply confined_contravariant. intuition eauto. apply incl_union_r. reflexivity. }
   }
   (* [functional] *)
   { intuition eauto using functional_union, confined_disjoint_contradiction. }

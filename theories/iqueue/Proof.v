@@ -60,7 +60,7 @@ Lemma is_tree_length n v vs :
 Proof.
   revert v vs; induction n; intros v vs; inversion 1; subst.
   { reflexivity. }
-  { rewrite app_length. rewrite (IHn v1 vs1) // (IHn v2 vs2) //.
+  { rewrite length_app. rewrite (IHn v1 vs1) // (IHn v2 vs2) //.
     rewrite Nat.pow_succ_r'. lia. }
 Qed.
 
@@ -71,7 +71,7 @@ Lemma is_tree_no_tail level v vs vs' :
 Proof.
   intros Hlen Ht.
   pose proof (is_tree_length level v (vs ++ vs') ltac:(eassumption)) as HH.
-  rewrite app_length in HH. apply nil_length_inv. lia.
+  rewrite length_app in HH. apply nil_length_inv. lia.
 Qed.
 
 Local Ltac is_tree_inv :=
@@ -524,7 +524,7 @@ Proof.
           iDestruct "Htc" as "[HtcK HtcB]".
           rewrite /TAIL.
           iApply ("IH" with "[] Hqueue' [$Htok HtcK HtcB TC']").
-          { iPureIntro. rewrite app_length Hlen. lia. }
+          { iPureIntro. rewrite length_app Hlen. lia. }
           { rewrite /Itail. rewrite /K.
             iDestruct "HtcK" as "[[[[? ?] ?] ?] TC'']".
             iApply TC_plus. iSplitR "TC' TC''".

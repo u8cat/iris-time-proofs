@@ -60,7 +60,8 @@ Lemma is_dsf_create:
   is_dsf D F ->
   is_dsf (D \u \{x}) F.
 Proof using.
-  intros. eapply is_dsf_covariant_in_D. eauto. eauto using incl_union_l, reflexivity.
+  intros. eapply is_dsf_covariant_in_D. eauto.
+  apply incl_union_l. reflexivity.
 Qed.
 
 Lemma dsf_per_create:
@@ -73,6 +74,6 @@ Proof using.
   unfold dsf_per, confine.
   intros. extens. intros y z.
   split; intros; unpack.
-    { rew_set in *. intuition eauto with sticky. } 
+    { rew_set in *. intuition eauto with sticky. }
     { branches; unpack; subst; splits; rew_set; (try now apply _); eauto using is_equiv_refl. }
 Qed.

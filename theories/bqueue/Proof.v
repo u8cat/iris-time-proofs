@@ -240,9 +240,9 @@ Proof.
     wp_tick_op. repeat wp_tick_pair.
     iApply ("Post" $! (#(length fl + length rl), #tapp, #0, InjLV #())%V).
     construct_queue (fl ++ List.rev rl) [].
-    { rewrite app_length rev_length. iApply "Hstream_app'". }
+    { rewrite length_app length_rev. iApply "Hstream_app'". }
     all: cbn; eauto with lia.
-    { repeat f_equal; try reflexivity. rewrite app_length rev_length. lia. }
+    { repeat f_equal; try reflexivity. rewrite length_app length_rev. lia. }
     { rewrite app_nil_r //. }
 Qed.
 
