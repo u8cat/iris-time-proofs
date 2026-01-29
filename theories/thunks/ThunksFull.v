@@ -92,7 +92,7 @@ Proof.
 
   { (* thunk_force *)
     iIntros "#Htickinv" (Φ) "!> (Hcredits & #Hthunk & Hp & HR) Post". destruct_thunk.
-    iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $ HR] Post"). set_solver. }
+    iApply (thunk_force _ (F ∖ ↑T) _ R with "Htickinv [$Hcredits Hthunk $Hp $HR //] Post"). set_solver. }
 
   { (* thunk_pay *)
     iIntros "#Hthunk Hk". destruct_thunk. iExists T, d. pure_conjunct.

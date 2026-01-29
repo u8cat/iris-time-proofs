@@ -40,7 +40,7 @@ Proof.
   (* We have [n2 + 11] credits left, *)
   iCombine "Htcn2"  "Htc12" as "Htc".
   (* which can use to force the thunk [t2]. *)
-  iApply (thunk_pay_force with "Htickinv [$Htc $Ht2 $Htok2 $HR]"); [ done |].
+  iApply (thunk_pay_force _ _ _ _ R with "Htickinv [$Htc $Htok2 $HR //]"); [ done |].
   iNext.
   iIntros (v) "(#Hφ & #Hval2 & Htok2 & HR)".
   by iApply ("Post" with "[$] [$]").

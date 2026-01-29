@@ -227,7 +227,8 @@ Proof using.
   iDestruct (na_own_union with "Htoken") as "[Htoken1 Htoken2]".
   { set_solver. }
   (* Both tokens are required here. *)
-  wp_apply (thunk_force with "[$] [$Htc $Hthunk $Htoken2 $Htoken1]").
+  wp_apply (thunk_force _ (↑gen_ns h') _ (ThunkToken p (gens_below_gen h'))
+            with "[$] [$Htc Hthunk $Htoken2 $Htoken1]")=>//.
   { eauto using gen_ns_subseteq_interval. }
   (* Conclude. *)
   iIntros (v) "(#Hv & #Hval & Htoken1 & Htoken2)".

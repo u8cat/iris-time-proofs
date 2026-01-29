@@ -244,7 +244,8 @@ Proof.
     iApply wp_fupd.
     (* Force the underlying thunk. *)
     iCombine "Hnc1" "Hcredits" as "Hnc1".
-    iApply (thunk_pay_force with "Htickinv [$Hnc1 $Hthunk $Htoken $HR]").
+
+    iApply (thunk_pay_force p F1 _ _ R with "Htickinv [$Hnc1 Hthunk $Htoken $HR]")=>//.
     { set_solver. }
     (* This has consumed at least one time step. (This is fortunate.) *)
     iNext.

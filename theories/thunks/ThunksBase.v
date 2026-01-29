@@ -407,11 +407,9 @@ Proof.
   (* Allocate the ghost cell γdecided. *)
   iMod (own_alloc (Cinl $ Excl ())) as (γdecided) "Hundecided"; first done.
   (* Associate [t] and [γdecided] via a [meta] assertion. *)
-  iMod (meta_set _ t _ nroot with "[$]") as "#Hmeta". { set_solver. }
+  iMod (meta_set ⊤ t γdecided nroot with "[$]") as "#Hmeta". { set_solver. }
   (* Create a piggy bank. This requires checking that the left branch holds. *)
-  iMod (piggybank_create
-                (LeftBranch t γdecided R φ)
-                (RightBranch t γdecided φ)
+  iMod (piggybank_create (LeftBranch t γdecided R φ) (RightBranch t γdecided φ)
               with "[Hundecided Ht Hf]") as "#Hpiggy".
   { iExists _. eauto with iFrame. }
   (* Conclude. *)

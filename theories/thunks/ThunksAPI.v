@@ -220,9 +220,7 @@ Proof.
   iClear "Hthunk". iRename "Hthunk'" into "Hthunk".
   rewrite Nat.sub_diag. (* n - n = 0 *)
   (* Then, force the thunk. *)
-  iApply (thunk_force with "Htickinv [$Hcredits $Hthunk $Hp $HR]"); [ done |].
-  (* Done. *)
-  iApply "Post".
+  by iApply (thunk_force _ F _ R with "Htickinv [$Hcredits $Hp $HR Hthunk]").
 Qed.
 
 End Consequences.
