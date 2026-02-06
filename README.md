@@ -1,3 +1,14 @@
+## Important Note
+
+This project has been updated to Rocq 9.1, the dependence on coq-tlc
+has been removed, and most case study files have been commented out in
+`_CoqProject` because they use deprecated features or we otherwise don't
+care about them.
+
+# Original README.md
+
+
+
 This is the artifact for the POPL 2024 paper "Thunks and Debits in
 Separation Logic with Time Credits".
 
