@@ -10,7 +10,6 @@ synopsis: "Iris with time credits and time credits"
 depends: [
   "rocq-core" { (>= "9.1" & < "9.2~") }
   "rocq-stdlib"
-  "rocq-iris" { ((= "dev.2026-02-05.0.9815f03b" ) | (= "dev")) }
   "coq-tlc" { (= "20260120") }
 ]
 
