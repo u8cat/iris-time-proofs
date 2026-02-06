@@ -10,7 +10,6 @@ synopsis: "Iris with time credits and time credits"
 depends: [
   "rocq-core" { (>= "9.1" & < "9.2~") }
   "rocq-stdlib"
-  "coq-tlc" { (= "20260120") }
 ]
 
 build: [make "-j%{jobs}%"]
