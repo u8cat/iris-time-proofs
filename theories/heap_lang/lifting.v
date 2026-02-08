@@ -1,4 +1,5 @@
 From iris.algebra Require Import auth gmap.
+From iris_time Require Import Auth_nat.
 From iris.base_logic Require Export gen_heap.
 From iris.program_logic Require Export weakestpre.
 From iris.program_logic Require Import ectx_lifting.
@@ -10,12 +11,15 @@ Set Default Proof Using "Type".
 
 Class heapGS Σ := HeapGS {
   heapG_invG : invGS Σ;
-  #[global] heapG_gen_heapG :: gen_heapGS loc val Σ
+  #[global] heapG_gen_heapG :: gen_heapGS loc val Σ;
+  #[local] heapG_nat :: inG Σ (authR natUR);
+  timeCredit_name : gname ;
 }.
 
 Global Instance heapG_irisG `{heapGS Σ} : irisGS heap_lang Σ := {
   iris_invGS := heapG_invG;
-  state_interp σ _ κs _ := gen_heap_interp σ;
+  state_interp σ _ κs _ := (gen_heap_interp σ.(heap) ∗
+    own timeCredit_name (●nat σ.(tick_counter)))%I;
   num_laters_per_step _ := 0%nat;
   fork_post _ := True%I;
   state_interp_mono _ _ _ _ := fupd_intro _ _
@@ -28,6 +32,72 @@ Notation "l ↦{# q } v" := (pointsto (L:=loc) (V:=val) l (DfracOwn q) v%V)
   (at level 20, q at level 50, format "l  ↦{# q }  v") : bi_scope.
 Notation "l ↦ v" :=
   (pointsto (L:=loc) (V:=val) l (DfracOwn 1) v%V) (at level 20) : bi_scope.
+
+Section time_credit.
+  Context `{!heapGS Σ}.
+
+  Definition TC  (n : nat) : iProp Σ :=
+    ⌜n = 0%nat⌝ ∨ own timeCredit_name (◯nat n).
+
+  (* The use of this lemma is recommended: *)
+  Lemma zero_TC_now :
+    ⊢ TC 0.
+  Proof. iLeft. iPureIntro. reflexivity. Qed.
+
+  (* The following lemma is kept for backwards compatibility. *)
+  Lemma zero_TC :
+    ⊢ |==> TC 0.
+  Proof. iRight. iApply own_unit. Qed.
+
+  Lemma TC_plus m n :
+    TC (m + n) ≡ (TC m ∗ TC n)%I.
+  Proof.
+    rewrite /TC. iSplit.
+    + iIntros "[%Heqmn | (Hm & Hn)]".
+      - assert (m = 0%nat) by lia.
+        assert (n = 0%nat) by lia.
+        subst m n.
+        eauto.
+      - iFrame "Hm Hn".
+    + iIntros "([%Heqm | Hm] & [%Heqn | Hn])"; subst.
+      - iLeft. eauto.
+      - iRight. iFrame "Hn".
+      - iRight. rewrite Nat.add_0_r. iFrame "Hm".
+      - iRight. iCombine "Hm Hn" as "$".
+  Qed.
+
+  Lemma TC_succ n :
+    TC (S n) ≡ (TC 1%nat ∗ TC n)%I.
+  Proof. by rewrite (eq_refl : S n = 1 + n)%nat TC_plus. Qed.
+
+  Lemma TC_weaken (n₁ n₂ : nat) :
+    (n₂ ≤ n₁)%nat →
+    TC n₁ ⊢ TC n₂.
+  Proof.
+    rewrite /TC.
+    iIntros (?) "[%Heqn1 | Hn1]".
+    + iLeft. eauto with lia.
+    + iRight. iApply (own_auth_nat_weaken with "Hn1"). eauto. Qed.
+
+  Lemma TC_timeless n :
+    Timeless (TC n).
+  Proof. exact _. Qed.
+
+  (* We give higher priorities to the (+) instances so that the (S n)
+     instances are not chosen when m is a constant. *)
+  Global Instance into_sep_TC_plus m n : IntoSep (TC (m + n)) (TC m) (TC n) | 0.
+  Proof. by rewrite /IntoSep TC_plus. Qed.
+  Global Instance from_sep_TC_plus m n : FromSep (TC (m + n)) (TC m) (TC n) | 0.
+  Proof. by rewrite /FromSep TC_plus. Qed.
+  Global Instance into_sep_TC_succ n : IntoSep (TC (S n)) (TC 1) (TC n) | 100.
+  Proof. by rewrite /IntoSep TC_succ. Qed.
+  Global Instance from_sep_TC_succ n : FromSep (TC (S n)) (TC 1) (TC n) | 100.
+  Proof. by rewrite /FromSep [TC (S n)] TC_succ. Qed.
+
+  Global Instance combine_sep_as_TC_plus m n :
+    CombineSepAs (TC m) (TC n) (TC (m + n)).
+  Proof using. by rewrite /CombineSepAs TC_plus. Qed.
+End time_credit.
 
 (** The tactic [inv_head_step] performs inversion on hypotheses of the shape
 [head_step]. The tactic will discharge head-reductions starting from values, and
@@ -75,6 +145,8 @@ Proof. solve_atomic. Qed.
 Global Instance faa_atomic s v1 v2 : Atomic s (FAA (Val v1) (Val v2)).
 Proof. solve_atomic. Qed.
 Global Instance fork_atomic s e : Atomic s (Fork e).
+Proof. solve_atomic. Qed.
+Global Instance tick_atomic s v : Atomic s (Tick (Val v)).
 Proof. solve_atomic. Qed.
 Global Instance skip_atomic s  : Atomic s Skip.
 Proof. solve_atomic. Qed.
@@ -166,7 +238,7 @@ Lemma wp_alloc s E v :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>"; iSplit; first by auto.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>"; iSplit; first by auto.
   iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_alloc with "Hσ") as "(Hσ & Hl & _)"; first done.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
@@ -176,7 +248,7 @@ Lemma wp_alloc_with_meta s E v :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v ∗ meta_token l ⊤ }}}.
 Proof.
   iIntros (Φ) "_ HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>"; iSplit; first by auto.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>"; iSplit; first by auto.
   iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_alloc with "Hσ") as "(Hσ & Hl & Hmeta)"; first done.
   iModIntro; iSplit=> //. iFrame. iApply "HΦ". iFrame.
@@ -186,7 +258,7 @@ Lemma wp_load s E l dq v :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
@@ -197,7 +269,7 @@ Lemma wp_store s E l v' v :
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto. iNext; iIntros (v2 σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
@@ -209,7 +281,7 @@ Lemma wp_cas_fail s E l q v' v1 v2 :
   {{{ RET LitV (LitBool false); l ↦{q} v' }}}.
 Proof.
   iIntros (?? Φ) ">Hl HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iModIntro; iSplit=> //. iFrame. by iApply "HΦ".
 Qed.
@@ -220,7 +292,7 @@ Lemma wp_cas_suc s E l v1 v2 :
   {{{ RET LitV (LitBool true); l ↦ v2 }}}.
 Proof.
   iIntros (? Φ) ">Hl HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
@@ -231,9 +303,22 @@ Lemma wp_faa s E l i1 i2 :
   {{{ RET LitV (LitInt i1); l ↦ LitV (LitInt (i1 + i2)) }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ". iApply wp_lift_atomic_base_step_no_fork; auto.
-  iIntros (σ1 ? κ κs n) "Hσ !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
+  iIntros (σ1 ? κ κs n) "[Hσ Htc] !>". iDestruct (@gen_heap_valid with "Hσ Hl") as %?.
   iSplit; first by eauto. iNext; iIntros (v2' σ2 efs Hstep) "_"; inv_head_step.
   iMod (@gen_heap_update with "Hσ Hl") as "[$ Hl]".
+  iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
+Qed.
+
+Lemma wp_tick s E v :
+  {{{ ▷ TC 1 }}} Tick (Val v) @ s ; E {{{ RET v ; True }}}.
+Proof.
+  iIntros (Φ) ">[%|Htc◯] HΦ"; first done.
+  iApply wp_lift_atomic_base_step_no_fork; auto.
+  iIntros ([h m] ? κ κs n) "[Hσ Htc●] !>". iDestruct (own_auth_nat_le with "Htc● Htc◯") as %Hle.
+  simpl in *. destruct m as [|m]; first lia.
+  iSplit; first by eauto. iIntros "!>" (v2' σ2 efs Hstep) "_"; inv_head_step.
+  iMod (auth_nat_update_decr _ _ _ 1 with "Htc● Htc◯") as "[Htc● Htc◯]"; first lia.
+  assert (∀ n, S n - 1 = n) as -> by lia.
   iModIntro. iSplit=>//. iFrame. by iApply "HΦ".
 Qed.
 End lifting.

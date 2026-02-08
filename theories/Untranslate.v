@@ -8,8 +8,6 @@ From iris_time Require Import Reduction Translation.
 
 Section Untranslate.
 
-Context `{Tick}.
-
 (* This lemma cannot be used in a rewriting database; that would
    lead to divergence. It can be manually applied in situations
    where the translation function has disappeared at a leaf #t
@@ -37,7 +35,7 @@ Lemma untranslate_pairv v1 v2 :
 Proof. reflexivity. Qed.
 
 Lemma untranslate_pair e1 e2 :
-  (tick «e1», «e2»)%E  = « (e1, e2) »%E.
+  (Tick «e1», «e2»)%E  = « (e1, e2) »%E.
 Proof. reflexivity. Qed.
 
 Lemma untranslate_injlv v :
@@ -49,11 +47,11 @@ Lemma untranslate_injrv v :
 Proof. reflexivity. Qed.
 
 Lemma untranslate_injl e :
-  (InjL (tick «e»))%E = «InjL e»%E.
+  (InjL (Tick «e»))%E = «InjL e»%E.
 Proof. reflexivity. Qed.
 
 Lemma untranslate_injr e :
-  (InjR (tick «e»))%E = «InjR e»%E.
+  (InjR (Tick «e»))%E = «InjR e»%E.
 Proof. reflexivity. Qed.
 
 Lemma untranslate_lambda f x e :
@@ -62,7 +60,7 @@ Lemma untranslate_lambda f x e :
 Proof. reflexivity. Qed.
 
 Lemma untranslate_app e1 e2 :
-  (tick «e1» «e2»)%E = «e1 e2»%E.
+  (Tick «e1» «e2»)%E = «e1 e2»%E.
 Proof. reflexivity. Qed.
 
 Lemma untranslate_val v :

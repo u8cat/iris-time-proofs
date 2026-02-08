@@ -124,6 +124,8 @@ Inductive expr :=
   | Store (e1 : expr) (e2 : expr)
   | CAS (e0 : expr) (e1 : expr) (e2 : expr)
   | FAA (e1 : expr) (e2 : expr)
+  (* Tick *)
+  | Tick (e : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -175,7 +177,11 @@ Definition val_is_unboxed (v : val) : Prop :=
   end.
 
 (** The state: heaps of vals. *)
-Definition state : Type := gmap loc val.
+Record state : Type := {
+  heap: gmap loc val;
+  tick_counter : nat;
+}.
+
 
 (** Equality and other typeclass stuff *)
 Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -225,6 +231,8 @@ Proof.
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | FAA e1 e2, FAA e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | Tick e, Tick e' =>
+        cast_if (decide (e = e'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -307,6 +315,7 @@ Proof.
      | Store e1 e2 => GenNode 15 [go e1; go e2]
      | CAS e0 e1 e2 => GenNode 16 [go e0; go e1; go e2]
      | FAA e1 e2 => GenNode 17 [go e1; go e2]
+     | Tick e => GenNode 18 [go e]
      end
    with gov v :=
      match v with
@@ -340,6 +349,7 @@ Proof.
      | GenNode 15 [e1; e2] => Store (go e1) (go e2)
      | GenNode 16 [e0; e1; e2] => CAS (go e0) (go e1) (go e2)
      | GenNode 17 [e1; e2] => FAA (go e1) (go e2)
+     | GenNode 18 [e] => Tick (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -354,16 +364,19 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | |]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
 Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
 
+Global Instance state_inhabited : Inhabited state :=
+  populate {| heap := inhabitant; tick_counter := inhabitant |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
+Canonical Structure stateC := leibnizO state.
 Canonical Structure valC := leibnizO val.
 Canonical Structure exprC := leibnizO expr.
 
@@ -390,7 +403,8 @@ Inductive ectx_item :=
   | CasMCtx (e0 : expr) (v2 : val)
   | CasRCtx (e0 : expr) (e1 : expr)
   | FaaLCtx (v2 : val)
-  | FaaRCtx (e1 : expr).
+  | FaaRCtx (e1 : expr)
+  | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -416,6 +430,7 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | CasRCtx e0 e1 => CAS e0 e1 e
   | FaaLCtx v2 => FAA e (Val v2)
   | FaaRCtx e1 => FAA e1 e
+  | TickCtx => Tick e
   end.
 
 (** Substitution *)
@@ -441,6 +456,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | CAS e0 e1 e2 => CAS (subst x v e0) (subst x v e1) (subst x v e2)
   | FAA e1 e2 => FAA (subst x v e1) (subst x v e2)
+  | Tick e => Tick (subst x v e)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -521,6 +537,25 @@ Definition vals_cas_compare_safe (vl v1 : val) : Prop :=
   val_is_unboxed vl ∨ val_is_unboxed v1.
 Arguments vals_cas_compare_safe !_ !_ /.
 
+Definition state_upd_heap (f : gmap loc val → gmap loc val)
+    (σ : state) : state :=
+  {| heap := f σ.(heap); tick_counter := σ.(tick_counter) |}.
+Global Arguments state_upd_heap _ !_ /.
+
+Definition state_set_tick_counter (n : nat)
+    (σ : state) : state :=
+  {| heap := σ.(heap); tick_counter := n |}.
+Global Arguments state_set_tick_counter _ !_ /.
+
+Lemma tick_counter_state_upd_heap f σ :
+  (state_upd_heap f σ).(tick_counter) = σ.(tick_counter).
+Proof. by destruct σ. Qed.
+
+Lemma heap_state_set_tick_counter n σ :
+  (state_set_tick_counter n σ).(heap) = σ.(heap).
+Proof. by destruct σ. Qed.
+
+
 Inductive head_step : expr → state → list Empty_set → expr → state → list (expr) → Prop :=
   | RecS f x e σ :
      head_step (Rec f x e) σ [] (Val $ RecV f x e) σ []
@@ -554,34 +589,39 @@ Inductive head_step : expr → state → list Empty_set → expr → state → l
   | ForkS e σ:
      head_step (Fork e) σ [] (Val $ LitV LitUnit) σ [e]
   | AllocS v σ l :
-     σ !! l = None →
+     σ.(heap) !! l = None →
      head_step (Alloc $ Val v) σ []
-               (Val $ LitV $ LitLoc l) (<[l:=v]> σ)
+               (Val $ LitV $ LitLoc l) (state_upd_heap <[l:=v]> σ)
                []
   | LoadS l v σ :
-     σ !! l = Some v →
+     σ.(heap) !! l = Some v →
      head_step (Load (Val $ LitV $ LitLoc l)) σ [] (Val v) σ []
   | StoreS l v σ :
-     is_Some (σ !! l) →
+     is_Some (σ.(heap) !! l) →
      head_step (Store (Val $ LitV $ LitLoc l) (Val v)) σ []
-               (Val $ LitV LitUnit) (<[l:=v]> σ)
+               (Val $ LitV LitUnit) (state_upd_heap <[l:=v]> σ)
                []
   | CasFailS l v1 v2 vl σ :
-     σ !! l = Some vl → vl ≠ v1 →
+     σ.(heap) !! l = Some vl → vl ≠ v1 →
      vals_cas_compare_safe vl v1 →
      head_step (CAS (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ []
                (Val $ LitV $ LitBool false) σ []
   | CasSucS l v1 v2 σ :
-     σ !! l = Some v1 →
+     σ.(heap) !! l = Some v1 →
      vals_cas_compare_safe v1 v1 →
      head_step (CAS (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ []
-               (Val $ LitV $ LitBool true) (<[l:=v2]> σ)
+               (Val $ LitV $ LitBool true) (state_upd_heap <[l:=v2]> σ)
                []
   | FaaS l i1 i2 σ :
-     σ !! l = Some (LitV (LitInt i1)) →
+     σ.(heap) !! l = Some (LitV (LitInt i1)) →
      head_step (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)) σ []
-               (Val $ LitV $ LitInt i1) (<[l:=LitV (LitInt (i1 + i2))]> σ)
-               [].
+               (Val $ LitV $ LitInt i1) (state_upd_heap <[l:=LitV (LitInt (i1 + i2))]> σ)
+               []
+  | TickS v n σ :
+     σ.(tick_counter) = S n →
+     head_step (Tick (Val v)) σ []
+              (Val v) (state_set_tick_counter n σ)
+              [].
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
@@ -604,8 +644,8 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
 Proof. destruct Ki1, Ki2; intros; by simplify_eq. Qed.
 
 Lemma alloc_fresh v σ :
-  let l := fresh (dom σ) in
-  head_step (Alloc $ Val v) σ [] (Val $ LitV $ LitLoc l) (<[l:=v]> σ) [].
+  let l := fresh (dom σ.(heap)) in
+  head_step (Alloc $ Val v) σ [] (Val $ LitV $ LitLoc l) (state_upd_heap <[l:=v]> σ) [].
 Proof. by intros; apply AllocS, (not_elem_of_dom (D:=gset loc)), is_fresh. Qed.
 
 Lemma heap_lang_mixin : EctxiLanguageMixin of_val to_val fill_item head_step.

@@ -5,6 +5,10 @@ has been removed, and most case study files have been commented out in
 `_CoqProject` because they use deprecated features or we otherwise don't
 care about them.
 
+The [tick] operation and time credit resources are now language primitives.
+Time receipt is removed.
+
+
 A full diff can be foud [here](https://github.com/u8cat/iris-time-proofs/compare/85cc76b98aeb4251fbe37ce5d6483e67cb9b27c7...master).
 
 # Original README.md

@@ -41,6 +41,7 @@ Ltac reshape_expr order e tac :=
   | CAS ?e0 ?e1 ?e2 => go (CasRCtx e0 e1 :: K) e2
   | FAA ?e (Val ?v) => go (FaaLCtx v :: K) e
   | FAA ?e1 ?e2 => go (FaaRCtx e1 :: K) e2
+  | Tick ?e => go (TickCtx :: K) e
   | _ =>
       lazymatch order with
       | false => fail

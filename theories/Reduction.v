@@ -248,37 +248,40 @@ End Reduction.
  * Fresh locations
  *)
 
-Section FreshLocation.
+(* Section FreshLocation.
 
   Lemma loc_fresh_in_dom_head_step ℓ e1 σ1 κ e2 σ2 efs :
-    σ2 !! ℓ = None →
+    σ2.(heap) !! ℓ = None →
     head_step e1 σ1 κ e2 σ2 efs →
-    σ1 !! ℓ = None.
+    σ1.(heap) !! ℓ = None.
   Proof.
+    destruct σ1 as [h1 ?]. destruct σ2 as [h2 ?].
     intros Hℓ H ; destruct H ; try done ;
-    by apply lookup_insert_None in Hℓ as [ Hℓ _ ].
+      rename select state into σ; destruct σ as [h ?];
+      simpl in *;
+      by apply lookup_insert_None in Hℓ as [ Hℓ _ ].
   Qed.
   Lemma loc_fresh_in_dom_prim_step ℓ e1 σ1 κ e2 σ2 efs :
-    σ2 !! ℓ = None →
+    σ2.(heap) !! ℓ = None →
     prim_step e1 σ1 κ e2 σ2 efs →
-    σ1 !! ℓ = None.
+    σ1.(heap) !! ℓ = None.
   Proof.
     intros Hℓ H ; destruct H ;
     by eapply loc_fresh_in_dom_head_step.
   Qed.
   Lemma loc_fresh_in_dom_step ℓ t1 σ1 κ t2 σ2 :
-    σ2 !! ℓ = None →
+    σ2.(heap) !! ℓ = None →
     step (t1, σ1) κ (t2, σ2) →
-    σ1 !! ℓ = None.
+    σ1.(heap) !! ℓ = None.
   Proof.
     intros Hℓ H ; destruct H as [ ? ? ? ? ? ? ? E1 E2 Hstep ] ;
     injection E1 as -> <- ; injection E2 as -> <- ;
     by eapply loc_fresh_in_dom_prim_step.
   Qed.
   Lemma loc_fresh_in_dom_nsteps ℓ m t1 σ1 t2 σ2 :
-    σ2 !! ℓ = None →
+    σ2.(heap) !! ℓ = None →
     relations.nsteps erased_step m (t1, σ1) (t2, σ2) →
-    σ1 !! ℓ = None.
+    σ1.(heap) !! ℓ = None.
   Proof.
     make_eq (t1, σ1) as config1 E1.
     make_eq (t2, σ2) as config2 E2.
@@ -298,7 +301,7 @@ Section FreshLocation.
     | Val v => loc_set_of_val v
     | Var _ => empty
     | Rec _ _ e
-    | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Alloc e | Load e =>
+    | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Alloc e | Load e | Tick e =>
        loc_set_of_expr e
     | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | Store e1 e2 | FAA e1 e2 =>
        loc_set_of_expr e1 ∪ loc_set_of_expr e2
@@ -319,7 +322,7 @@ Section FreshLocation.
     | Val v => loc_fresh_in_val (ℓ : loc) v
     | Var _ => true
     | Rec _ _ e
-    | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Alloc e | Load e =>
+    | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Alloc e | Load e | Tick e =>
        loc_fresh_in_expr ℓ e
     | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | Store e1 e2 | FAA e1 e2 =>
        loc_fresh_in_expr ℓ e1 && loc_fresh_in_expr ℓ e2
@@ -362,9 +365,229 @@ Section FreshLocation.
     destruct Ki ; naive_solver.
   Qed.
 
-End FreshLocation.
+End FreshLocation. *)
 
+(*
+ * Tick-free expression
+ *)
+Section TickFree.
+  Fixpoint tick_free_expr e : Prop :=
+    match e with
+    | Val v => tick_free_val v
+    | Var _ => True
+    | Rec _ _ e
+    | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Alloc e | Load e =>
+       tick_free_expr e
+    | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | Store e1 e2 | FAA e1 e2 =>
+       tick_free_expr e1 ∧ tick_free_expr e2
+    | If e0 e1 e2 | Case e0 e1 e2 | CAS e0 e1 e2 =>
+       tick_free_expr e0 ∧ tick_free_expr e1 ∧ tick_free_expr e2
+    | Tick _ => False
+    end
+  with tick_free_val v : Prop :=
+    match v with
+    | LitV _ => True
+    | RecV _ _ e => tick_free_expr e
+    | InjLV v | InjRV v => tick_free_val v
+    | PairV v1 v2 => tick_free_val v1 ∧ tick_free_val v2
+    end.
 
+  Definition tick_free_ectxi Ki : Prop :=
+    match Ki with
+    | UnOpCtx _ | FstCtx | SndCtx | InjLCtx | InjRCtx | AllocCtx | LoadCtx => True
+    | AppLCtx v | BinOpLCtx _ v | PairLCtx v | StoreLCtx v | FaaLCtx v =>
+      tick_free_val v
+    | AppRCtx e | BinOpRCtx _ e | PairRCtx e | StoreRCtx e | FaaRCtx e =>
+      tick_free_expr e
+    | CasLCtx v1 v2 => tick_free_val v1 ∧ tick_free_val v2
+    | CasMCtx e v => tick_free_expr e ∧ tick_free_val v
+    | IfCtx e1 e2 | CaseCtx e1 e2 | CasRCtx e1 e2 =>
+      tick_free_expr e1 ∧ tick_free_expr e2
+    | TickCtx => False
+    end.
+
+  Definition tick_free_ectx K : Prop :=
+    Forall tick_free_ectxi K.
+
+  Definition tick_free_state σ : Prop :=
+    map_Forall (λ _ v, tick_free_val v) σ.(heap).
+
+  Definition tick_free_threads t : Prop :=
+    Forall (λ e, tick_free_expr e) t.
+
+  Definition tick_free_config (c : cfg heap_lang) :=
+    tick_free_threads c.1 ∧ tick_free_state c.2.
+
+  Lemma tick_free_expr_fill_item_Ki Ki e :
+    tick_free_expr (fill_item Ki e) → tick_free_ectxi Ki.
+  Proof. destruct Ki; naive_solver. Qed.
+
+  Lemma tick_free_expr_fill_item_e Ki e :
+    tick_free_expr (fill_item Ki e) → tick_free_expr e.
+  Proof. destruct Ki; naive_solver. Qed.
+
+  Lemma tick_free_ectxi_fill_item Ki e :
+    tick_free_ectxi Ki → tick_free_expr e →
+    tick_free_expr (fill_item Ki e).
+  Proof. destruct Ki; naive_solver. Qed.
+
+  Lemma tick_free_expr_fill_K K e :
+    tick_free_expr (fill K e) → tick_free_ectx K.
+  Proof.
+    revert e.
+    induction K as [|Ki K IH] using rev_ind  => e Htf;
+      first by apply Forall_nil.
+    rewrite fill_app /= in Htf.
+    apply Forall_app; split.
+    - by eapply IH, tick_free_expr_fill_item_e.
+    - rewrite Forall_cons Forall_nil right_id.
+      by eapply tick_free_expr_fill_item_Ki.
+  Qed.
+
+  Lemma tick_free_expr_fill_e K e :
+    tick_free_expr (fill K e) → tick_free_expr e.
+  Proof.
+    revert e.
+    induction K as [|Ki K IH] => e Htf; first done.
+    eapply tick_free_expr_fill_item_e, IH, Htf.
+  Qed.
+
+  Lemma tick_free_ectx_fill K e :
+    tick_free_ectx K → tick_free_expr e →
+    tick_free_expr (fill K e).
+  Proof.
+    revert e.
+    induction K as [|Ki K IH] => e HtfK Htfe; first done.
+    simpl.
+    apply Forall_cons in HtfK as [HtfKi HtfK].
+    by apply IH, tick_free_ectxi_fill_item.
+  Qed.
+
+  Lemma tick_free_subst x v e :
+    tick_free_val v → tick_free_expr e →
+    tick_free_expr (subst x v e).
+  Proof.
+    intros Htfv Htfe.
+    induction e; try naive_solver.
+    - simpl. case_match; assumption.
+    - simpl in *. case_match; auto.
+  Qed.
+
+  Lemma tick_free_subst' b v e :
+    tick_free_val v → tick_free_expr e →
+    tick_free_expr (subst' b v e).
+  Proof.
+    destruct b as [|x]; simpl;
+    auto using tick_free_subst.
+  Qed.
+
+  Lemma tick_free_upd_heap l v σ :
+    tick_free_val v → tick_free_state σ →
+    tick_free_state (state_upd_heap <[l:=v]> σ).
+  Proof.
+    intros Htfv Htfσ.
+    by apply map_Forall_insert_2.
+  Qed.
+
+  Lemma tick_free_lookup_heap l v σ :
+    σ.(heap) !! l = Some v →
+    tick_free_state σ →
+    tick_free_val v.
+  Proof.
+    intros Hlookup Htfσ.
+    rewrite /tick_free_state map_Forall_lookup in Htfσ.
+    eauto.
+  Qed.
+
+  Lemma tick_free_head_step e σ κ e' σ' efs :
+    head_step e σ κ e' σ' efs →
+    tick_free_expr e → tick_free_state σ →
+    tick_free_expr e' ∧ tick_free_state σ' ∧
+    Forall tick_free_expr efs.
+  Proof.
+    intros Hheadstep Htfe Htfσ.
+    destruct Hheadstep; try naive_solver.
+    all: simpl in *; simplify_eq.
+    all: rewrite ?Forall_nil ?right_id ?left_id.
+    all: try (split; try assumption).
+    - (* App *)
+      destruct (Htfe).
+      auto using tick_free_subst'.
+    - (* unary op *)
+      match goal with
+      | H:un_op_eval ?op ?v = Some ?v'|- _=>
+        rename H into Heval
+      end.
+      rewrite /un_op_eval /to_mach_int in Heval.
+      repeat (case_match; inversion Heval; simplify_eq; try done).
+    - (* binary op *)
+      destruct (Htfe).
+      match goal with
+      | H:bin_op_eval ?op ?v1 ?v2 = Some ?v'|- _=>
+        rename H into Heval
+      end.
+      rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_mach_int /to_mach_int in Heval.
+      repeat (case_match; inversion Heval; simplify_eq; try done).
+    - (* alloc *)
+      by apply tick_free_upd_heap.
+    - (* load *)
+      destruct Htfe.
+      by apply tick_free_upd_heap.
+    - (* store *)
+      destruct Htfe as (?&?&?).
+      by apply tick_free_upd_heap.
+    - (* FAA *)
+      by apply tick_free_upd_heap.
+  Qed.
+
+  Lemma tick_free_prim_step e σ κ e' σ' efs :
+    prim_step e σ κ e' σ' efs →
+    tick_free_expr e → tick_free_state σ →
+    tick_free_expr e' ∧ tick_free_state σ' ∧
+    Forall tick_free_expr efs.
+  Proof.
+    intros Hprimstep Htfe Htfσ.
+    destruct Hprimstep. simplify_eq.
+    pose proof Htfe as HtfK.
+    apply tick_free_expr_fill_e in Htfe.
+    apply tick_free_expr_fill_K in HtfK.
+    edestruct (tick_free_head_step) as (Htfe' & Htfσ' & Htfefs); [eassumption..|].
+    split; [|split; assumption].
+    by apply tick_free_ectx_fill.
+  Qed.
+
+  Lemma tick_free_step cfg κ cfg' :
+    step cfg κ cfg' →
+    tick_free_config cfg →
+    tick_free_config cfg'.
+  Proof.
+    intros Hstep Htf.
+    destruct Hstep. simplify_eq.
+    destruct Htf as [Htft1 Htfσ1]; simpl in *.
+    rewrite /tick_free_threads Forall_app Forall_cons in Htft1.
+    destruct Htft1 as (Htft1a & Htfe1 & Htft1b).
+    edestruct tick_free_prim_step as (Htfe2 & Htfσ2 & Htfefs); [eassumption..|].
+    split; last assumption. simpl.
+    rewrite /tick_free_threads Forall_app Forall_cons Forall_app.
+    split; last split; last split; assumption.
+  Qed.
+
+  Lemma tick_free_erased_step cfg cfg' :
+    erased_step cfg cfg' →
+    tick_free_config cfg →
+    tick_free_config cfg'.
+  Proof. intros [??]. by eapply tick_free_step. Qed.
+
+  Lemma tick_free_erased_steps cfg cfg' :
+    rtc erased_step cfg cfg' →
+    tick_free_config cfg →
+    tick_free_config cfg'.
+  Proof.
+    intros Hsteps.
+    induction Hsteps as [|x y z Hstep Hsteps IH] => Hx; first done.
+    by eapply IH, tick_free_erased_step.
+  Qed.
+End TickFree.
 
 (*
  * Active context items and maximal contexts
@@ -376,7 +599,8 @@ Section ActiveItem.
     match Ki with
     | AppLCtx _ | UnOpCtx _ | BinOpLCtx _ _ | IfCtx _ _
     | PairLCtx _ | FstCtx | SndCtx | InjLCtx | InjRCtx
-    | CaseCtx _ _ | AllocCtx | LoadCtx | StoreLCtx _ | CasLCtx _ _ | FaaLCtx _ => true
+    | CaseCtx _ _ | AllocCtx | LoadCtx | StoreLCtx _ | CasLCtx _ _ | FaaLCtx _
+    | TickCtx => true
     | _ => false
     end.
 

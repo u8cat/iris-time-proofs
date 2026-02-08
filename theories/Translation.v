@@ -12,17 +12,10 @@ Implicit Type m n : nat.
 
 
 (*
- * Translation with any arbitrary expression for [tick]
+ * Translation with any arbitrary expression for [Tick]
  *)
 
-(* “tick” is a typeclass so that it can be made an implicit argument of the
- * translation and be inferred automatically from the context.
-   This also make it possible to share notations. *)
-Class Tick := tick : val.
-
 Section Translation.
-
-  Context {Htick : Tick}.
 
   (* Unfortunately, the operational semantics of [match] in our language is
    * ad-hoc somehow, as the rule is:
@@ -38,41 +31,42 @@ Section Translation.
    * This ad-hoc semantics calls for an ad-hoc definition of the translation in
    * that case because, to observe the simulation lemma, the translation of
    * [Case (InjL v) e1 e2] must reduce to the translation of [e1 v], which is
-   * [(tick «e1») «v»]. To do so --which means preserving the weird evaluation
+   * [(Tick «e1») «v»]. To do so --which means preserving the weird evaluation
    * order--, we use the helper term below: *)
   Definition tick_case_branch : val :=
-    (λ: "f" "x", tick ("f" #()) "x")%V.
+    (λ: "f" "x", Tick ("f" #()) "x")%V.
 
   Fixpoint translation (e : expr) : expr :=
     match e with
     (* Base lambda calculus *)
     | Var _           => e
-    | Rec f x e       => tick $ Rec f x (translation e)
-    | App e1 e2       => (tick $ translation e1) (translation e2)
+    | Rec f x e       => Tick $ Rec f x (translation e)
+    | App e1 e2       => App (Tick $ translation e1) (translation e2)
     | Val v           => Val $ translationV v
     (* Base types and their operations *)
-    | UnOp op e       => UnOp op (tick $ translation e)
-    | BinOp op e1 e2  => BinOp op (tick $ translation e1) (translation e2)
-    | If e0 e1 e2     => If (tick $ translation e0) (translation e1) (translation e2)
+    | UnOp op e       => UnOp op (Tick $ translation e)
+    | BinOp op e1 e2  => BinOp op (Tick $ translation e1) (translation e2)
+    | If e0 e1 e2     => If (Tick $ translation e0) (translation e1) (translation e2)
     (* Products *)
-    | Pair e1 e2      => Pair (tick $ translation e1) (translation e2)
-    | Fst e           => Fst (tick $ translation e)
-    | Snd e           => Snd (tick $ translation e)
+    | Pair e1 e2      => Pair (Tick $ translation e1) (translation e2)
+    | Fst e           => Fst (Tick $ translation e)
+    | Snd e           => Snd (Tick $ translation e)
     (* Sums *)
-    | InjL e          => InjL (tick $ translation e)
-    | InjR e          => InjR (tick $ translation e)
+    | InjL e          => InjL (Tick $ translation e)
+    | InjR e          => InjR (Tick $ translation e)
     | Case e0 e1 e2   =>
-        Case (tick $ translation e0)
+        Case (Tick $ translation e0)
           (tick_case_branch (λ: <>, translation e1))
           (tick_case_branch (λ: <>, translation e2))
     (* Concurrency *)
-    | Fork e          => tick $ Fork (translation e)
+    | Fork e          => Tick $ Fork (translation e)
     (* Heap *)
-    | Alloc e         => Alloc (tick $ translation e)
-    | Load e          => Load (tick $ translation e)
-    | Store e1 e2     => Store (tick $ translation e1) (translation e2)
-    | CAS e0 e1 e2    => CAS (tick $ translation e0) (translation e1) (translation e2)
-    | FAA e1 e2       => FAA (tick $ translation e1) (translation e2)
+    | Alloc e         => Alloc (Tick $ translation e)
+    | Load e          => Load (Tick $ translation e)
+    | Store e1 e2     => Store (Tick $ translation e1) (translation e2)
+    | CAS e0 e1 e2    => CAS (Tick $ translation e0) (translation e1) (translation e2)
+    | FAA e1 e2       => FAA (Tick $ translation e1) (translation e2)
+    | Tick e          => Tick $ Tick (translation e)
     end %E
   with translationV (v : val) : val :=
     match v with
@@ -84,20 +78,18 @@ Section Translation.
     end.
 
   Definition translationS (σ : state) : state :=
-    translationV <$> σ.
-
-  Let tickCtx : ectx_item := AppRCtx tick.
+    state_upd_heap (fmap translationV) σ.
 
   Definition translationKi (Ki : ectx_item) : ectx_item :=
     match Ki with
     | AppLCtx v2      => AppLCtx (translationV v2)
-    | AppRCtx e1      => AppRCtx (tick $ translation e1)
+    | AppRCtx e1      => AppRCtx (Tick $ translation e1)
     | UnOpCtx op      => UnOpCtx op
     | BinOpLCtx op v2 => BinOpLCtx op (translationV v2)
-    | BinOpRCtx op e1 => BinOpRCtx op (tick $ translation e1)
+    | BinOpRCtx op e1 => BinOpRCtx op (Tick $ translation e1)
     | IfCtx e1 e2     => IfCtx (translation e1) (translation e2)
     | PairLCtx v2     => PairLCtx (translationV v2)
-    | PairRCtx e1     => PairRCtx (tick $ translation e1)
+    | PairRCtx e1     => PairRCtx (Tick $ translation e1)
     | FstCtx          => FstCtx
     | SndCtx          => SndCtx
     | InjLCtx         => InjLCtx
@@ -109,17 +101,18 @@ Section Translation.
     | AllocCtx        => AllocCtx
     | LoadCtx         => LoadCtx
     | StoreLCtx v2    => StoreLCtx (translationV v2)
-    | StoreRCtx e1    => StoreRCtx (tick $ translation e1)
+    | StoreRCtx e1    => StoreRCtx (Tick $ translation e1)
     | CasLCtx v0 v1   => CasLCtx (translationV v0) (translationV v1)
-    | CasMCtx e1 v1   => CasMCtx (tick $ translation e1) (translationV v1)
-    | CasRCtx e1 e2   => CasRCtx (tick $ translation e1) (translation e2)
+    | CasMCtx e1 v1   => CasMCtx (Tick $ translation e1) (translationV v1)
+    | CasRCtx e1 e2   => CasRCtx (Tick $ translation e1) (translation e2)
     | FaaLCtx v2      => FaaLCtx (translationV v2)
-    | FaaRCtx e1      => FaaRCtx (tick $ translation e1)
+    | FaaRCtx e1      => FaaRCtx (Tick $ translation e1)
+    | TickCtx         => TickCtx
     end.
 
   Definition translationKi_aux (Ki : ectx_item) : ectx _ :=
     if ectx_item_is_active Ki then
-      [ tickCtx ; translationKi Ki ]
+      [ TickCtx ; translationKi Ki ]
     else
       [ translationKi Ki ].
 
@@ -171,7 +164,7 @@ Section Translation.
 
   Lemma translation_fill_item_active (ki : ectx_item) v :
     ectx_item_is_active ki →
-    translation (fill_item ki v) = fill_item (translationKi ki) (tick (translationV v)).
+    translation (fill_item ki v) = fill_item (translationKi ki) (Tick (translationV v)).
   Proof.
     rewrite translation_fill_item.
     unfold translationKi_aux ; destruct (ectx_item_is_active ki) ; last contradiction.
@@ -194,55 +187,58 @@ Section Translation.
   Qed.
 
   Lemma lookup_translationS_None σ l :
-    σ !! l = None →
-    translationS σ !! l = None.
+    σ.(heap) !! l = None →
+    (translationS σ).(heap) !! l = None.
   Proof.
     intros H. by rewrite lookup_fmap H.
   Qed.
 
   Lemma lookup_translationS_Some σ l v :
-    σ !! l = Some v →
-    translationS σ !! l = Some (translationV v).
+    σ.(heap) !! l = Some v →
+    (translationS σ).(heap) !! l = Some (translationV v).
   Proof.
     intros H. by rewrite lookup_fmap H.
   Qed.
 
   Lemma lookup_translationS_is_Some σ l :
-    is_Some (σ !! l) →
-    is_Some (translationS σ !! l).
+    is_Some (σ.(heap) !! l) →
+    is_Some ((translationS σ).(heap) !! l).
   Proof.
     destruct 1. eauto using lookup_translationS_Some.
   Qed.
 
   Lemma lookup_translationS_None_inv σ l :
-    translationS σ !! l = None →
-    σ !! l = None.
+    (translationS σ).(heap) !! l = None →
+    σ.(heap) !! l = None.
   Proof.
     unfold translationS ; rewrite lookup_fmap.
-    destruct (σ !! l) eqn:E ; rewrite E ; first discriminate.
+    destruct σ as [h ?].
+    destruct (h !! l) eqn:E ; rewrite E ; first discriminate.
     done.
   Qed.
 
   Lemma lookup_translationS_Some_inv σ l v' :
-    translationS σ !! l = Some v' →
-    ∃ v,  σ !! l = Some v  ∧  v' = translationV v.
+    (translationS σ).(heap) !! l = Some v' →
+    ∃ v,  σ.(heap) !! l = Some v  ∧  v' = translationV v.
   Proof.
     rewrite lookup_fmap.
-    destruct (σ !! l) eqn:E ; rewrite E ; last discriminate.
+    destruct σ as [h ?].
+    destruct (h !! l) eqn:E ; rewrite E ; last discriminate.
     intros ? % Some_inj ; eauto.
   Qed.
 
   Lemma lookup_translationS_is_Some_inv σ l :
-    is_Some (translationS σ !! l) →
-    is_Some (σ !! l).
+    is_Some ((translationS σ).(heap) !! l) →
+    is_Some (σ.(heap) !! l).
   Proof.
     intros [_ (? & ? & _) % lookup_translationS_Some_inv]. eauto.
   Qed.
 
   Lemma translationS_insert l v σ :
-    translationS (<[l := v]> σ) = <[l := translationV v]> (translationS σ).
+    translationS (state_upd_heap <[l := v]> σ) = state_upd_heap <[l := translationV v]> (translationS σ).
   Proof.
-    apply fmap_insert.
+    destruct σ. simpl.
+    rewrite -fmap_insert //.
   Qed.
 
   Lemma un_op_eval_translation op v v' :
@@ -382,31 +378,31 @@ Notation "« t »" := (translation <$> t%E) (only printing).
    non-predictible. *)
 
 Notation "'tickrec:' f x y .. z := e" :=
-  (tick (Rec f%bind x%bind (tick (Lam y%bind .. (tick (Lam z%bind e%E)) ..))))
+  (Tick (Rec f%bind x%bind (Tick (Lam y%bind .. (Tick (Lam z%bind e%E)) ..))))
   (at level 200, f, x, y, z at level 1, e at level 200,
    format "'[' 'tickrec:'  f  x  y  ..  z  :=  '/  ' e ']'") : expr_scope.
 
-Notation "tickλ: x , e" := (tick (Lam x%bind e%E))
+Notation "tickλ: x , e" := (Tick (Lam x%bind e%E))
   (at level 200, x at level 1, e at level 200,
    format "'[' 'tickλ:'  x ,  '/  ' e ']'") : expr_scope.
 Notation "tickλ: x y .. z , e" :=
-  (tick (Lam x%bind (tick (Lam y%bind .. (tick (Lam z%bind e%E)) ..))))
+  (Tick (Lam x%bind (Tick (Lam y%bind .. (Tick (Lam z%bind e%E)) ..))))
   (at level 200, x, y, z at level 1, e at level 200,
    format "'[' 'tickλ:'  x  y  ..  z ,  '/  ' e ']'") : expr_scope.
 
 Notation "'lettick:' x := e1 'in' e2" :=
-  ((tick (App (Val tick) (Lam x%bind e2%E))) e1%E)
+  ((Tick (App (Val Tick) (Lam x%bind e2%E))) e1%E)
   (at level 200, x at level 1, e1, e2 at level 200,
    format "'[' 'lettick:'  x  :=  '[' e1 ']'  'in'  '/' e2 ']'") : expr_scope.
 
 Notation "e1 ;tick; e2" :=
-  ((tick (App (Val tick) (Lam BAnon e2%E))) e1%E)
+  ((Tick (App (Val Tick) (Lam BAnon e2%E))) e1%E)
   (at level 100, e2 at level 200,
    format "'[' '[hv' '[' e1 ']'  ;tick;  ']' '/' e2 ']'") : expr_scope.
 
 Notation "'tickmatch:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
-  (Case (App (Val tick) e0) (App (Val tick_case_branch) (λ: <>, App (Val tick) (λ: x1, e1))%E)
-                            (App (Val tick_case_branch) (λ: <>, App (Val tick) (λ: x2, e2))%E))
+  (Case (App (Val Tick) e0) (App (Val tick_case_branch) (λ: <>, App (Val Tick) (λ: x1, e1))%E)
+                            (App (Val tick_case_branch) (λ: <>, App (Val Tick) (λ: x2, e2))%E))
   (e0, x1, e1, x2, e2 at level 200,
    format "'[hv' 'tickmatch:'  e0  'with'  '/  ' '[' 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : expr_scope.
 
@@ -414,7 +410,7 @@ Notation "'tickmatch:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
   Typeclass instance for the proofmode
  *)
 
-Global Instance AsRecV_translationV `{Tick} v f x e :
+Global Instance AsRecV_translationV v f x e :
   AsRecV v f x e →
   AsRecV « v » f x « e ».
 Proof. by intros ->. Qed.
@@ -437,31 +433,32 @@ Section InvTranslation.
     match e with
     (* Concurrency -- This pattern has to appear before the pattern of
       App, since it conflicts with it. *)
-    | App _tick (Fork e)         => Fork (invtranslation e)
+    | Tick (Fork e)         => Fork (invtranslation e)
     (* Base lambda calculus *)
     | Var _                      => e
-    | App _tick (Rec f x e)      => Rec f x (invtranslation e)
-    | App (App tick e1) e2       => (invtranslation e1) (invtranslation e2)
+    | Tick (Rec f x e)      => Rec f x (invtranslation e)
+    | App (Tick e1) e2       => (invtranslation e1) (invtranslation e2)
     | Val v                      => Val (invtranslationV v)
     (* Base types and their operations *)
-    | UnOp op (App tick e)       => UnOp op (invtranslation e)
-    | BinOp op (App tick e1) e2  => BinOp op (invtranslation e1) (invtranslation e2)
-    | If (App tick e0) e1 e2     => If (invtranslation e0) (invtranslation e1) (invtranslation e2)
+    | UnOp op (Tick e)       => UnOp op (invtranslation e)
+    | BinOp op (Tick e1) e2  => BinOp op (invtranslation e1) (invtranslation e2)
+    | If (Tick e0) e1 e2     => If (invtranslation e0) (invtranslation e1) (invtranslation e2)
     (* Products *)
-    | Pair (App tick e1) e2      => Pair (invtranslation e1) (invtranslation e2)
-    | Fst (App tick e)           => Fst (invtranslation e)
-    | Snd (App tick e)           => Snd (invtranslation e)
+    | Pair (Tick e1) e2      => Pair (invtranslation e1) (invtranslation e2)
+    | Fst (Tick e)           => Fst (invtranslation e)
+    | Snd (Tick e)           => Snd (invtranslation e)
     (* Sums *)
-    | InjL (App tick e)          => InjL (invtranslation e)
-    | InjR (App tick e)          => InjR (invtranslation e)
-    | Case (App tick e0) (App tickaux1 (Rec BAnon BAnon e1)) (App tickaux2 (Rec BAnon BAnon e2)) =>
+    | InjL (Tick e)          => InjL (invtranslation e)
+    | InjR (Tick e)          => InjR (invtranslation e)
+    | Case (Tick e0) (App tickaux1 (Rec BAnon BAnon e1)) (App tickaux2 (Rec BAnon BAnon e2)) =>
         Case (invtranslation e0) (invtranslation e1) (invtranslation e2)
     (* Heap *)
-    | Alloc (App tick e)         => Alloc (invtranslation e)
-    | Load (App tick e)          => Load (invtranslation e)
-    | Store (App tick e1) e2     => Store (invtranslation e1) (invtranslation e2)
-    | CAS (App tick e0) e1 e2    => CAS (invtranslation e0) (invtranslation e1) (invtranslation e2)
-    | FAA (App tick e1) e2       => FAA (invtranslation e1) (invtranslation e2)
+    | Alloc (Tick e)         => Alloc (invtranslation e)
+    | Load (Tick e)          => Load (invtranslation e)
+    | Store (Tick e1) e2     => Store (invtranslation e1) (invtranslation e2)
+    | CAS (Tick e0) e1 e2    => CAS (invtranslation e0) (invtranslation e1) (invtranslation e2)
+    | FAA (Tick e1) e2       => FAA (invtranslation e1) (invtranslation e2)
+    | Tick (Tick e)          => Tick (invtranslation e)
     | _ => #42
     end %E
   with invtranslationV v :=
@@ -473,23 +470,16 @@ Section InvTranslation.
     | InjRV v       => InjRV (invtranslationV v)
     end.
 
-  Lemma invtranslation_translation {Htick : Tick} e :
+  Lemma invtranslation_translation e :
     invtranslation (translation e) = e
-  with invtranslationV_translationV {Htick : Tick} v :
+  with invtranslationV_translationV v :
     invtranslationV (translationV v) = v.
   Proof.
-    - specialize (invtranslation_translation Htick).
-      specialize (invtranslationV_translationV Htick).
-      destruct e;
-        try by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
-      (* Handle the App case by hand. *)
-      { simpl. rewrite !invtranslation_translation. case_match=>//.
-          by destruct e2. by destruct e2. }
+    - destruct e;
+        by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
 
-    - specialize (invtranslation_translation Htick).
-      specialize (invtranslationV_translationV Htick).
-      destruct v;
-        try by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
+    - destruct v;
+        by rewrite /= ?invtranslation_translation ?invtranslationV_translationV.
   Qed.
 End InvTranslation.
 
@@ -510,7 +500,7 @@ Section ClosureFree.
     | InjRV v1 => closure_free v1
     end.
 
-  Lemma closure_free_is_translationV_invariant {Htick : Tick} v :
+  Lemma closure_free_is_translationV_invariant v :
     closure_free v →
     translationV v = v.
   Proof.
@@ -548,7 +538,7 @@ Section ClosureFree.
     - rewrite IH1 ; naive_solver.
   Qed.
 
-  Lemma closure_free_translationV {Htick : Tick} v :
+  Lemma closure_free_translationV v :
     closure_free v →
     closure_free (translationV v).
   Proof.
@@ -562,7 +552,7 @@ Section ClosureFree.
     intros Hv. by rewrite (closure_free_is_invtranslationV_invariant v Hv).
   Qed.
 
-  Lemma closure_free_translationV_iff  {Htick : Tick} v :
+  Lemma closure_free_translationV_iff  v :
     closure_free v  ↔  closure_free (translationV v).
   Proof.
     split.
@@ -587,13 +577,13 @@ End ClosureFree.
 
 (* wp_tick is a stub to be redefined for each particular definition of
    the tick function. *)
-Ltac wp_tick := idtac.
+(* Ltac wp_tick := idtac. *)
 
 Ltac wp_tick_closure := wp_closure; wp_tick.
 Ltac wp_tick_pair := wp_tick; wp_pair.
 Ltac wp_tick_inj := wp_tick; wp_inj.
 
-Ltac wp_tick_rec := wp_tick ; wp_rec; simpl_trans.
+Ltac wp_tick_rec := iEval (simpl translation); wp_tick ; wp_rec; simpl_trans.
 Ltac wp_tick_lam := wp_tick_rec.
 Ltac wp_tick_let := wp_tick_closure; wp_tick_lam.
 Ltac wp_tick_seq := wp_tick_let.

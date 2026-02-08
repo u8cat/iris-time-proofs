@@ -241,6 +241,22 @@ Proof.
   rewrite into_laterN_env_sound -later_sep envs_simple_replace_sound //; simpl.
   rewrite right_id. by apply later_mono, sep_mono_r, wand_mono.
 Qed.
+
+Lemma tac_wp_tick Δ Δ' Δ'' s E i n K v Φ :
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  envs_lookup i Δ' = Some (false, TC (S n)) →
+  envs_simple_replace i false (Esnoc Enil i (TC n)) Δ' = Some Δ'' →
+  envs_entails Δ'' (WP fill K (Val v) @ s; E {{ Φ }}) →
+  envs_entails Δ (WP fill K (Tick (Val v)) @ s; E {{ Φ }}).
+Proof.
+  rewrite envs_entails_unseal => ??? Hentails''.
+  rewrite -wp_bind.
+  eapply wand_apply; first by iIntros "HTC1 HΦ"; iApply (wp_tick with "HTC1 HΦ").
+  rewrite into_laterN_env_sound -later_sep /=. apply later_mono.
+  rewrite envs_simple_replace_sound // ; simpl.
+  rewrite TC_succ -sep_assoc. apply sep_mono_r.
+  iIntros "[HTC Hwand] _". iApply Hentails''. iApply "Hwand" ; by iFrame.
+Qed.
 End heap.
 
 Tactic Notation "wp_apply" open_constr(lem) :=
@@ -404,4 +420,58 @@ Tactic Notation "wp_faa" :=
     |pm_reflexivity
     |wp_expr_simpl; try wp_value_head]
   | _ => fail "wp_faa: not a 'wp'"
+  end.
+
+Tactic Notation "wp_tick" :=
+  let solve_TC _ :=
+    iAssumptionCore || fail "wp_tick: cannot find TC (S _)" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr false e ltac:(fun K e' => eapply (tac_wp_tick _ _ _ _ _ _ _ K))
+      |fail 1 "wp_tick: cannot find 'Tick ?v' in" e];
+    [tc_solve
+    |solve_TC ()
+    |pm_reflexivity
+    |wp_expr_simpl; try wp_value_head]
+  | _ => fail "wp_tick: not a 'wp'"
+  end.
+
+(* Helper tactics to split amounts of time credits *)
+
+(* [divide H] destructs the Iris hypothesis [H] and names the two
+   hypotheses thus obtained [H] and [H']. This is typically useful
+   when [H] is a hypothesis of the form [TC (n1 + n2)]. *)
+
+Ltac divide H :=
+  let ipat := eval cbv in ( "(" ++ H ++ "&" ++ H ++ "')")%string in
+  iDestruct H as ipat.
+
+(* [pay_out_of H] destructs the Iris hypothesis [H], which must be
+   of the form [TC k], into two hypotheses [TC (k - ?cost)] and
+   [TC ?cost], where [?cost] is a fresh metavariable. The proof
+   obligation [?cost <= k] is scheduled last, so it can be proved
+   after [?cost] has been instantiated. *)
+
+Ltac pay_out_of H :=
+  match goal with
+  |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+    let cost := fresh "cost" in
+    evar (cost : nat);
+    let Hcost := fresh "Hcost" in
+    assert (Hcost: (cost ≤ k)%nat); first last; [
+    rewrite [in TC k] (_ : (k = (k - cost) + cost)%nat); [
+    unfold cost; clear Hcost; divide H | lia ]
+    |]
+  end.
+
+(* A low-tech tactic: look for the hypothesis H and split it using
+   the two arguments provided by the user. *)
+
+Ltac divide_credit H k1 k2 :=
+  match goal with
+  |- context[environments.Esnoc _ (INamed H) (TC ?k)] =>
+    rewrite [in TC k] (_ : (k = k1 + k2)%nat); [| lia ];
+    divide H
   end.

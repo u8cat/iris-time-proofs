@@ -21,15 +21,15 @@ theories/heap_lang/lib/assert.v
 theories/Auth_max_nat.v
 theories/Auth_nat.v
 theories/Base.v
-theories/ClockIntegers.v
+# theories/ClockIntegers.v
 theories/Examples.v
 theories/Reduction.v
 theories/Tactics.v
 theories/Simulation.v
 theories/TimeCredits.v
-theories/TimeCreditsAltProofs.v
-theories/TimeReceipts.v
-theories/Combined.v
+# theories/TimeCreditsAltProofs.v
+# theories/TimeReceipts.v
+# theories/Combined.v
 theories/Translation.v
 theories/Untranslate.v
 
