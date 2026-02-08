@@ -21,3 +21,4 @@ builddep/
 *.crashcoqide
 .Makefile.coq.d
 .nia.cache
+.vscode
